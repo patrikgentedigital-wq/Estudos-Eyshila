@@ -1,0 +1,6 @@
+{
+  "name": "Portal de Estudos Enfermagem",
+  "description": "Plataforma completa de estudos para Enfermagem com foco no ENARE e Residências.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

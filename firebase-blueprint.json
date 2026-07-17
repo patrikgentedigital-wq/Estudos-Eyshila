@@ -1,0 +1,27 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile and Study Data",
+      "description": "Stores all user-specific study data, progress, and settings.",
+      "type": "object",
+      "properties": {
+        "profile": { "type": "object", "description": "User profile information" },
+        "modules": { "type": "array", "description": "Study modules and lesson progress" },
+        "flashcards": { "type": "array", "description": "User flashcards" },
+        "attempts": { "type": "array", "description": "Mock exam attempts" },
+        "questionsCount": { "type": "number", "description": "Total questions answered" },
+        "checklist": { "type": "array", "description": "User daily checklist" },
+        "cadernoErros": { "type": "array", "description": "Notebook of incorrect questions" },
+        "roadmap": { "type": "array", "description": "Personalized study roadmap" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "The root document for a user's study environment."
+    }
+  }
+}
