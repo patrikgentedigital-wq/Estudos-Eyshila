@@ -9,7 +9,10 @@ import {
   AlertCircle,
   Trophy,
   RefreshCcw,
-  Sparkles
+  Sparkles,
+  Play,
+  Pause,
+  Layers
 } from "lucide-react";
 import { Flashcard, Language, TranslationDict } from "../types";
 import { OFFICIAL_FLASHCARDS } from "../data/officialFlashcards";
@@ -47,6 +50,19 @@ const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, language, t }) => {
     setCurrentIndex(0);
     setIsFlipped(false);
   }, [filter]);
+
+  if (!currentCard) {
+    return (
+      <div className="space-y-6">
+        <div className="flex border-b border-slate-100 dark:border-slate-800 pb-px space-x-6 text-sm font-semibold">
+          <button onClick={() => setFilter("all")} className={`pb-3 transition-all border-b-2 ${filter === "all" ? "border-sky-500 text-sky-600 dark:text-sky-400" : "border-transparent text-slate-400 hover:text-slate-600"}`}>Todos os Flashcards</button>
+          <button onClick={() => setFilter("official")} className={`pb-3 transition-all border-b-2 ${filter === "official" ? "border-sky-500 text-sky-600 dark:text-sky-400" : "border-transparent text-slate-400 hover:text-slate-600"}`}>Oficiais ENARE</button>
+          <button onClick={() => setFilter("my_cards")} className={`pb-3 transition-all border-b-2 ${filter === "my_cards" ? "border-sky-500 text-sky-600 dark:text-sky-400" : "border-transparent text-slate-400 hover:text-slate-600"}`}>Meus Flashcards (IA)</button>
+        </div>
+        <div className="text-center py-12 text-slate-400">Nenhum flashcard disponível neste filtro.</div>
+      </div>
+    );
+  }
   
   const handleNext = () => {
     if (currentIndex < activeDeck.length - 1) {
