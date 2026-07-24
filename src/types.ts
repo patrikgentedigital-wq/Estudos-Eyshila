@@ -74,6 +74,7 @@ export interface ExamQuestion {
   id: string;
   question: string;
   questionEn?: string;
+  answer?: string;
   options: string[];
   optionsEn?: string[];
   correctIndex: number;

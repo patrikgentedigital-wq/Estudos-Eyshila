@@ -13,6 +13,7 @@ import {
   ChevronRight,
   TrendingUp,
   RotateCcw,
+  AlertCircle,
   X
 } from "lucide-react";
 import { Language, ExamQuestion, ExamAttempt, translations, CadernoErroItem } from "../types";
