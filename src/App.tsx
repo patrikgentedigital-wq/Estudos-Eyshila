@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Menu, X, GraduationCap, Calendar, Bell, Shield } from "lucide-react";
+import { Menu, X, GraduationCap, Calendar, Bell, Shield, LayoutDashboard, BookOpen, Award, Sparkles, Compass } from "lucide-react";
+import Toast, { ToastMessage } from "./components/Toast";
 
 import { Tab, Language, UserProfile, StudyModule, Flashcard, ExamAttempt, translations, RoadmapWeek, RoadmapTask, ChecklistItem, CadernoErroItem } from "./types";
 import { INITIAL_PROFILE, INITIAL_MODULES, INITIAL_FLASHCARDS, INITIAL_ATTEMPTS } from "./data";
@@ -90,6 +91,19 @@ export default function App() {
   const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
   const [cadernoErros, setCadernoErros] = useState<CadernoErroItem[]>([]);
   const [roadmap, setRoadmap] = useState<RoadmapWeek[]>([]);
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  const addToast = (text: string, type: "success" | "error" | "info" = "info") => {
+    const id = "toast-" + Date.now();
+    setToasts(prev => [...prev, { id, text, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 4000);
+  };
+
+  const dismissToast = (id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
 
   // Default Roadmap Data based on PDF
   const DEFAULT_ROADMAP: RoadmapWeek[] = [
@@ -659,11 +673,11 @@ export default function App() {
                 : "📝 Estudante ENARE"}
             </div>
 
-            {/* Notification bell mock */}
+            {/* Notification bell */}
             <button 
               id="btn-header-notifs"
-              onClick={() => alert("Sua caixa de notificações está limpa! ✓")}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors relative"
+              onClick={() => addToast("Sua caixa de notificações está limpa! ✓", "success")}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors relative cursor-pointer"
             >
               <Bell className="h-4.5 w-4.5" />
               <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-sky-500 animate-pulse" />
@@ -673,7 +687,7 @@ export default function App() {
         </header>
 
         {/* MAIN BODY SCROLL CONTAINER */}
-        <main className="flex-1 p-6 sm:p-8 max-w-7xl mx-auto w-full overflow-y-auto">
+        <main className="flex-1 p-4 sm:p-8 max-w-7xl mx-auto w-full overflow-y-auto pb-20 lg:pb-8">
           <React.Suspense fallback={
             <div className="flex flex-col items-center justify-center p-12 space-y-3">
               <div className="w-8 h-8 border-3 border-sky-500 border-t-transparent rounded-full animate-spin" />
@@ -684,13 +698,71 @@ export default function App() {
           </React.Suspense>
         </main>
 
+        {/* MOBILE BOTTOM NAVIGATION BAR */}
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg border-t border-slate-200 dark:border-slate-800 px-2 py-1.5 flex justify-around items-center">
+          <button
+            onClick={() => setActiveTab("dashboard")}
+            className={`flex flex-col items-center p-1.5 rounded-xl text-[10px] font-bold transition-all ${
+              activeTab === "dashboard" ? "text-sky-500 font-extrabold" : "text-slate-400"
+            }`}
+          >
+            <LayoutDashboard className="w-5 h-5 mb-0.5" />
+            <span>Painel</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("modules")}
+            className={`flex flex-col items-center p-1.5 rounded-xl text-[10px] font-bold transition-all ${
+              activeTab === "modules" ? "text-sky-500 font-extrabold" : "text-slate-400"
+            }`}
+          >
+            <BookOpen className="w-5 h-5 mb-0.5" />
+            <span>Módulos</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("ai-study")}
+            className={`flex flex-col items-center p-1.5 rounded-xl text-[10px] font-bold transition-all ${
+              activeTab === "ai-study" ? "text-sky-500 font-extrabold" : "text-slate-400"
+            }`}
+          >
+            <div className="p-1 bg-sky-500 text-white rounded-lg shadow-sm">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <span className="mt-0.5">IA</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("exams")}
+            className={`flex flex-col items-center p-1.5 rounded-xl text-[10px] font-bold transition-all ${
+              activeTab === "exams" ? "text-sky-500 font-extrabold" : "text-slate-400"
+            }`}
+          >
+            <Award className="w-5 h-5 mb-0.5" />
+            <span>Simulados</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("roadmap")}
+            className={`flex flex-col items-center p-1.5 rounded-xl text-[10px] font-bold transition-all ${
+              activeTab === "roadmap" ? "text-sky-500 font-extrabold" : "text-slate-400"
+            }`}
+          >
+            <Compass className="w-5 h-5 mb-0.5" />
+            <span>Roteiro</span>
+          </button>
+        </div>
+
         {/* MINI DESKTOP FOOTER */}
-        <footer className="py-4 px-8 border-t border-slate-100 dark:border-slate-900/60 text-center text-[10px] text-slate-400 dark:text-slate-600 font-mono">
+        <footer className="hidden lg:block py-4 px-8 border-t border-slate-100 dark:border-slate-900/60 text-center text-[10px] text-slate-400 dark:text-slate-600 font-mono">
           <span>Portal de Estudos • Foco Enfermagem</span>
         </footer>
 
       </div>
 
+      {/* Toast Notifications */}
+      <Toast toasts={toasts} onDismiss={dismissToast} />
+
     </div>
   );
-}
+}
