@@ -94,30 +94,52 @@ export default function Dashboard({
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Banner Principal com Gradiente e Widget de Ofensiva */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-sky-900 via-slate-900 to-blue-950 p-8 text-white shadow-xl border border-sky-700/30">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-sky-500/10 rounded-full blur-3xl" />
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="max-w-2xl space-y-2">
-            <div className="flex items-center space-x-2">
-              <span className="bg-sky-500/20 text-sky-300 border border-sky-500/30 px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase inline-flex items-center space-x-1.5 backdrop-blur-xs">
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-sky-900 via-slate-900 to-indigo-950 p-6 sm:p-8 text-white shadow-2xl border border-sky-500/20">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-sky-500/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-purple-500/10 rounded-full blur-2xl pointer-events-none" />
+        
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="max-w-2xl space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="bg-sky-500/20 text-sky-300 border border-sky-500/30 px-3 py-1 rounded-full text-[11px] font-extrabold tracking-wider uppercase inline-flex items-center space-x-1.5 backdrop-blur-md">
                 <Activity className="h-3.5 w-3.5 text-sky-400 animate-pulse" />
-                <span>Preparação ENARE: Ativa</span>
+                <span>Foco ENARE 2026/2027</span>
+              </span>
+              <span className="bg-purple-500/20 text-purple-300 border border-purple-500/30 px-3 py-1 rounded-full text-[11px] font-extrabold tracking-wider uppercase inline-flex items-center space-x-1.5 backdrop-blur-md">
+                <Clock className="h-3.5 w-3.5 text-purple-400" />
+                <span>Reta Final de Estudos</span>
               </span>
             </div>
-            <h2 className="text-3xl sm:text-4xl font-display font-black tracking-tight">
-              {t.welcomeBack} {profile.firstName}!
+            <h2 className="text-3xl sm:text-4xl font-display font-black tracking-tight text-white">
+              {t.welcomeBack}, <span className="bg-gradient-to-r from-sky-300 via-teal-200 to-white bg-clip-text text-transparent">{profile.firstName}!</span>
             </h2>
-            <p className="text-slate-300 text-sm font-medium leading-relaxed">{t.portalSubtitle}</p>
+            <p className="text-slate-300 text-xs sm:text-sm font-medium leading-relaxed max-w-xl">
+              {t.portalSubtitle} Continue mantendo o ritmo diário para garantir sua vaga na residência!
+            </p>
           </div>
 
-          {/* Streak Indicator Widget */}
-          <div className="bg-white/10 dark:bg-slate-800/60 border border-white/15 p-4 rounded-2xl backdrop-blur-md flex items-center space-x-4 shrink-0 shadow-lg">
-            <div className="p-3 bg-amber-500/20 text-amber-400 rounded-xl border border-amber-500/30">
-              <Flame className="h-7 w-7 animate-pulse" />
+          {/* Widgets de Status (Streak + Countdown) */}
+          <div className="flex flex-wrap items-center gap-4 shrink-0">
+            {/* Streak Widget */}
+            <div className="bg-white/10 dark:bg-slate-900/70 border border-white/20 p-4 rounded-2xl backdrop-blur-md flex items-center space-x-3.5 shadow-xl neon-border-flame">
+              <div className="p-3 bg-gradient-to-br from-amber-500 to-rose-500 text-white rounded-xl shadow-md">
+                <Flame className="h-6 w-6 animate-bounce" />
+              </div>
+              <div>
+                <span className="text-[10px] font-extrabold text-amber-300 uppercase tracking-widest block font-mono">Ofensiva Viva</span>
+                <p className="text-lg font-black text-white font-mono">7 Dias 🔥</p>
+              </div>
             </div>
-            <div>
-              <span className="text-[10px] font-bold text-amber-300 uppercase tracking-widest block font-mono">Ofensiva de Estudos</span>
-              <p className="text-xl font-black text-white">7 Dias Seguidos 🔥</p>
+
+            {/* Target Countdown Widget */}
+            <div className="bg-white/10 dark:bg-slate-900/70 border border-white/20 p-4 rounded-2xl backdrop-blur-md flex items-center space-x-3.5 shadow-xl neon-border-sky">
+              <div className="p-3 bg-gradient-to-br from-sky-500 to-indigo-600 text-white rounded-xl shadow-md">
+                <Target className="h-6 w-6" />
+              </div>
+              <div>
+                <span className="text-[10px] font-extrabold text-sky-300 uppercase tracking-widest block font-mono">Prova ENARE</span>
+                <p className="text-lg font-black text-white font-mono">Outubrar 2026</p>
+              </div>
             </div>
           </div>
         </div>
@@ -126,48 +148,48 @@ export default function Dashboard({
       {/* Grid de Métricas Principais */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Card Aulas */}
-        <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 shadow-sm border border-slate-100 dark:border-slate-800/80 flex flex-col justify-between hover-glow">
+        <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 shadow-xs border border-slate-100 dark:border-slate-800 flex flex-col justify-between hover-glow">
           <div className="flex justify-between items-start">
-            <div className="bg-sky-500/10 p-3 rounded-xl text-sky-600 dark:text-sky-400"><BookOpen className="h-6 w-6" /></div>
-            <span className="text-xs font-bold text-sky-600 dark:text-sky-400 bg-sky-500/10 px-2.5 py-1 rounded-full">{percentLessons}% Concluído</span>
+            <div className="bg-sky-500/10 p-3 rounded-2xl text-sky-500"><BookOpen className="h-6 w-6" /></div>
+            <span className="text-xs font-bold text-sky-600 dark:text-sky-400 bg-sky-500/10 px-3 py-1 rounded-full border border-sky-500/20">{percentLessons}% Concluído</span>
           </div>
-          <div className="mt-4">
+          <div className="mt-5">
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono">Aulas Concluídas</p>
-            <p className="text-3xl font-black text-slate-900 dark:text-white mt-0.5">{completedLessons} <span className="text-lg font-medium text-slate-400">/ {totalLessons}</span></p>
+            <p className="text-3xl font-black text-slate-900 dark:text-white mt-1 font-mono">{completedLessons} <span className="text-base font-medium text-slate-400">/ {totalLessons}</span></p>
           </div>
-          <div className="mt-4 w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
-            <div className="bg-gradient-to-r from-sky-500 to-blue-600 h-2 rounded-full transition-all duration-500" style={{ width: `${percentLessons}%` }} />
+          <div className="mt-4 w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2.5 overflow-hidden">
+            <div className="bg-gradient-to-r from-sky-500 to-teal-400 h-full rounded-full transition-all duration-500" style={{ width: `${percentLessons}%` }} />
           </div>
         </div>
 
         {/* Card Meta Semanal */}
-        <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 shadow-sm border border-slate-100 dark:border-slate-800/80 flex flex-col justify-between hover-glow">
+        <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 shadow-xs border border-slate-100 dark:border-slate-800 flex flex-col justify-between hover-glow">
           <div className="flex justify-between items-start">
-            <div className="bg-purple-500/10 p-3 rounded-xl text-purple-600 dark:text-purple-400"><Target className="h-6 w-6" /></div>
-            <span className="text-xs font-bold text-purple-600 dark:text-purple-400 bg-purple-500/10 px-2.5 py-1 rounded-full">{weeklyQuestionsPercent}% Meta</span>
+            <div className="bg-purple-500/10 p-3 rounded-2xl text-purple-500"><Target className="h-6 w-6" /></div>
+            <span className="text-xs font-bold text-purple-600 dark:text-purple-400 bg-purple-500/10 px-3 py-1 rounded-full border border-purple-500/20">{weeklyQuestionsPercent}% Meta</span>
           </div>
-          <div className="mt-4">
+          <div className="mt-5">
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono">Meta Semanal de Questões</p>
-            <p className="text-3xl font-black text-slate-900 dark:text-white mt-0.5">{weeklyQuestionsDone} <span className="text-lg font-medium text-slate-400">/ 300 Q</span></p>
+            <p className="text-3xl font-black text-slate-900 dark:text-white mt-1 font-mono">{weeklyQuestionsDone} <span className="text-base font-medium text-slate-400">/ 300 Q</span></p>
           </div>
-          <div className="mt-4 w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
-            <div className="bg-gradient-to-r from-purple-500 to-indigo-600 h-2 rounded-full transition-all duration-500" style={{ width: `${weeklyQuestionsPercent}%` }} />
+          <div className="mt-4 w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2.5 overflow-hidden">
+            <div className="bg-gradient-to-r from-purple-500 to-indigo-500 h-full rounded-full transition-all duration-500" style={{ width: `${weeklyQuestionsPercent}%` }} />
           </div>
         </div>
 
         {/* Card Desempenho Simulados */}
-        <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 shadow-sm border border-slate-100 dark:border-slate-800/80 flex flex-col justify-between hover-glow">
+        <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 shadow-xs border border-slate-100 dark:border-slate-800 flex flex-col justify-between hover-glow">
           <div className="flex justify-between items-start">
-            <div className="bg-amber-500/10 p-3 rounded-xl text-amber-600 dark:text-amber-400"><Award className="h-6 w-6" /></div>
-            <span className="text-xs font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full">{attempts.length} Simulados Feitos</span>
+            <div className="bg-amber-500/10 p-3 rounded-2xl text-amber-500"><Award className="h-6 w-6" /></div>
+            <span className="text-xs font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20">{attempts.length} Simulados</span>
           </div>
-          <div className="mt-4">
+          <div className="mt-5">
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono">Média Geral nos Simulados</p>
-            <p className="text-3xl font-black text-slate-900 dark:text-white mt-0.5">
+            <p className="text-3xl font-black text-slate-900 dark:text-white mt-1 font-mono">
               {attempts.length > 0 ? Math.round(attempts.reduce((a, b) => a + b.score, 0) / attempts.length) : 0}%
             </p>
           </div>
-          <p className="text-[10px] text-emerald-500 font-semibold mt-4 uppercase font-mono flex items-center space-x-1">
+          <p className="text-[10px] text-emerald-500 font-bold mt-4 uppercase font-mono flex items-center space-x-1">
             <ArrowUpRight className="h-3.5 w-3.5" />
             <span>Desempenho acima da média nacional</span>
           </p>

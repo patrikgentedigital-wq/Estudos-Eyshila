@@ -97,6 +97,23 @@ export default function StudyModules({
 
   const t = translations[language];
 
+  const getCategoryBadgeStyle = (category: string) => {
+    const cat = category.toLowerCase();
+    if (cat.includes("sus") || cat.includes("legislação")) {
+      return "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20";
+    }
+    if (cat.includes("ética") || cat.includes("gestão")) {
+      return "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20";
+    }
+    if (cat.includes("pediatria") || cat.includes("materno")) {
+      return "bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20";
+    }
+    if (cat.includes("uti") || cat.includes("emergência") || cat.includes("urgência")) {
+      return "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20";
+    }
+    return "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20";
+  };
+
   const getModuleIcon = (iconName: string) => {
     switch (iconName) {
       case "Heart": return <Heart className="h-5 w-5 text-rose-500" />;
@@ -142,30 +159,39 @@ export default function StudyModules({
           </span>
           <input
             type="text"
-            placeholder={t.searchPlaceholder}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-sm outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/10"
+            placeholder="Buscar por módulo ou aula..."
+            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl pl-10 pr-4 py-2.5 text-xs outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/10"
           />
         </div>
       </div>
 
       <div className="flex border-b border-slate-100 dark:border-slate-800 pb-px space-x-6 text-sm font-semibold">
-        {[
-          { id: "all", label: "Todos os Módulos" },
-          { id: "official", label: "Módulos Oficiais (ENARE)" },
-          { id: "my_modules", label: "Meus Módulos (IA)" },
-          { id: "in-progress", label: "Em Progresso" },
-          { id: "completed", label: "Concluídos" }
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setFilter(tab.id as any)}
-            className={`pb-3 transition-all border-b-2 ${filter === tab.id ? "border-sky-500 text-sky-600 dark:text-sky-400" : "border-transparent text-slate-400 hover:text-slate-600"}`}
-          >
-            {tab.label}
-          </button>
-        ))}
+        <button
+          onClick={() => setFilter("all")}
+          className={`pb-3 transition-all border-b-2 ${filter === "all" ? "border-sky-500 text-sky-600 dark:text-sky-400 font-bold" : "border-transparent text-slate-400 hover:text-slate-600"}`}
+        >
+          Todos ({allAvailableModules.length})
+        </button>
+        <button
+          onClick={() => setFilter("in-progress")}
+          className={`pb-3 transition-all border-b-2 ${filter === "in-progress" ? "border-sky-500 text-sky-600 dark:text-sky-400 font-bold" : "border-transparent text-slate-400 hover:text-slate-600"}`}
+        >
+          Em Progresso
+        </button>
+        <button
+          onClick={() => setFilter("completed")}
+          className={`pb-3 transition-all border-b-2 ${filter === "completed" ? "border-sky-500 text-sky-600 dark:text-sky-400 font-bold" : "border-transparent text-slate-400 hover:text-slate-600"}`}
+        >
+          Concluídos
+        </button>
+        <button
+          onClick={() => setFilter("official")}
+          className={`pb-3 transition-all border-b-2 ${filter === "official" ? "border-sky-500 text-sky-600 dark:text-sky-400 font-bold" : "border-transparent text-slate-400 hover:text-slate-600"}`}
+        >
+          Grade Oficial
+        </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
@@ -183,22 +209,26 @@ export default function StudyModules({
               const percent = Math.round((completedCount / totalCount) * 100);
 
               return (
-                <div key={m.id} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-xs overflow-hidden">
+                <div key={m.id} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-xs overflow-hidden transition-all hover:border-sky-500/30">
                   <div 
                     onClick={() => setExpandedModuleId(isExpanded ? null : m.id)}
-                    className="p-5 flex items-center justify-between cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/40"
+                    className="p-5 flex items-center justify-between cursor-pointer hover:bg-slate-50/50 dark:hover:bg-slate-800/40"
                   >
                     <div className="flex items-center space-x-4">
-                      <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl">{getModuleIcon(m.iconName)}</div>
+                      <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl shrink-0">{getModuleIcon(m.iconName)}</div>
                       <div>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{m.category}</span>
-                        <h3 className="font-bold text-base text-slate-800 dark:text-slate-100">{m.title}</h3>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wider ${getCategoryBadgeStyle(m.category)}`}>
+                          {m.category}
+                        </span>
+                        <h3 className="font-bold text-base text-slate-800 dark:text-slate-100 mt-1">{m.title}</h3>
                       </div>
                     </div>
                     <div className="flex items-center space-x-6">
-                      <div className="hidden sm:flex flex-col items-end text-xs">
-                        <span className="font-bold text-slate-700 dark:text-slate-300">{completedCount} / {totalCount} aulas</span>
-                        <span className="text-[10px] text-slate-400">{percent}% concluído</span>
+                      <div className="hidden sm:flex flex-col items-end text-xs space-y-1">
+                        <span className="font-bold text-slate-700 dark:text-slate-300 font-mono">{completedCount} / {totalCount} aulas</span>
+                        <div className="w-20 bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                          <div className="bg-sky-500 h-full rounded-full transition-all duration-300" style={{ width: `${percent}%` }} />
+                        </div>
                       </div>
                       {isExpanded ? <ChevronDown className="h-5 w-5 text-slate-400" /> : <ChevronRight className="h-5 w-5 text-slate-400" />}
                     </div>

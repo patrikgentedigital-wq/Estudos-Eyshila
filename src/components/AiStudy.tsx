@@ -1203,16 +1203,25 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
                         <span>{language === "pt" ? "Baixar PDF" : "Download PDF"}</span>
                       </button>
 
-                      {/* Botões de Áudio TTS */}
+                      {/* Botões de Áudio TTS com Equalizador Visual */}
                       {ttsSupported && (
-                        <div className="flex items-center space-x-1 bg-slate-100 dark:bg-slate-800 rounded-xl px-1.5 py-1">
+                        <div className="flex items-center space-x-2 bg-slate-100 dark:bg-slate-800 rounded-xl px-2.5 py-1 border border-slate-200/60 dark:border-slate-700">
+                          {isSpeaking && (
+                            <div className="flex items-center space-x-0.5 h-3 text-sky-500 mr-1">
+                              <span className="equalizer-bar" />
+                              <span className="equalizer-bar" />
+                              <span className="equalizer-bar" />
+                              <span className="equalizer-bar" />
+                            </div>
+                          )}
                           {!isSpeaking && !isPaused ? (
                             <button
                               onClick={() => speak(studyData.summary)}
-                              className="text-slate-600 dark:text-slate-400 hover:text-sky-500 transition-colors p-1"
+                              className="text-slate-600 dark:text-slate-400 hover:text-sky-500 transition-colors p-1 flex items-center space-x-1"
                               title={language === "pt" ? "Ouvir Resumo" : "Listen Summary"}
                             >
                               <PlayCircle className="h-4 w-4" />
+                              <span className="text-xs font-bold">{language === "pt" ? "Ouvir" : "Listen"}</span>
                             </button>
                           ) : (
                             <>
@@ -1225,7 +1234,7 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
                               </button>
                               <button
                                 onClick={stop}
-                                className="text-red-400 hover:text-red-500 transition-colors p-1"
+                                className="text-rose-500 hover:text-rose-600 transition-colors p-1"
                                 title="Parar"
                               >
                                 <StopCircle className="h-4 w-4" />
