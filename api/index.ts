@@ -3,8 +3,8 @@ import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { z } from "zod";
-import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
+import pdfParse from "pdf-parse";
 
 dotenv.config();
 
@@ -46,37 +46,36 @@ const aiLimiter = rateLimit({
 app.use(express.json({ limit: "20mb" }));
 app.use(express.urlencoded({ limit: "20mb", extended: true }));
 
-// Initialize Gemini client lazily
-let aiClient: GoogleGenAI | null = null;
-function getGeminiClient(): GoogleGenAI {
-  if (!aiClient) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      throw new Error("Chave GEMINI_API_KEY ausente nas variáveis de ambiente.");
-    }
-    aiClient = new GoogleGenAI({
-      apiKey: apiKey,
-      httpOptions: {
-        headers: {
-          "User-Agent": "estudos-eyshila-app",
-        },
-      },
-    });
-  }
-  return aiClient;
-}
+async function callOpenRouter(messages: any[], isJsonMode: boolean = false) {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  const model = process.env.OPENROUTER_MODEL || "nvidia/nemotron-3-nano-30b-a3b:free";
 
-async function retryWithBackoff<T>(fn: () => Promise<T>, retries = 3, delay = 2000): Promise<T> {
-  try {
-    return await fn();
-  } catch (error: any) {
-    if (error?.status === 429 && retries > 0) {
-      console.warn(`Quota exceeded for Gemini API, retrying in ${delay}ms... (retries left: ${retries})`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-      return retryWithBackoff(fn, retries - 1, delay * 2);
-    }
-    throw error;
+  if (!apiKey) {
+    throw new Error("Chave OPENROUTER_API_KEY ausente nas variáveis de ambiente.");
   }
+
+  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+      "HTTP-Referer": process.env.APP_URL || "http://localhost:3000", 
+      "X-Title": "Você Aprovado - Estudos", 
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: model,
+      messages: messages,
+      response_format: isJsonMode ? { type: "json_object" } : undefined
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`OpenRouter API error: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  return data.choices[0].message.content;
 }
 
 // Zod Input Schemas
@@ -102,80 +101,64 @@ app.post("/api/generate-study", aiLimiter, async (req, res) => {
     }
 
     const { fileData, mimeType, text } = validation.data;
+    let extractedText = text || "";
 
+    // Parse PDF if provided
     if (fileData) {
       const decodedSizeBytes = Buffer.byteLength(fileData, "base64");
       if (decodedSizeBytes > 15 * 1024 * 1024) {
         return res.status(400).json({ error: "O arquivo excede o tamanho máximo permitido (15MB)." });
       }
-    }
 
-    const ai = getGeminiClient();
-    let contents: any[] = [];
-
-    if (fileData) {
-      contents = [
-        {
-          inlineData: {
-            data: fileData,
-            mimeType: mimeType || "application/pdf"
-          }
-        },
-        "Gere um resumo de estudos completo, exatamente 5 questões de múltipla escolha com explicações, e exatamente 6 flashcards (perguntas/respostas curtas de active recall) baseados neste documento anexado."
-      ];
-    } else {
-      contents = [
-        `Por favor, gere um resumo de estudos completo, exatamente 5 questões de múltipla escolha com explicações, e exatamente 6 flashcards (perguntas/respostas curtas de active recall) baseados no seguinte texto:\n\n${text}`
-      ];
-    }
-
-    const response = await retryWithBackoff(() => ai.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: contents,
-      config: {
-        systemInstruction: "Você é o Mentor Inteligente do 'Você Aprovado', um assistente acadêmico especialista em elaborar materiais e questões didáticas de alto nível para concurseiros e candidatos à residência em Enfermagem (ENARE). Escreva tudo em Português.",
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            summary: { type: Type.STRING },
-            questions: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  question: { type: Type.STRING },
-                  options: { type: Type.ARRAY, items: { type: Type.STRING } },
-                  answer: { type: Type.STRING },
-                  explanation: { type: Type.STRING }
-                },
-                required: ["question", "options", "answer", "explanation"]
-              }
-            },
-            flashcards: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  front: { type: Type.STRING },
-                  back: { type: Type.STRING }
-                },
-                required: ["front", "back"]
-              }
-            }
-          },
-          required: ["summary", "questions", "flashcards"]
-        }
+      if (mimeType === "application/pdf") {
+        const buffer = Buffer.from(fileData, "base64");
+        const pdfData = await pdfParse(buffer);
+        extractedText = pdfData.text;
+      } else {
+        // Plain text base64
+        extractedText = Buffer.from(fileData, "base64").toString("utf-8");
       }
-    }));
+    }
 
-    const responseText = response.text;
-    if (!responseText) throw new Error("Gemini returned empty response.");
-    res.json(JSON.parse(responseText));
+    const systemPrompt = `Você é o Mentor Inteligente do 'Você Aprovado', um assistente acadêmico especialista em elaborar materiais e questões didáticas de alto nível para concurseiros e candidatos à residência em Enfermagem (ENARE). Escreva tudo em Português do Brasil.
+VOCÊ DEVE RESPONDER EXCLUSIVAMENTE NO FORMATO JSON ABAIXO. NÃO INCLUA NENHUM TEXTO ANTES OU DEPOIS DO JSON.
+Formato exigido:
+{
+  "summary": "Um resumo de fixação detalhado em Markdown",
+  "questions": [
+    {
+      "question": "O enunciado da questão",
+      "options": ["A) opção 1", "B) opção 2", "C) opção 3", "D) opção 4"],
+      "answer": "A",
+      "explanation": "Explicação didática"
+    }
+  ],
+  "flashcards": [
+    {
+      "front": "Pergunta do cartão",
+      "back": "Resposta do cartão"
+    }
+  ]
+}
+CERTIFIQUE-SE QUE EXISTAM EXATAMENTE 5 QUESTÕES E 6 FLASHCARDS.`;
+
+    const userPrompt = `Baseado no seguinte texto, gere o resumo, questões e flashcards em formato JSON estrito:\n\n${extractedText}`;
+
+    const messages = [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt }
+    ];
+
+    const responseText = await callOpenRouter(messages, true);
+    
+    // Clean response just in case the model added markdown blocks
+    const cleanJson = responseText.replace(/```json/g, "").replace(/```/g, "").trim();
+    
+    res.json(JSON.parse(cleanJson));
 
   } catch (error: any) {
-    console.error("[Internal Error] Gemini Generation:", error?.message || error);
-    res.status(500).json({ error: "Falha ao gerar o material de estudos. Tente novamente em instantes." });
+    console.error("[Internal Error] OpenRouter Generation:", error?.message || error);
+    res.status(500).json({ error: "Falha ao gerar o material de estudos via OpenRouter. Tente novamente em instantes." });
   }
 });
 
@@ -187,21 +170,21 @@ app.post("/api/chat-study", aiLimiter, async (req, res) => {
     }
 
     const { message } = validation.data;
-    const ai = getGeminiClient();
     
-    const chat = ai.chats.create({
-      model: "gemini-2.0-flash",
-      config: {
-        systemInstruction: "Você é o Mentor Inteligente do 'Você Aprovado', um assistente acadêmico especialista em Enfermagem e SUS para o ENARE. Responda de forma didática, objetiva e em Português do Brasil.",
-      }
-    });
+    const messages = [
+      { 
+        role: "system", 
+        content: "Você é o Mentor Inteligente do 'Você Aprovado', um assistente acadêmico especialista em Enfermagem e SUS para o ENARE. Responda de forma didática, objetiva e em Português do Brasil." 
+      },
+      { role: "user", content: message }
+    ];
 
-    const response = await retryWithBackoff(() => chat.sendMessage({ message }));
-    res.json({ text: response.text });
+    const responseText = await callOpenRouter(messages, false);
+    res.json({ text: responseText });
 
   } catch (error: any) {
-    console.error("[Internal Error] Gemini Chat:", error?.message || error);
-    res.status(500).json({ error: "Falha ao processar mensagem da IA. Tente novamente." });
+    console.error("[Internal Error] OpenRouter Chat:", error?.message || error);
+    res.status(500).json({ error: "Falha ao processar mensagem da IA via OpenRouter. Tente novamente." });
   }
 });
 
