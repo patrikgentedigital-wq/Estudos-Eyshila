@@ -148,15 +148,41 @@ try {
         }
 
         if (mimeType === "application/pdf") {
-          const buffer = Buffer.from(fileData, "base64");
-          // @ts-ignore
-          const pdfParse = (await import("pdf-parse/lib/pdf-parse.js")).default;
-          const pdfData = await pdfParse(buffer);
-          extractedText = pdfData.text;
+          try {
+            const buffer = Buffer.from(fileData, "base64");
+            // @ts-ignore
+            const pdfParse = (await import("pdf-parse/lib/pdf-parse.js")).default;
+            const pdfData = await pdfParse(buffer);
+            extractedText = pdfData.text || "";
+          } catch (pdfErr: any) {
+            console.warn("pdf-parse falhou, tentando fallback por regex de streams PDF:", pdfErr.message);
+            // Fallback: tentar extrair textos de streams do PDF caso o XRef esteja corrompido
+            try {
+              const rawStr = Buffer.from(fileData, "base64").toString("binary");
+              const matches = rawStr.match(/\(([^()]{3,})\)\s*T[jJ]/g);
+              if (matches && matches.length > 5) {
+                extractedText = matches.map(m => m.replace(/^\(/, "").replace(/\)\s*T[jJ]$/, "")).join(" ");
+              }
+            } catch (e) {
+              // ignore fallback error
+            }
+
+            if (!extractedText || extractedText.trim().length < 20) {
+              return res.status(400).json({
+                error: "O arquivo PDF enviado parece estar corrompido, protegido por senha ou em formato de imagem/escaneado. Por favor, cole o texto de estudo diretamente no campo de texto ou utilize outro arquivo PDF."
+              });
+            }
+          }
         } else {
           // Plain text base64
           extractedText = Buffer.from(fileData, "base64").toString("utf-8");
         }
+      }
+
+      if (!extractedText || extractedText.trim().length < 10) {
+        return res.status(400).json({
+          error: "O conteúdo de texto extraído é muito curto ou vazio. Por favor, digite ou cole um texto com as matérias que deseja estudar."
+        });
       }
 
       const systemPrompt = `Você é o Mentor Inteligente do 'Você Aprovado', um assistente acadêmico especialista em elaborar materiais e questões didáticas de alto nível para concurseiros e candidatos à residência em Enfermagem (ENARE). Escreva tudo em Português do Brasil.
