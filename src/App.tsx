@@ -55,77 +55,83 @@ export default function App() {
     setToasts(prev => prev.filter(t => t.id !== id));
   };
 
-  // Default Roadmap Data based on PDF
+  // Default 45-Day ENADE/ENARE Study Plan (7 Weeks / 1h daily)
   const DEFAULT_ROADMAP: RoadmapWeek[] = [
     {
       week: 1,
-      label: "Fundações e Legislação SUS",
-      topics: ["Lei 8080/90", "Lei 8142/90", "Decreto 7508/11", "RES 453/12"],
+      label: "Dias 1-7: Formação Geral ENADE (Peso 25%)",
+      topics: ["Direitos Humanos", "Ética Global", "Sustentabilidade", "Interpretação de Texto"],
       status: "current",
       tasks: [
-        { id: "w1-t1", title: "Responder 50 questões de Legislação SUS", completed: false },
-        { id: "w1-t2", title: "Resumir principais pontos da Lei 8080/8142", completed: false },
-        { id: "w1-t3", title: "Praticar 10min de flashcards diários", completed: false }
+        { id: "w1-t1", title: "Estudar 5 questões de Formação Geral (Direitos Humanos e Diversidade)", completed: false },
+        { id: "w1-t2", title: "Treino de Interpretação e Coesão Textual aplicada a Saúde Pública", completed: false },
+        { id: "w1-t3", title: "Prática de 10 min de flashcards de Formação Geral", completed: false }
       ]
     },
     {
       week: 2,
-      label: "Políticas e Saúde Coletiva",
-      topics: ["PNAB", "ESF", "Saúde Coletiva", "Humanização", "Vigilância"],
+      label: "Dias 8-14: Legislação Estruturante do SUS",
+      topics: ["Lei 8080/90", "Lei 8142/90", "Decreto 7508/11", "Controle Social"],
       status: "locked",
       tasks: [
-        { id: "w2-t1", title: "Estudar Política Nacional de Atenção Básica", completed: false },
-        { id: "w2-t2", title: "Simulado 1 (Foco em SUS e Políticas)", completed: false }
+        { id: "w2-t1", title: "Dominar Princípios Doutrinários x Organizativos do SUS", completed: false },
+        { id: "w2-t2", title: "Resumir Regiões de Saúde e Portas de Entrada (Decreto 7.508)", completed: false },
+        { id: "w2-t3", title: "Simulado 1 (20 questões de Legislação SUS)", completed: false }
       ]
     },
     {
       week: 3,
-      label: "Prática Clínica e SAE",
-      topics: ["SAE/NANDA/NIC", "Semiologia", "Exame Físico"],
+      label: "Dias 15-21: Processo de Enfermagem (COFEN 736/2024)",
+      topics: ["5 Etapas SAE", "NANDA-I", "Taxonomia NIC/NOC", "Código de Ética 564/17"],
       status: "locked",
       tasks: [
-        { id: "w3-t1", title: "Dominar Etapas da SAE e Taxonomias", completed: false },
-        { id: "w3-t2", title: "Revisar Semiologia por sistemas", completed: false }
+        { id: "w3-t1", title: "Mapear as 5 etapas do Processo de Enfermagem segundo Res. COFEN 736/24", completed: false },
+        { id: "w3-t2", title: "Estudo de Caso: Formulação de Diagnóstico de Enfermagem", completed: false },
+        { id: "w3-t3", title: "Revisar Direitos e Proibições no Código de Ética", completed: false }
       ]
     },
     {
       week: 4,
-      label: "Procedimentos e Urgência",
-      topics: ["Fundamentos", "Sondagens", "Cateteres", "ABCDE", "Traumas"],
+      label: "Dias 22-28: Urgência, Emergência e UTI",
+      topics: ["Protocolo XABCDE", "PCR AHA 2020", "Protocolo Manchester", "Drogas Vasoativas"],
       status: "locked",
       tasks: [
-        { id: "w4-t1", title: "Estudar Protocolo XABCDE e Choques", completed: false },
-        { id: "w4-t2", title: "Revisar Procedimentos Básicos de Enfermagem", completed: false }
+        { id: "w4-t1", title: "Memorizar Ritmos Chocáveis x Não Chocáveis na PCR", completed: false },
+        { id: "w4-t2", title: "Cálculos de Gotejamento de Soro e Doses de Inotrópicos", completed: false },
+        { id: "w4-t3", title: "Simulado 2 (Urgência, Emergência e UTI)", completed: false }
       ]
     },
     {
       week: 5,
-      label: "Saúde da Mulher e Materno-Infantil",
-      topics: ["Ciclo Gravídico", "Puericultura", "Vacinação (CRIE)", "Neonatologia"],
+      label: "Dias 29-35: Saúde da Mulher, Criança e Imunização",
+      topics: ["Pré-Natal", "Calendário PNI 2024", "Puericultura", "Rede Cegonha"],
       status: "locked",
       tasks: [
-        { id: "w5-t1", title: "Estudar Calendário Vacinal 2024", completed: false },
-        { id: "w5-t2", title: "Simulado 2 (Materno-Infantil e Pediatria)", completed: false }
+        { id: "w5-t1", title: "Revisar Esquema Vacinal do Recém-Nascido e Criança (PNI)", completed: false },
+        { id: "w5-t2", title: "Consultas de Pré-Natal e Intercorrências Gravídicas", completed: false },
+        { id: "w5-t3", title: "Prática de Flashcards de Imunização e Puericultura", completed: false }
       ]
     },
     {
       week: 6,
-      label: "Saúde Mental e Idoso",
-      topics: ["Depressão", "Demência", "Geriatria", "Urgências Psiquiátricas"],
+      label: "Dias 36-41: Gestão, Saúde Mental e Biossegurança",
+      topics: ["Dimensionamento COFEN", "RAPS", "NR-32", "Vigilância Epidemiológica"],
       status: "locked",
       tasks: [
-        { id: "w6-t1", title: "Revisão de Erros dos Simulados 1 e 2", completed: false },
-        { id: "w6-t2", title: "Estudar Síndromes Geriátricas", completed: false }
+        { id: "w6-t1", title: "Estudar Dimensionamento de Pessoal de Enfermagem", completed: false },
+        { id: "w6-t2", title: "Rede de Atenção Psicossocial (RAPS) e Saúde Mental", completed: false },
+        { id: "w6-t3", title: "Revisar Lista de Notificação Compulsória Imediata", completed: false }
       ]
     },
     {
       week: 7,
-      label: "Consolidação e Simulados Finais",
-      topics: ["Revisão Geral", "Gestão de Ansiedade"],
+      label: "Dias 42-45: Reta Final ENADE (Simulado & Discursivas)",
+      topics: ["Simulado Geral", "Questão Discursiva com Espelho", "Revisão Caderno de Erros"],
       status: "locked",
       tasks: [
-        { id: "w7-t1", title: "Simulado 4 (Condições Reais)", completed: false },
-        { id: "w7-t2", title: "Simulado 5 (Condições Reais)", completed: false }
+        { id: "w7-t1", title: "Redigir 1 Questão Discursiva no formato ENADE", completed: false },
+        { id: "w7-t2", title: "Simulado Geral ENADE (100 Questões Multidisciplinares)", completed: false },
+        { id: "w7-t3", title: "Revisão Final de 100% das questões do Caderno de Erros", completed: false }
       ]
     }
   ];

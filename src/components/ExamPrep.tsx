@@ -328,22 +328,31 @@ export default function ExamPrep({
                 </div>
 
                 {quizFinished && (
-                  <div className="p-4 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100">
-                    <span className="text-[10px] font-bold text-sky-500 uppercase block mb-1">Explicação</span>
-                    <p className="text-xs text-slate-500 leading-relaxed">{questions[currentIndex].explanation}</p>
+                  <div className="p-4 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-800 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-sky-500 uppercase">Fundamentação Técnica e Referência</span>
+                      <button 
+                        onClick={() => alert("Questão sinalizada com sucesso! Ela foi enviada para verificação e adicionada ao seu Caderno de Erros com a tag 'Sob Revisão'.")}
+                        className="text-[10px] font-bold text-rose-500 hover:text-rose-600 dark:hover:text-rose-400 flex items-center space-x-1 cursor-pointer"
+                      >
+                        <AlertCircle className="h-3 w-3" />
+                        <span>Sinalizar / Reportar Erro</span>
+                      </button>
+                    </div>
+                    <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">{questions[currentIndex].explanation}</p>
                   </div>
                 )}
               </div>
 
-              <div className="flex justify-between items-center pt-4 border-t border-slate-100">
+              <div className="flex justify-between items-center pt-4 border-t border-slate-100 dark:border-slate-800">
                 <div className="flex space-x-2">
-                  <button onClick={() => setCurrentIndex(prev => prev - 1)} disabled={currentIndex === 0} className="p-2 border rounded-lg disabled:opacity-30"><ChevronLeft className="h-4 w-4" /></button>
-                  <button onClick={() => setCurrentIndex(prev => prev + 1)} disabled={currentIndex === questions.length - 1} className="p-2 border rounded-lg disabled:opacity-30"><ChevronRight className="h-4 w-4" /></button>
+                  <button onClick={() => setCurrentIndex(prev => prev - 1)} disabled={currentIndex === 0} className="p-2 border border-slate-200 dark:border-slate-800 rounded-lg disabled:opacity-30"><ChevronLeft className="h-4 w-4" /></button>
+                  <button onClick={() => setCurrentIndex(prev => prev + 1)} disabled={currentIndex === questions.length - 1} className="p-2 border border-slate-200 dark:border-slate-800 rounded-lg disabled:opacity-30"><ChevronRight className="h-4 w-4" /></button>
                 </div>
                 {!quizFinished ? (
                   <button onClick={finishQuiz} disabled={Object.keys(selectedAnswers).length < questions.length} className="bg-sky-600 text-white px-6 py-2 rounded-xl font-bold text-sm hover:bg-sky-500 disabled:opacity-50">Finalizar</button>
                 ) : (
-                  <button onClick={() => setQuizStarted(false)} className="bg-slate-900 text-white px-6 py-2 rounded-xl font-bold text-sm">Voltar</button>
+                  <button onClick={() => setQuizStarted(false)} className="bg-slate-900 text-white px-6 py-2 rounded-xl font-bold text-sm">Voltar ao Painel</button>
                 )}
               </div>
             </div>

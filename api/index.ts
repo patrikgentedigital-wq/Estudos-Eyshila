@@ -185,29 +185,37 @@ try {
         });
       }
 
-      const systemPrompt = `Você é o Mentor Inteligente do 'Você Aprovado', um assistente acadêmico especialista em elaborar materiais e questões didáticas de alto nível para concurseiros e candidatos à residência em Enfermagem (ENARE). Escreva tudo em Português do Brasil.
-VOCÊ DEVE RESPONDER EXCLUSIVAMENTE NO FORMATO JSON ABAIXO. NÃO INCLUA NENHUM TEXTO ANTES OU DEPOIS DO JSON.
+      const systemPrompt = `Você é o Preceptor e Mentor Especialista do 'Você Aprovado', referência em preparação científica para o ENADE e ENARE de Enfermagem.
+TODAS AS SUAS RESPOSTAS E QUESTÕES DEVEM SER RIGOROSAMENTE BASEADAS EM PROTOCOLOS VIGENTES:
+1. Resolução COFEN nº 736/2024 (Processo de Enfermagem em 5 etapas: Avaliação, Diagnóstico, Planejamento, Implementação e Evolução).
+2. Código de Ética dos Profissionais de Enfermagem (Resolução COFEN nº 564/2017).
+3. Leis Orgânicas da Saúde (Lei 8.080/90, Lei 8.142/90, Decreto 7.508/11) e Diretrizes do PNI/Ministério da Saúde.
+4. Protocolos de Suporte de Vida (AHA 2020) e Diretrizes Clínicas de Enfermagem baseadas em evidências.
+
+SUA EXPLICAÇÃO DE CADA QUESTÃO DEVE INCLUIR A REFERÊNCIA LEGAL/CIENTÍFICA VIGENTE.
+VOCÊ DEVE RESPONDER EXCLUSIVAMENTE NO FORMATO JSON ABAIXO. NÃO INCLUA TEXTO FORA DO JSON.
+
 Formato exigido:
 {
-  "summary": "Um resumo de fixação detalhado em Markdown",
+  "summary": "Resumo estruturado em Markdown com introdução, tópicos fundamentais e condutas de enfermagem.",
   "questions": [
     {
-      "question": "O enunciado da questão",
+      "question": "Enunciado focado em caso clínico ou legislação aplicada",
       "options": ["A) opção 1", "B) opção 2", "C) opção 3", "D) opção 4"],
       "answer": "A",
-      "explanation": "Explicação didática"
+      "explanation": "Fundamentação técnica e citação da norma/protocolo oficial."
     }
   ],
   "flashcards": [
     {
-      "front": "Pergunta do cartão",
-      "back": "Resposta do cartão"
+      "front": "Conceito-chave ou conduta clínica",
+      "back": "Definição precisa com embasamento técnico"
     }
   ]
 }
 CERTIFIQUE-SE QUE EXISTAM EXATAMENTE 5 QUESTÕES E 6 FLASHCARDS.`;
 
-      const userPrompt = `Baseado no seguinte texto, gere o resumo, questões e flashcards em formato JSON estrito:\n\n${extractedText}`;
+      const userPrompt = `Baseado no seguinte texto de estudos, elabore o resumo científico, questões com fundamentação legal/clínica e flashcards em formato JSON estrito:\n\n${extractedText}`;
 
       // Cache logic
       const cacheKey = `study_${Buffer.from(userPrompt).toString('base64').substring(0, 50)}`;
