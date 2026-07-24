@@ -22,15 +22,23 @@ interface FlashcardsProps {
 }
 
 const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, language, t }) => {
-  const [filter, setFilter] = useState<"all" | "official">("all");
+  const [filter, setFilter] = useState<"all" | "official" | "my_cards">("all");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [masteredIds, setMasteredIds] = useState<Set<string>>(new Set());
   const [direction, setDirection] = useState(0);
   const { speak, stop, supported: ttsSupported } = useTTS();
 
-  const allAvailable = [...flashcards, ...OFFICIAL_FLASHCARDS];
-  const activeDeck = allAvailable.filter(f => filter === "official" ? f.isOfficial : !f.isOfficial);
+  // Combine custom & official flashcards avoiding duplicate IDs
+  const existingIds = new Set(flashcards.map(f => f.id));
+  const uniqueOfficial = OFFICIAL_FLASHCARDS.filter(of => !existingIds.has(of.id));
+  const allAvailable = [...flashcards, ...uniqueOfficial];
+
+  const activeDeck = allAvailable.filter(f => {
+    if (filter === "official") return f.isOfficial;
+    if (filter === "my_cards") return !f.isOfficial;
+    return true;
+  });
 
   const currentCard = activeDeck[currentIndex] || activeDeck[0];
   
@@ -131,8 +139,9 @@ const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, language, t }) => {
         </div>
         
         <div className="flex border-b border-slate-100 dark:border-slate-800 pb-px space-x-6 text-sm font-semibold">
-          <button onClick={() => setFilter("all")} className={`pb-3 transition-all border-b-2 ${filter === "all" ? "border-sky-500 text-sky-600 dark:text-sky-400" : "border-transparent text-slate-400 hover:text-slate-600"}`}>Meus Flashcards</button>
-          <button onClick={() => setFilter("official")} className={`pb-3 transition-all border-b-2 ${filter === "official" ? "border-sky-500 text-sky-600 dark:text-sky-400" : "border-transparent text-slate-400 hover:text-slate-600"}`}>Flashcards Oficiais (ENARE)</button>
+          <button onClick={() => setFilter("all")} className={`pb-3 transition-all border-b-2 ${filter === "all" ? "border-sky-500 text-sky-600 dark:text-sky-400" : "border-transparent text-slate-400 hover:text-slate-600"}`}>Todos os Flashcards</button>
+          <button onClick={() => setFilter("official")} className={`pb-3 transition-all border-b-2 ${filter === "official" ? "border-sky-500 text-sky-600 dark:text-sky-400" : "border-transparent text-slate-400 hover:text-slate-600"}`}>Oficiais ENARE</button>
+          <button onClick={() => setFilter("my_cards")} className={`pb-3 transition-all border-b-2 ${filter === "my_cards" ? "border-sky-500 text-sky-600 dark:text-sky-400" : "border-transparent text-slate-400 hover:text-slate-600"}`}>Meus Flashcards (IA)</button>
         </div>
       </div>
 

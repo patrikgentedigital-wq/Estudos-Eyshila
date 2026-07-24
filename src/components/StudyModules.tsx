@@ -106,21 +106,26 @@ export default function StudyModules({
     }
   };
 
-  const allAvailableModules = [...modules, ...OFFICIAL_MODULES];
+  // Combine user modules and official modules without duplicates
+  const existingIds = new Set(modules.map(m => m.id));
+  const uniqueOfficial = OFFICIAL_MODULES.filter(om => !existingIds.has(om.id));
+  const allAvailableModules = [...modules, ...uniqueOfficial];
 
   const filteredModules = allAvailableModules.filter((m) => {
     const matchesSearch = m.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           m.description.toLowerCase().includes(searchQuery.toLowerCase());
 
-    if (filter === "official") return matchesSearch && (m as any).isOfficial;
-    if ((m as any).isOfficial) return false;
+    if (!matchesSearch) return false;
+
+    if (filter === "official") return (m as any).isOfficial;
+    if (filter === "my_modules") return !(m as any).isOfficial;
 
     const total = m.lessons.length;
     const completed = m.lessons.filter((l) => l.completed).length;
 
-    if (filter === "completed") return matchesSearch && completed === total && total > 0;
-    if (filter === "in-progress") return matchesSearch && completed > 0 && completed < total;
-    return matchesSearch;
+    if (filter === "completed") return completed === total && total > 0;
+    if (filter === "in-progress") return completed > 0 && completed < total;
+    return true;
   });
 
   return (
@@ -146,8 +151,9 @@ export default function StudyModules({
 
       <div className="flex border-b border-slate-100 dark:border-slate-800 pb-px space-x-6 text-sm font-semibold">
         {[
-          { id: "all", label: "Meus Módulos" },
+          { id: "all", label: "Todos os Módulos" },
           { id: "official", label: "Módulos Oficiais (ENARE)" },
+          { id: "my_modules", label: "Meus Módulos (IA)" },
           { id: "in-progress", label: "Em Progresso" },
           { id: "completed", label: "Concluídos" }
         ].map((tab) => (
