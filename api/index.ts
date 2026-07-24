@@ -5,12 +5,20 @@ import rateLimit from "express-rate-limit";
 import { z } from "zod";
 import dotenv from "dotenv";
 import { createRequire } from "module";
+import { Logger } from "./utils/logger.js";
+import { metricsMiddleware, aiCache } from "./utils/metrics.js";
+import { Request, Response, NextFunction } from "express";
+
 const require = createRequire(import.meta.url);
 const pdfParse = require("pdf-parse");
 
 dotenv.config();
 
 const app = express();
+
+// Apply metrics & tracing first
+app.use(metricsMiddleware);
+
 
 // Security HTTP Headers with Helmet
 app.use(
@@ -42,6 +50,16 @@ const aiLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Muitas requisições enviadas. Aguarde um minuto e tente novamente." },
+});
+
+// Health Check Endpoint (Rule 4)
+app.get("/api/health", (req, res) => {
+  res.json({
+    status: "ok",
+    uptime: process.uptime(),
+    memory: process.memoryUsage(),
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Body parser setup
@@ -146,6 +164,15 @@ CERTIFIQUE-SE QUE EXISTAM EXATAMENTE 5 QUESTÕES E 6 FLASHCARDS.`;
 
     const userPrompt = `Baseado no seguinte texto, gere o resumo, questões e flashcards em formato JSON estrito:\n\n${extractedText}`;
 
+    // Cache logic (Rule 6)
+    const cacheKey = `study_${Buffer.from(userPrompt).toString('base64').substring(0, 50)}`;
+    const cachedResponse = aiCache.get(cacheKey);
+    if (cachedResponse) {
+      Logger.info("CACHE_HIT: generate-study", req);
+      return res.json(cachedResponse);
+    }
+    Logger.info("CACHE_MISS: generate-study", req);
+
     const messages = [
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt }
@@ -155,11 +182,13 @@ CERTIFIQUE-SE QUE EXISTAM EXATAMENTE 5 QUESTÕES E 6 FLASHCARDS.`;
     
     // Clean response just in case the model added markdown blocks
     const cleanJson = responseText.replace(/```json/g, "").replace(/```/g, "").trim();
+    const parsedData = JSON.parse(cleanJson);
     
-    res.json(JSON.parse(cleanJson));
+    aiCache.set(cacheKey, parsedData);
+    res.json(parsedData);
 
   } catch (error: any) {
-    console.error("[Internal Error] OpenRouter Generation:", error?.message || error);
+    Logger.error("Falha ao gerar o material de estudos via OpenRouter.", error, req);
     res.status(500).json({ error: "Falha ao gerar o material de estudos via OpenRouter. Tente novamente em instantes." });
   }
 });
@@ -181,13 +210,28 @@ app.post("/api/chat-study", aiLimiter, async (req, res) => {
       { role: "user", content: message }
     ];
 
+    const cacheKey = `chat_${Buffer.from(message).toString('base64').substring(0, 50)}`;
+    const cachedResponse = aiCache.get(cacheKey);
+    if (cachedResponse) {
+      Logger.info("CACHE_HIT: chat-study", req);
+      return res.json({ text: cachedResponse });
+    }
+    Logger.info("CACHE_MISS: chat-study", req);
+
     const responseText = await callOpenRouter(messages, false);
+    aiCache.set(cacheKey, responseText);
     res.json({ text: responseText });
 
   } catch (error: any) {
-    console.error("[Internal Error] OpenRouter Chat:", error?.message || error);
+    Logger.error("Falha ao processar mensagem da IA via OpenRouter.", error, req);
     res.status(500).json({ error: "Falha ao processar mensagem da IA via OpenRouter. Tente novamente." });
   }
+});
+
+// Global Error Handler (Rule 2)
+app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+  Logger.critical("Unhandled Server Error", err, req);
+  res.status(500).json({ error: "Ocorreu um erro interno no servidor." });
 });
 
 export default app;

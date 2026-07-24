@@ -11,6 +11,7 @@ import { supabase, isSupabaseConfigured } from "./supabase";
 
 // Sidebar & Login imports
 import Sidebar from "./components/Sidebar";
+import { measureQuery } from "./dbLogger";
 import Login from "./components/Login";
 
 // Lazy-loaded tab components for code splitting
@@ -184,11 +185,13 @@ export default function App() {
         setIsLoading(true);
         try {
           if (isSupabaseConfigured && supabase) {
-            const { data, error } = await supabase
-              .from("user_data")
-              .select("*")
-              .eq("id", userId)
-              .maybeSingle();
+            const { data, error } = await measureQuery("fetch_user_data", () => 
+              supabase
+                .from("user_data")
+                .select("*")
+                .eq("id", userId)
+                .maybeSingle()
+            );
 
             if (error) {
               console.warn("[Supabase Data Load Error]", error.message);
@@ -251,11 +254,13 @@ export default function App() {
   const syncToSupabase = useCallback(async (dataToSync: any) => {
     if (isLoggedIn && userId && isSupabaseConfigured && supabase) {
       try {
-        const { error } = await supabase.from("user_data").upsert({
-          id: userId,
-          ...dataToSync,
-          updated_at: new Date().toISOString(),
-        });
+        const { error } = await measureQuery("upsert_user_data", () => 
+          supabase.from("user_data").upsert({
+            id: userId,
+            ...dataToSync,
+            updated_at: new Date().toISOString(),
+          })
+        );
         if (error) {
           console.warn("[Supabase Sync Warning]", error.message);
         }
