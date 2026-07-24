@@ -591,8 +591,8 @@ export default function App() {
       {/* RIGHT SIDEBAR: Content Canvas */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         
-        {/* TOP COMPREHENSIVE HEADER ROW */}
-        <header className="sticky top-0 z-30 bg-white/80 dark:bg-black/80 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-900/60 h-16 px-6 flex items-center justify-between">
+        {/* TOP COMPREHENSIVE HEADER ROW (NotebookLM Style) */}
+        <header className="sticky top-0 z-30 bg-[#f8f9fa]/90 dark:bg-[#131314]/90 backdrop-blur-md border-b border-[#e3e3e3] dark:border-[#2d2d30] h-16 px-6 flex items-center justify-between">
           
           {/* Left Column: Title / Hamburger */}
           <div className="flex items-center space-x-4">
@@ -621,7 +621,7 @@ export default function App() {
             </div>
 
             {/* Quick preceptor alert */}
-            <div className="bg-sky-500/10 dark:bg-sky-500/20 px-2.5 py-1 rounded-full text-[10px] font-bold text-sky-600 dark:text-sky-400 font-mono hidden md:inline-block uppercase tracking-wider">
+            <div className="notebook-chip px-3 py-1 rounded-full text-[10px] font-bold font-mono hidden md:inline-block uppercase tracking-wider">
               {profile.residencyYear.includes("Mentora") || profile.residencyYear.includes("Preceptor") 
                 ? "🎓 Mentoria" 
                 : "📝 Estudante ENARE"}
@@ -640,8 +640,8 @@ export default function App() {
 
         </header>
 
-        {/* MAIN BODY SCROLL CONTAINER */}
-        <main className="flex-1 p-4 sm:p-8 max-w-7xl mx-auto w-full overflow-y-auto pb-20 lg:pb-8">
+        {/* MAIN BODY SCROLL CONTAINER (NotebookLM Background) */}
+        <main className="flex-1 p-4 sm:p-8 max-w-7xl mx-auto w-full overflow-y-auto pb-20 lg:pb-8 bg-[#f8f9fa] dark:bg-[#131314]">
           <React.Suspense fallback={
             <div className="flex flex-col items-center justify-center p-12 space-y-3">
               <div className="w-8 h-8 border-3 border-sky-500 border-t-transparent rounded-full animate-spin" />

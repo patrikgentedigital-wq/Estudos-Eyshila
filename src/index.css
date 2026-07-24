@@ -135,6 +135,17 @@
   background: rgba(56, 189, 248, 0.5);
 }
 
+/* Global Body Background matching Google NotebookLM */
+body {
+  background-color: #f8f9fa !important;
+  color: #1f1f1f;
+}
+.dark body,
+body.dark {
+  background-color: #131314 !important;
+  color: #e3e3e3;
+}
+
 /* Smooth transition for theme toggling */
 html,
 html *,
