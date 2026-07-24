@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { Language, StudyModule, Lesson, translations } from "../types";
 import { OFFICIAL_MODULES } from "../data/officialModules";
+import { useTTS } from "../hooks/useTTS";
 
 interface StudyModulesProps {
   language: Language;
