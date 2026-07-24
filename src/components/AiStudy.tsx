@@ -50,7 +50,7 @@ interface GeneratedStudy {
 
 export default function AiStudy({ language }: AiStudyProps) {
   // TTS Hook
-  const { speak, pause, resume, stop, isSpeaking, isPaused, supported: ttsSupported } = useTTS();
+  const { speak, pause, resume, stop, isSpeaking, isPaused, supported: ttsSupported, rate, setRate, progressPercent } = useTTS();
 
   const [file, setFile] = useState<File | null>(null);
   const [pastedText, setPastedText] = useState("");
@@ -1207,53 +1207,89 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
                         <span>{language === "pt" ? "Baixar PDF" : "Download PDF"}</span>
                       </button>
 
-                      {/* Botões de Áudio TTS com Equalizador Visual */}
+                      {/* Botões de Áudio TTS com Equalizador Visual e Controle de Velocidade */}
                       {ttsSupported && (
-                        <div className="flex items-center space-x-2 bg-slate-100 dark:bg-slate-800 rounded-xl px-2.5 py-1 border border-slate-200/60 dark:border-slate-700">
+                        <div className="flex items-center space-x-2 bg-slate-100 dark:bg-slate-800 rounded-2xl px-3 py-1.5 border border-slate-200 dark:border-slate-700">
                           {isSpeaking && (
-                            <div className="flex items-center space-x-0.5 h-3 text-sky-500 mr-1">
+                            <div className="flex items-center space-x-0.5 h-3 text-sky-500 mr-1.5">
                               <span className="equalizer-bar" />
                               <span className="equalizer-bar" />
                               <span className="equalizer-bar" />
                               <span className="equalizer-bar" />
                             </div>
                           )}
+                          
                           {!isSpeaking && !isPaused ? (
                             <button
-                              onClick={() => speak(studyData.summary)}
-                              className="text-slate-600 dark:text-slate-400 hover:text-sky-500 transition-colors p-1 flex items-center space-x-1"
-                              title={language === "pt" ? "Ouvir Resumo" : "Listen Summary"}
+                              onClick={() => speak(studyData.summary, rate)}
+                              className="text-sky-600 dark:text-sky-400 hover:text-sky-500 transition-colors p-1 flex items-center space-x-1.5 font-bold text-xs cursor-pointer"
+                              title="Transformar PDF em Áudio / Ouvir Resumo"
                             >
-                              <PlayCircle className="h-4 w-4" />
-                              <span className="text-xs font-bold">{language === "pt" ? "Ouvir" : "Listen"}</span>
+                              <Headphones className="h-4 w-4" />
+                              <span>Ouvir PDF em Áudio</span>
                             </button>
                           ) : (
-                            <>
+                            <div className="flex items-center space-x-2">
                               <button
                                 onClick={isPaused ? resume : pause}
-                                className="text-sky-500 hover:text-sky-600 transition-colors p-1"
-                                title={isPaused ? "Retomar" : "Pausar"}
+                                className="text-sky-500 hover:text-sky-600 transition-colors p-1 cursor-pointer"
+                                title={isPaused ? "Retomar Áudio" : "Pausar Áudio"}
                               >
-                                {isPaused ? <PlayCircle className="h-4 w-4" /> : <PauseCircle className="h-4 w-4" />}
+                                {isPaused ? <PlayCircle className="h-5 w-5" /> : <PauseCircle className="h-5 w-5" />}
                               </button>
                               <button
                                 onClick={stop}
-                                className="text-rose-500 hover:text-rose-600 transition-colors p-1"
-                                title="Parar"
+                                className="text-rose-500 hover:text-rose-600 transition-colors p-1 cursor-pointer"
+                                title="Parar Áudio do PDF"
                               >
-                                <StopCircle className="h-4 w-4" />
+                                <StopCircle className="h-5 w-5" />
                               </button>
-                            </>
+                            </div>
                           )}
+
+                          {/* Seletor de Velocidade (1x, 1.25x, 1.5x, 2x) */}
+                          <select
+                            value={rate}
+                            onChange={(e) => {
+                              const newRate = parseFloat(e.target.value);
+                              setRate(newRate);
+                              if (isSpeaking) {
+                                speak(studyData.summary, newRate);
+                              }
+                            }}
+                            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-[10px] font-bold rounded-lg px-1.5 py-0.5 outline-none cursor-pointer"
+                            title="Velocidade da Leitura em Áudio"
+                          >
+                            <option value={1.0}>1.0x</option>
+                            <option value={1.25}>1.25x</option>
+                            <option value={1.5}>1.5x</option>
+                            <option value={2.0}>2.0x</option>
+                          </select>
                         </div>
                       )}
 
-                      <span className="text-[10px] bg-sky-500/10 text-sky-500 px-2 py-1.5 rounded-full font-bold uppercase tracking-wider flex items-center space-x-1">
+                      <span className="text-[10px] notebook-chip px-2.5 py-1 rounded-full font-bold uppercase tracking-wider flex items-center space-x-1">
                         <CheckCircle2 className="h-3 w-3" />
-                        <span>{language === "pt" ? "Pronto" : "Ready"}</span>
+                        <span>Pronto para Áudio</span>
                       </span>
                     </div>
                   </div>
+
+                  {/* Barra de Progresso do Áudio do PDF quando ativo */}
+                  {isSpeaking && (
+                    <div className="mb-6 p-3 bg-sky-500/10 border border-sky-500/20 rounded-2xl flex items-center space-x-3 animate-fade-in">
+                      <Headphones className="h-4 w-4 text-sky-500 animate-pulse" />
+                      <div className="flex-1">
+                        <div className="flex justify-between text-[10px] font-bold text-sky-600 dark:text-sky-400 mb-1">
+                          <span>Transformando PDF em Narração de Áudio ({rate}x)...</span>
+                          <span>{progressPercent}%</span>
+                        </div>
+                        <div className="w-full bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                          <div className="bg-sky-500 h-full rounded-full transition-all duration-300" style={{ width: `${progressPercent}%` }} />
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Summary rendered nicely */}
                   <div className="space-y-4">
