@@ -259,35 +259,72 @@ const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, language, t }) => {
             <span className="text-sm font-bold text-slate-400">
               {currentIndex + 1} / {activeDeck.length}
             </span>
-            <div className="flex w-full items-center justify-center gap-3">
-            <button
-              onClick={() => toggleMastered(currentCard.id)}
-              className={`flex-1 max-w-[200px] flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-sm transition-all active:scale-95 ${
-                masteredIds.has(currentCard.id)
-                  ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/25"
-                  : "bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-emerald-500/50 hover:text-emerald-600"
-              }`}
-            >
-              {masteredIds.has(currentCard.id) ? (
-                <>
-                  <CheckCircle2 className="h-4 w-4" />
-                  {t.markMasteredBtn}
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4" />
-                  {t.markMasteredBtn}
-                </>
-              )}
-            </button>
-            
-            <button
-              onClick={() => setIsFlipped(!isFlipped)}
-              className="flex-1 max-w-[200px] bg-sky-600 hover:bg-sky-700 text-white py-3.5 rounded-2xl font-bold text-sm shadow-lg shadow-sky-600/25 transition-all active:scale-95"
-            >
-              {isFlipped ? t.prevCardBtn : t.showAnswerBtn}
-            </button>
-            </div>
+            {isFlipped ? (
+              <div className="flex w-full items-center justify-center gap-2 animate-fade-in">
+                <button
+                  onClick={() => {
+                    masteredIds.delete(currentCard.id);
+                    setMasteredIds(new Set(masteredIds));
+                    handleNext();
+                  }}
+                  className="flex-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30 py-3 rounded-2xl font-bold text-xs transition-all active:scale-95 flex flex-col items-center"
+                >
+                  <span>Errei</span>
+                  <span className="text-[9px] opacity-75">Revisar amanhã (1d)</span>
+                </button>
+                <button
+                  onClick={() => {
+                    handleNext();
+                  }}
+                  className="flex-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 py-3 rounded-2xl font-bold text-xs transition-all active:scale-95 flex flex-col items-center"
+                >
+                  <span>Difícil</span>
+                  <span className="text-[9px] opacity-75">Revisar em 3d</span>
+                </button>
+                <button
+                  onClick={() => {
+                    const newMastered = new Set(masteredIds);
+                    newMastered.add(currentCard.id);
+                    setMasteredIds(newMastered);
+                    handleNext();
+                  }}
+                  className="flex-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 py-3 rounded-2xl font-bold text-xs transition-all active:scale-95 flex flex-col items-center"
+                >
+                  <span>Fácil</span>
+                  <span className="text-[9px] opacity-75">Dominado (7d)</span>
+                </button>
+              </div>
+            ) : (
+              <div className="flex w-full items-center justify-center gap-3">
+                <button
+                  onClick={() => toggleMastered(currentCard.id)}
+                  className={`flex-1 max-w-[200px] flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-sm transition-all active:scale-95 ${
+                    masteredIds.has(currentCard.id)
+                      ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/25"
+                      : "bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-emerald-500/50 hover:text-emerald-600"
+                  }`}
+                >
+                  {masteredIds.has(currentCard.id) ? (
+                    <>
+                      <CheckCircle2 className="h-4 w-4" />
+                      {t.markMasteredBtn}
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4" />
+                      {t.markMasteredBtn}
+                    </>
+                  )}
+                </button>
+                
+                <button
+                  onClick={() => setIsFlipped(!isFlipped)}
+                  className="flex-1 max-w-[200px] bg-sky-600 hover:bg-sky-700 text-white py-3.5 rounded-2xl font-bold text-sm shadow-lg shadow-sky-600/25 transition-all active:scale-95"
+                >
+                  {t.showAnswerBtn}
+                </button>
+              </div>
+            )}
           </div>
 
           <button
