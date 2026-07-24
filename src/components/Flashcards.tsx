@@ -12,6 +12,8 @@ import {
   Sparkles
 } from "lucide-react";
 import { Flashcard, Language, TranslationDict } from "../types";
+import { OFFICIAL_FLASHCARDS } from "../data/officialFlashcards";
+import { useTTS } from "../hooks/useTTS";
 
 interface FlashcardsProps {
   flashcards: Flashcard[];
@@ -20,15 +22,26 @@ interface FlashcardsProps {
 }
 
 const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, language, t }) => {
+  const [filter, setFilter] = useState<"all" | "official">("all");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [masteredIds, setMasteredIds] = useState<Set<string>>(new Set());
   const [direction, setDirection] = useState(0);
+  const { speak, stop, supported: ttsSupported } = useTTS();
 
-  const currentCard = flashcards[currentIndex];
+  const allAvailable = [...flashcards, ...OFFICIAL_FLASHCARDS];
+  const activeDeck = allAvailable.filter(f => filter === "official" ? f.isOfficial : !f.isOfficial);
+
+  const currentCard = activeDeck[currentIndex] || activeDeck[0];
+  
+  // reset index on filter change
+  React.useEffect(() => {
+    setCurrentIndex(0);
+    setIsFlipped(false);
+  }, [filter]);
   
   const handleNext = () => {
-    if (currentIndex < flashcards.length - 1) {
+    if (currentIndex < activeDeck.length - 1) {
       setDirection(1);
       setIsFlipped(false);
       setTimeout(() => {
@@ -57,7 +70,30 @@ const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, language, t }) => {
     setMasteredIds(newMastered);
   };
 
-  const progress = ((masteredIds.size) / flashcards.length) * 100;
+  const progress = ((masteredIds.size) / (activeDeck.length || 1)) * 100;
+
+  if (activeDeck.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-black text-slate-900 dark:text-white flex items-center space-x-3 tracking-tight">
+              <Layers className="h-8 w-8 text-sky-500" />
+              <span>{t.flashcardsTitle}</span>
+            </h2>
+            <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">{t.flashcardsSubtitle}</p>
+          </div>
+        </div>
+        
+        <div className="flex border-b border-slate-100 dark:border-slate-800 pb-px space-x-6 text-sm font-semibold mb-6">
+          <button onClick={() => setFilter("all")} className={`pb-3 transition-all border-b-2 ${filter === "all" ? "border-sky-500 text-sky-600 dark:text-sky-400" : "border-transparent text-slate-400 hover:text-slate-600"}`}>Meus Flashcards</button>
+          <button onClick={() => setFilter("official")} className={`pb-3 transition-all border-b-2 ${filter === "official" ? "border-sky-500 text-sky-600 dark:text-sky-400" : "border-transparent text-slate-400 hover:text-slate-600"}`}>Flashcards Oficiais (ENARE)</button>
+        </div>
+
+        <div className="text-center py-12 text-slate-400">Nenhum flashcard encontrado.</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-fade-in pb-12">
@@ -71,22 +107,32 @@ const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, language, t }) => {
           </p>
         </div>
         
-        <div className="flex items-center gap-4 bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
-          <div className="text-right">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-              Progresso de Domínio
-            </p>
-            <p className="text-xl font-black text-sky-600 dark:text-sky-400">
-              {masteredIds.size} / {flashcards.length}
-            </p>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-xs">
+          <div className="flex-1">
+            <div className="flex justify-between text-sm font-bold mb-2">
+              <span className="text-slate-800 dark:text-slate-200">Seu Domínio</span>
+              <span className="text-sky-600 dark:text-sky-400">{Math.round(progress)}%</span>
+            </div>
+            <div className="h-3 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-sky-400 to-indigo-500 rounded-full transition-all duration-1000 ease-out"
+                style={{ width: `${progress}%` }}
+              ></div>
+            </div>
           </div>
-          <div className="w-12 h-12 rounded-full border-4 border-slate-100 dark:border-slate-800 flex items-center justify-center relative overflow-hidden">
-             <div 
-              className="absolute bottom-0 left-0 w-full bg-sky-500/20 transition-all duration-500" 
-              style={{ height: `${progress}%` }}
-            />
-            <Trophy className="h-5 w-5 text-sky-500 relative z-10" />
+          <div className="flex items-center space-x-4 font-bold text-sm text-slate-500 dark:text-slate-400">
+            <div className="bg-slate-50 dark:bg-slate-800 px-4 py-2 rounded-xl">
+              <span className="text-slate-900 dark:text-white">{masteredIds.size}</span> dominados
+            </div>
+            <div className="bg-slate-50 dark:bg-slate-800 px-4 py-2 rounded-xl">
+              <span className="text-slate-900 dark:text-white">{activeDeck.length - masteredIds.size}</span> a revisar
+            </div>
           </div>
+        </div>
+        
+        <div className="flex border-b border-slate-100 dark:border-slate-800 pb-px space-x-6 text-sm font-semibold">
+          <button onClick={() => setFilter("all")} className={`pb-3 transition-all border-b-2 ${filter === "all" ? "border-sky-500 text-sky-600 dark:text-sky-400" : "border-transparent text-slate-400 hover:text-slate-600"}`}>Meus Flashcards</button>
+          <button onClick={() => setFilter("official")} className={`pb-3 transition-all border-b-2 ${filter === "official" ? "border-sky-500 text-sky-600 dark:text-sky-400" : "border-transparent text-slate-400 hover:text-slate-600"}`}>Flashcards Oficiais (ENARE)</button>
         </div>
       </div>
 
@@ -111,18 +157,25 @@ const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, language, t }) => {
                 <div 
                   className={`absolute inset-0 backface-hidden bg-white dark:bg-slate-900 rounded-3xl border-2 border-slate-100 dark:border-slate-800 shadow-xl p-8 flex flex-col items-center justify-center text-center space-y-6 ${isFlipped ? "pointer-events-none" : ""}`}
                 >
-                  <div className="absolute top-6 left-6 flex items-center gap-2">
-                    <span className="px-3 py-1 bg-sky-100 dark:bg-sky-500/20 text-sky-600 dark:text-sky-400 text-[10px] font-black uppercase tracking-widest rounded-full">
-                      {currentCard.category}
-                    </span>
-                    <span className={`px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-full ${
-                      currentCard.difficulty === "Easy" ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400" :
-                      currentCard.difficulty === "Medium" ? "bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400" :
-                      "bg-rose-100 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400"
-                    }`}>
-                      {currentCard.difficulty === "Easy" ? "Fácil" : currentCard.difficulty === "Medium" ? "Médio" : "Difícil"}
-                    </span>
-                  </div>
+                    <div className="flex items-center justify-between mb-8 w-full">
+                      <span className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider ${
+                        currentCard.difficulty === "Easy" ? "bg-teal-500/10 text-teal-600" :
+                        currentCard.difficulty === "Medium" ? "bg-amber-500/10 text-amber-600" :
+                        "bg-rose-500/10 text-rose-600"
+                      }`}>
+                        {currentCard.difficulty}
+                      </span>
+                      <div className="flex items-center space-x-2">
+                        {ttsSupported && (
+                          <button onClick={(e) => { e.stopPropagation(); speak(language === "pt" ? currentCard.question : currentCard.questionEn || currentCard.question); }} className="text-slate-400 hover:text-sky-500 p-2">
+                            Ouvir <Play className="h-3 w-3 inline" />
+                          </button>
+                        )}
+                        <span className="bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-4 py-1.5 rounded-full text-xs font-bold uppercase">
+                          {currentCard.categoryEn ? (language === "pt" ? currentCard.category : currentCard.categoryEn) : currentCard.category}
+                        </span>
+                      </div>
+                    </div>
 
                   <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl">
                     <CreditCard className="h-8 w-8 text-slate-300 dark:text-slate-600" />
@@ -177,7 +230,11 @@ const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, language, t }) => {
             <ChevronLeft className="h-6 w-6" />
           </button>
 
-          <div className="flex-1 flex items-center justify-center gap-3">
+          <div className="flex-1 flex flex-col items-center justify-center gap-3">
+            <span className="text-sm font-bold text-slate-400">
+              {currentIndex + 1} / {activeDeck.length}
+            </span>
+            <div className="flex w-full items-center justify-center gap-3">
             <button
               onClick={() => toggleMastered(currentCard.id)}
               className={`flex-1 max-w-[200px] flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-sm transition-all active:scale-95 ${
@@ -205,11 +262,12 @@ const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, language, t }) => {
             >
               {isFlipped ? t.prevCardBtn : t.showAnswerBtn}
             </button>
+            </div>
           </div>
 
           <button
             onClick={handleNext}
-            disabled={currentIndex === flashcards.length - 1}
+            disabled={currentIndex === activeDeck.length - 1}
             className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-400 disabled:opacity-30 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all active:scale-95"
           >
             <ChevronRight className="h-6 w-6" />
@@ -217,7 +275,7 @@ const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, language, t }) => {
         </div>
 
         <div className="mt-8 flex justify-center gap-1.5 flex-wrap px-4">
-          {flashcards.map((card, idx) => (
+          {activeDeck.map((card, idx) => (
             <button
               key={card.id}
               onClick={() => setCurrentIndex(idx)}

@@ -67,6 +67,7 @@ export interface StudyModule {
   descriptionEn?: string;
   iconName: string;
   lessons: Lesson[];
+  isOfficial?: boolean;
 }
 
 export interface ExamQuestion {
@@ -103,6 +104,7 @@ export interface Flashcard {
   answerEn?: string;
   category: string;
   difficulty: "Easy" | "Medium" | "Hard";
+  isOfficial?: boolean;
 }
 
 export interface TranslationDict {

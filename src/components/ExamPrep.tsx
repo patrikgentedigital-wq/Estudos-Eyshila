@@ -15,23 +15,26 @@ import {
   RotateCcw,
   X
 } from "lucide-react";
-import { Language, ExamQuestion, ExamAttempt, translations } from "../types";
+import { Language, ExamQuestion, ExamAttempt, translations, CadernoErroItem } from "../types";
 import { MOCK_QUESTIONS } from "../data";
+import { REAL_EXAMS } from "../data/realExams";
 
 interface ExamPrepProps {
   language: Language;
   onQuestionsAnswered: (count: number) => void;
   attempts: ExamAttempt[];
   onAddAttempt: (attempt: ExamAttempt) => void;
+  cadernoErros: CadernoErroItem[];
 }
 
 export default function ExamPrep({
   language,
   onQuestionsAnswered,
   attempts,
-  onAddAttempt
+  onAddAttempt,
+  cadernoErros
 }: ExamPrepProps) {
-  const [lobbyTab, setLobbyTab] = useState<"mocks" | "past_exams">("mocks");
+  const [lobbyTab, setLobbyTab] = useState<"mocks" | "past_exams" | "errors">("mocks");
   const [activeExamType, setActiveExamType] = useState<string>("all");
   const [questions, setQuestions] = useState<ExamQuestion[]>(MOCK_QUESTIONS);
   
@@ -71,6 +74,39 @@ export default function ExamPrep({
       list = shuffleArray(MOCK_QUESTIONS.filter(q => q.category === "Legislação SUS" || q.category === "Ética e Gestão"));
     } else if (type === "womens_child") {
       list = shuffleArray(MOCK_QUESTIONS.filter(q => q.category === "Ciclos de Vida" || q.category === "Prática Clínica"));
+    } else if (type === "errors_notebook") {
+      // Create Mock ExamQuestions from CadernoErroItems
+      list = cadernoErros.map((item, idx) => ({
+        id: `err-${item.id}-${idx}`,
+        question: item.questionText,
+        options: item.correctAnswer && item.userAnswer 
+          ? [item.correctAnswer, item.userAnswer, "Opção Aleatória A", "Opção Aleatória B"] // This is a rough fallback if we don't store full options
+          : ["A", "B", "C", "D"], // In a real app we'd store the original options in the CadernoErroItem
+        correctIndex: 0, 
+        explanation: item.explanation,
+        category: item.category
+      }));
+      // For this mock, we just ensure the correct answer is always index 0, then we shuffle options per question later, or just keep it simple.
+      // Wait, we can't shuffle options easily if correctIndex is static. Let's build proper questions if we have them.
+      // Since it's a prototype, let's just use the original question data if we can find it by questionText in MOCK_QUESTIONS and REAL_EXAMS.
+      const allQs = [...MOCK_QUESTIONS, ...REAL_EXAMS.flatMap(e => e.questions)];
+      list = cadernoErros.map(erro => {
+        const found = allQs.find(q => q.question === erro.questionText);
+        if (found) return found;
+        return {
+          id: erro.id,
+          question: erro.questionText,
+          options: [erro.correctAnswer || "Correta", erro.userAnswer || "Errada", "Outra", "Mais uma"],
+          correctIndex: 0,
+          explanation: erro.explanation,
+          category: erro.category
+        };
+      });
+      list = shuffleArray(list);
+    } else if (type.startsWith("real_")) {
+      const id = type.replace("real_", "");
+      const exam = REAL_EXAMS.find(e => e.id === id);
+      list = exam ? [...exam.questions] : [];
     } else if (type.startsWith("enare_")) {
       const year = type.split("_")[1];
       list = shuffleArray(MOCK_QUESTIONS.filter(q => q.examSource === `ENARE ${year}`));
@@ -199,8 +235,9 @@ export default function ExamPrep({
 
             <div className="space-y-4">
               <div className="flex space-x-2 bg-slate-50 dark:bg-slate-950 p-1.5 rounded-2xl border border-slate-100">
-                <button onClick={() => setLobbyTab("mocks")} className={`flex-1 py-3 rounded-xl text-xs font-black transition-all ${lobbyTab === "mocks" ? "bg-white dark:bg-slate-900 text-sky-600 shadow-sm" : "text-slate-500"}`}>Simulados</button>
+                <button onClick={() => setLobbyTab("mocks")} className={`flex-1 py-3 rounded-xl text-xs font-black transition-all ${lobbyTab === "mocks" ? "bg-white dark:bg-slate-900 text-sky-600 shadow-sm" : "text-slate-500"}`}>Simulados IA</button>
                 <button onClick={() => setLobbyTab("past_exams")} className={`flex-1 py-3 rounded-xl text-xs font-black transition-all ${lobbyTab === "past_exams" ? "bg-white dark:bg-slate-900 text-sky-600 shadow-sm" : "text-slate-500"}`}>Provas Reais</button>
+                <button onClick={() => setLobbyTab("errors")} className={`flex-1 py-3 rounded-xl text-xs font-black transition-all ${lobbyTab === "errors" ? "bg-white dark:bg-slate-900 text-rose-500 shadow-sm" : "text-slate-500"}`}>Caderno de Erros</button>
               </div>
 
               {lobbyTab === "mocks" ? (
@@ -216,17 +253,35 @@ export default function ExamPrep({
                     <span className="text-[10px] font-bold text-sky-500 uppercase mt-4 block">Iniciar Agora →</span>
                   </button>
                 </div>
-              ) : (
+              ) : lobbyTab === "past_exams" ? (
                 <div className="grid grid-cols-1 gap-3">
-                  {["2024", "2023", "2022"].map(year => (
-                    <button key={year} onClick={() => startExam(`enare_${year}`)} className="p-4 rounded-xl border border-slate-200 hover:border-sky-500 bg-white dark:bg-slate-950 flex items-center justify-between group">
+                  {REAL_EXAMS.map(exam => (
+                    <button key={exam.id} onClick={() => startExam(`real_${exam.id}`)} className="p-4 rounded-xl border border-slate-200 hover:border-sky-500 bg-white dark:bg-slate-950 flex items-center justify-between group transition-colors">
                       <div>
-                        <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200">ENARE {year} - Prova Oficial</h4>
-                        <p className="text-[10px] text-slate-400">Questões aplicadas no concurso de {year}.</p>
+                        <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200">{exam.title}</h4>
+                        <p className="text-[10px] text-slate-400">Banca: {exam.institution} • {exam.questions.length} questões disponíveis</p>
                       </div>
-                      <ArrowRight className="h-4 w-4 text-sky-500" />
+                      <ChevronRight className="h-5 w-5 text-sky-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                     </button>
                   ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center text-center p-8 border border-slate-100 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900">
+                  <div className="w-12 h-12 bg-rose-500/10 rounded-full flex items-center justify-center mb-4">
+                    <AlertCircle className="h-6 w-6 text-rose-500" />
+                  </div>
+                  <h4 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-2">Simulado de Erros</h4>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 max-w-sm mx-auto">
+                    A IA criará um simulado focado apenas nas questões que você já errou, ideal para revisão e fixação.
+                    Você tem <strong>{cadernoErros.length}</strong> questão(ões) no caderno.
+                  </p>
+                  <button
+                    onClick={() => startExam("errors_notebook")}
+                    disabled={cadernoErros.length === 0}
+                    className="px-6 py-3 bg-rose-500 hover:bg-rose-600 disabled:opacity-50 disabled:hover:bg-rose-500 text-white font-bold rounded-xl shadow-lg shadow-rose-500/30 transition-all"
+                  >
+                    Gerar Simulado de Erros
+                  </button>
                 </div>
               )}
             </div>

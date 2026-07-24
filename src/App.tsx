@@ -457,6 +457,7 @@ export default function App() {
             onQuestionsAnswered={handleQuestionsAnswered}
             attempts={attempts}
             onAddAttempt={handleAddExamAttempt}
+            cadernoErros={cadernoErros}
           />
         );
       case "flashcards":

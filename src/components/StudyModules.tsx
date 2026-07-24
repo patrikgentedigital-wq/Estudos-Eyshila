@@ -19,6 +19,7 @@ import {
   Sparkles
 } from "lucide-react";
 import { Language, StudyModule, Lesson, translations } from "../types";
+import { OFFICIAL_MODULES } from "../data/officialModules";
 
 interface StudyModulesProps {
   language: Language;
@@ -32,9 +33,12 @@ export default function StudyModules({
   onToggleLesson
 }: StudyModulesProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [filter, setFilter] = useState<"all" | "in-progress" | "completed">("all");
+  const [filter, setFilter] = useState<"all" | "in-progress" | "completed" | "official">("all");
   const [expandedModuleId, setExpandedModuleId] = useState<string | null>("mod-basicos");
   const [activeLesson, setActiveLesson] = useState<{ moduleId: string; lesson: Lesson } | null>(null);
+
+  // TTS Hook
+  const { speak, pause, resume, stop, isSpeaking, isPaused, supported: ttsSupported } = useTTS();
 
   // Pomodoro Timer States
   const [pomodoroTime, setPomodoroTime] = useState(25 * 60);
@@ -102,14 +106,19 @@ export default function StudyModules({
     }
   };
 
-  const filteredModules = modules.filter((m) => {
+  const allAvailableModules = [...modules, ...OFFICIAL_MODULES];
+
+  const filteredModules = allAvailableModules.filter((m) => {
     const matchesSearch = m.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           m.description.toLowerCase().includes(searchQuery.toLowerCase());
+
+    if (filter === "official") return matchesSearch && (m as any).isOfficial;
+    if ((m as any).isOfficial) return false;
 
     const total = m.lessons.length;
     const completed = m.lessons.filter((l) => l.completed).length;
 
-    if (filter === "completed") return matchesSearch && completed === total;
+    if (filter === "completed") return matchesSearch && completed === total && total > 0;
     if (filter === "in-progress") return matchesSearch && completed > 0 && completed < total;
     return matchesSearch;
   });
@@ -137,7 +146,8 @@ export default function StudyModules({
 
       <div className="flex border-b border-slate-100 dark:border-slate-800 pb-px space-x-6 text-sm font-semibold">
         {[
-          { id: "all", label: "Todos os Módulos" },
+          { id: "all", label: "Meus Módulos" },
+          { id: "official", label: "Módulos Oficiais (ENARE)" },
           { id: "in-progress", label: "Em Progresso" },
           { id: "completed", label: "Concluídos" }
         ].map((tab) => (
@@ -275,7 +285,29 @@ export default function StudyModules({
               <button onClick={() => setActiveLesson(null)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400">✕</button>
             </div>
             <div className="border-b border-slate-100 dark:border-slate-800 pb-4 mb-6">
-              <h3 className="text-2xl font-black text-slate-900 dark:text-white leading-tight">{activeLesson.lesson.title}</h3>
+              <div className="flex justify-between items-start">
+                <h3 className="text-2xl font-black text-slate-900 dark:text-white leading-tight pr-4">{activeLesson.lesson.title}</h3>
+                
+                {/* TTS Botões */}
+                {ttsSupported && (
+                  <div className="flex items-center space-x-1 bg-slate-100 dark:bg-slate-800 rounded-xl px-1.5 py-1">
+                    {!isSpeaking && !isPaused ? (
+                      <button onClick={() => speak(activeLesson.lesson.content)} className="text-slate-600 dark:text-slate-400 hover:text-sky-500 transition-colors p-1" title="Ouvir Aula">
+                        <Play className="h-4 w-4" />
+                      </button>
+                    ) : (
+                      <>
+                        <button onClick={isPaused ? resume : pause} className="text-sky-500 hover:text-sky-600 transition-colors p-1" title={isPaused ? "Retomar" : "Pausar"}>
+                          {isPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
+                        </button>
+                        <button onClick={stop} className="text-red-400 hover:text-red-500 transition-colors p-1" title="Parar">
+                          <span className="text-[10px] font-bold px-1 uppercase">Stop</span>
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
               <div className="flex items-center space-x-2 text-xs text-slate-400 mt-2 font-bold uppercase">
                 <Clock className="h-3 w-3" /> <span>{activeLesson.lesson.duration}</span> <span>•</span> <span>Residência Enfermagem</span>
               </div>

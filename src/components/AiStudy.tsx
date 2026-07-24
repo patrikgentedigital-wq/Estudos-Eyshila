@@ -15,10 +15,15 @@ import {
   Clock, 
   AlertTriangle,
   ChevronLeft,
-  FileDown
+  FileDown,
+  Headphones,
+  PlayCircle,
+  PauseCircle,
+  StopCircle,
 } from "lucide-react";
 import { jsPDF } from "jspdf";
 import { Language } from "../types";
+import { useTTS } from "../hooks/useTTS";
 
 interface AiStudyProps {
   language: Language;
@@ -43,6 +48,9 @@ interface GeneratedStudy {
 }
 
 export default function AiStudy({ language }: AiStudyProps) {
+  // TTS Hook
+  const { speak, pause, resume, stop, isSpeaking, isPaused, supported: ttsSupported } = useTTS();
+
   const [file, setFile] = useState<File | null>(null);
   const [pastedText, setPastedText] = useState("");
   const [loading, setLoading] = useState(false);
@@ -1110,6 +1118,39 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
                         <FileDown className="h-4 w-4" />
                         <span>{language === "pt" ? "Baixar PDF" : "Download PDF"}</span>
                       </button>
+
+                      {/* Botões de Áudio TTS */}
+                      {ttsSupported && (
+                        <div className="flex items-center space-x-1 bg-slate-100 dark:bg-slate-800 rounded-xl px-1.5 py-1">
+                          {!isSpeaking && !isPaused ? (
+                            <button
+                              onClick={() => speak(studyData.summary)}
+                              className="text-slate-600 dark:text-slate-400 hover:text-sky-500 transition-colors p-1"
+                              title={language === "pt" ? "Ouvir Resumo" : "Listen Summary"}
+                            >
+                              <PlayCircle className="h-4 w-4" />
+                            </button>
+                          ) : (
+                            <>
+                              <button
+                                onClick={isPaused ? resume : pause}
+                                className="text-sky-500 hover:text-sky-600 transition-colors p-1"
+                                title={isPaused ? "Retomar" : "Pausar"}
+                              >
+                                {isPaused ? <PlayCircle className="h-4 w-4" /> : <PauseCircle className="h-4 w-4" />}
+                              </button>
+                              <button
+                                onClick={stop}
+                                className="text-red-400 hover:text-red-500 transition-colors p-1"
+                                title="Parar"
+                              >
+                                <StopCircle className="h-4 w-4" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      )}
+
                       <span className="text-[10px] bg-sky-500/10 text-sky-500 px-2 py-1.5 rounded-full font-bold uppercase tracking-wider flex items-center space-x-1">
                         <CheckCircle2 className="h-3 w-3" />
                         <span>{language === "pt" ? "Pronto" : "Ready"}</span>
