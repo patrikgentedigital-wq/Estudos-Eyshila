@@ -1,6 +1,5 @@
 import React, { useState } from "react";
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
-import { app, isFirebaseConfigured } from "../firebase";
+import { supabase, isSupabaseConfigured } from "../supabase";
 import { 
   GraduationCap,
   Lock,
@@ -53,40 +52,53 @@ export default function Login({
 
     setLoading(true);
     try {
-      if (!isFirebaseConfigured) {
-        throw new Error("auth/api-key-not-valid");
+      if (!isSupabaseConfigured || !supabase) {
+        // Local mode fallback
+        const mockUid = "user-" + btoa(email).slice(0, 12);
+        onLoginSuccess(email, mockUid);
+        return;
       }
-      const authInstance = getAuth(app);
-      let userCredential;
+
       if (isRegistering) {
-        userCredential = await createUserWithEmailAndPassword(authInstance, email, password);
-      } else {
-        userCredential = await signInWithEmailAndPassword(authInstance, email, password);
-      }
-      
-      const user = userCredential.user;
-      onLoginSuccess(user.email || email, user.uid);
-    } catch (err: any) {
-      console.error(err);
-      if (!isFirebaseConfigured || err.message === "auth/api-key-not-valid" || err.code?.includes("api-key-not-valid")) {
-        if (!isFirebaseConfigured) {
-          setError("Firebase não configurado. As credenciais locais serão sincronizadas no primeiro acesso.");
+        const { data, error: signUpErr } = await supabase.auth.signUp({
+          email,
+          password,
+        });
+
+        if (signUpErr) throw signUpErr;
+        if (data.user) {
+          onLoginSuccess(data.user.email || email, data.user.id);
         } else {
-          setError("A chave de API do Firebase é inválida. Verifique suas configurações.");
+          setError("Cadastro realizado! Verifique seu e-mail para confirmar a conta.");
         }
-      } else if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
-        setError("E-mail ou senha incorretos. Se ainda não tem uma conta, clique em 'Cadastre-se' abaixo.");
-      } else if (err.code === 'auth/email-already-in-use') {
-        setError("Este e-mail já está cadastrado.");
-      } else if (err.code === 'auth/weak-password') {
-        setError("A senha é muito fraca. Use pelo menos 6 caracteres.");
       } else {
-        setError(`Falha na autenticação: ${err.code || err.message}`);
+        const { data, error: signInErr } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (signInErr) throw signInErr;
+        if (data.user) {
+          onLoginSuccess(data.user.email || email, data.user.id);
+        }
+      }
+    } catch (err: any) {
+      console.error("[Supabase Auth Error]", err);
+      const msg = err.message || "";
+      if (msg.includes("Invalid login credentials") || msg.includes("invalid_credentials")) {
+        setError("E-mail ou senha incorretos. Se ainda não tem uma conta, clique em 'Cadastre-se' abaixo.");
+      } else if (msg.includes("User already registered")) {
+        setError("Este e-mail já está cadastrado.");
+      } else if (msg.includes("Password should be at least")) {
+        setError("A senha deve ter pelo menos 6 caracteres.");
+      } else {
+        setError(msg || "Falha na autenticação. Verifique os dados digitados.");
       }
     } finally {
       setLoading(false);
     }
   };
+
 
   return (
     <div className={`min-h-screen flex transition-colors duration-300 ${darkMode ? "bg-black text-slate-100" : "bg-slate-50 text-slate-800"}`}>

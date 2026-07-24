@@ -6,40 +6,8 @@ import { Tab, Language, UserProfile, StudyModule, Flashcard, ExamAttempt, transl
 import { INITIAL_PROFILE, INITIAL_MODULES, INITIAL_FLASHCARDS, INITIAL_ATTEMPTS } from "./data";
 import { safeGetItem, safeSetItem, safeRemoveItem } from "./utils/storage";
 
-// Firestore
-import { db, auth as firebaseAuth } from "./firebase";
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
-
-enum OperationType {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  LIST = 'list',
-  GET = 'get',
-  WRITE = 'write',
-}
-
-interface FirestoreErrorInfo {
-  error: string;
-  operationType: OperationType;
-  path: string | null;
-  authInfo: {
-    userId?: string | null;
-    email?: string | null;
-    emailVerified?: boolean | null;
-    isAnonymous?: boolean | null;
-    tenantId?: string | null;
-    providerInfo?: {
-      providerId?: string | null;
-      email?: string | null;
-    }[];
-  }
-}
-
-function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
-  console.error('[Firestore Operations Error]', { operationType, path });
-  throw new Error(`Falha ao sincronizar dados (${operationType}). Tente novamente.`);
-}
+// Supabase Client
+import { supabase, isSupabaseConfigured } from "./supabase";
 
 // Sidebar & Login imports
 import Sidebar from "./components/Sidebar";
@@ -55,10 +23,7 @@ const ProfileSettings = React.lazy(() => import("./components/ProfileSettings"))
 const AiStudy = React.lazy(() => import("./components/AiStudy"));
 const Roadmap = React.lazy(() => import("./components/Roadmap"));
 
-import { getAuth, onAuthStateChanged } from "firebase/auth";
-
 export default function App() {
-  const auth = getAuth();
   
   // Session & UI States
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
@@ -179,81 +144,74 @@ export default function App() {
     { id: "mock", label: "Realizar Simulado Parcial no Fim de Semana", completed: false }
   ];
 
-  // Auth Observer
+  // Supabase Auth Observer
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        setIsLoggedIn(true);
-        setUserId(user.uid);
-      } else {
-        setIsLoggedIn(false);
-        setUserId(null);
-      }
-      setIsAuthLoading(false);
-    });
-    return () => unsubscribe();
-  }, [auth]);
+    if (isSupabaseConfigured && supabase) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user) {
+          setIsLoggedIn(true);
+          setUserId(session.user.id);
+        }
+        setIsAuthLoading(false);
+      });
 
-  // Load user-specific data from Firestore when userId changes
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (session?.user) {
+          setIsLoggedIn(true);
+          setUserId(session.user.id);
+        } else {
+          setIsLoggedIn(false);
+          setUserId(null);
+        }
+        setIsAuthLoading(false);
+      });
+
+      return () => subscription.unsubscribe();
+    } else {
+      // Local fallback mode when Supabase env vars not provided
+      const savedLoggedIn = safeGetItem("residency_logged_in") === "true";
+      const savedUid = safeGetItem("residency_uid");
+      setIsLoggedIn(savedLoggedIn);
+      setUserId(savedUid || (savedLoggedIn ? "user-local-session" : null));
+      setIsAuthLoading(false);
+    }
+  }, []);
+
+  // Load user-specific data from Supabase (or LocalStorage fallback)
   useEffect(() => {
     const loadUserData = async () => {
-      if (isLoggedIn && userId && db && !isAuthLoading) {
+      if (isLoggedIn && userId && !isAuthLoading) {
         setIsLoading(true);
         try {
-          const userDocRef = doc(db, "users", userId);
-          let docSnap;
-          try {
-            docSnap = await getDoc(userDocRef);
-          } catch (err) {
-            handleFirestoreError(err, OperationType.GET, `users/${userId}`);
-            return;
-          }
+          if (isSupabaseConfigured && supabase) {
+            const { data, error } = await supabase
+              .from("user_data")
+              .select("*")
+              .eq("id", userId)
+              .maybeSingle();
 
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            if (data.profile) setProfile(data.profile);
-            if (data.modules) setModules(data.modules);
-            if (data.flashcards) setFlashcards(data.flashcards);
-            if (data.attempts) setAttempts(data.attempts);
-            if (data.questionsCount !== undefined) setQuestionsCount(data.questionsCount);
-            if (data.checklist) setChecklist(data.checklist);
-            else setChecklist(INITIAL_CHECKLIST);
-            if (data.cadernoErros) setCadernoErros(data.cadernoErros);
-            else setCadernoErros([]);
-            if (data.roadmap) setRoadmap(data.roadmap);
-            else setRoadmap(DEFAULT_ROADMAP);
-          } else {
-            // First time user, initialize Firestore with initial data
-            const initialData = {
-              profile: INITIAL_PROFILE,
-              modules: INITIAL_MODULES,
-              flashcards: INITIAL_FLASHCARDS,
-              attempts: INITIAL_ATTEMPTS,
-              questionsCount: 0,
-              checklist: INITIAL_CHECKLIST,
-              cadernoErros: [],
-              roadmap: DEFAULT_ROADMAP,
-              createdAt: serverTimestamp(),
-              updatedAt: serverTimestamp()
-            };
-            try {
-              await setDoc(userDocRef, initialData);
-            } catch (err) {
-              handleFirestoreError(err, OperationType.CREATE, `users/${userId}`);
+            if (error) {
+              console.warn("[Supabase Data Load Error]", error.message);
+            }
+
+            if (data) {
+              if (data.profile) setProfile(data.profile);
+              if (data.modules) setModules(data.modules);
+              if (data.flashcards) setFlashcards(data.flashcards);
+              if (data.attempts) setAttempts(data.attempts);
+              if (data.questions_count !== undefined) setQuestionsCount(data.questions_count);
+              if (data.checklist) setChecklist(data.checklist);
+              else setChecklist(INITIAL_CHECKLIST);
+              if (data.caderno_erros) setCadernoErros(data.caderno_erros);
+              else setCadernoErros([]);
+              if (data.roadmap) setRoadmap(data.roadmap);
+              else setRoadmap(DEFAULT_ROADMAP);
+              setIsLoading(false);
               return;
             }
-            setProfile(INITIAL_PROFILE);
-            setModules(INITIAL_MODULES);
-            setFlashcards(INITIAL_FLASHCARDS);
-            setAttempts(INITIAL_ATTEMPTS);
-            setQuestionsCount(0);
-            setChecklist(INITIAL_CHECKLIST);
-            setCadernoErros([]);
-            setRoadmap(DEFAULT_ROADMAP);
           }
-        } catch (error) {
-          console.error("Error loading user data from Firestore:", error);
-          // Fallback to localStorage if Firestore fails
+
+          // Fallback to LocalStorage
           const savedProfile = safeGetItem(`residency_profile_${userId}`);
           const savedModules = safeGetItem(`residency_modules_${userId}`);
           const savedFlashcards = safeGetItem(`residency_flashcards_${userId}`);
@@ -268,12 +226,14 @@ export default function App() {
           if (savedAttempts) setAttempts(JSON.parse(savedAttempts));
           if (savedQuestions) setQuestionsCount(Number(savedQuestions));
           if (savedChecklist) setChecklist(JSON.parse(savedChecklist));
+          else setChecklist(INITIAL_CHECKLIST);
           if (savedCaderno) setCadernoErros(JSON.parse(savedCaderno));
+        } catch (error) {
+          console.error("Erro ao carregar dados do usuário:", error);
         } finally {
           setIsLoading(false);
         }
       } else if (!isLoggedIn) {
-        // Reset states when logged out
         setProfile(INITIAL_PROFILE);
         setModules(INITIAL_MODULES);
         setFlashcards(INITIAL_FLASHCARDS);
@@ -285,26 +245,26 @@ export default function App() {
     };
 
     loadUserData();
-  }, [userId, isLoggedIn]);
+  }, [userId, isLoggedIn, isAuthLoading]);
 
-  // Debounced save to Firestore
-  const syncToFirestore = useCallback(async (dataToSync: any) => {
-    if (isLoggedIn && userId && db) {
-      const path = `users/${userId}`;
+  // Debounced save to Supabase
+  const syncToSupabase = useCallback(async (dataToSync: any) => {
+    if (isLoggedIn && userId && isSupabaseConfigured && supabase) {
       try {
-        const userDocRef = doc(db, "users", userId);
-        await updateDoc(userDocRef, {
+        const { error } = await supabase.from("user_data").upsert({
+          id: userId,
           ...dataToSync,
-          updatedAt: serverTimestamp()
+          updated_at: new Date().toISOString(),
         });
-      } catch (error) {
-        console.error("Error syncing to Firestore:", error);
-        // We catch here but we could also use handleFirestoreError if we want it to crash/show more info
-        // For sync, maybe just log is better for UX, but skill says MUST catch and throw specific JSON
-        handleFirestoreError(error, OperationType.UPDATE, path);
+        if (error) {
+          console.warn("[Supabase Sync Warning]", error.message);
+        }
+      } catch (err) {
+        console.error("Erro ao sincronizar no Supabase:", err);
       }
     }
   }, [isLoggedIn, userId]);
+
 
   // Synchronize state preferences into LocalStorage
   useEffect(() => {
@@ -333,66 +293,66 @@ export default function App() {
   useEffect(() => {
     if (isLoggedIn && userId) {
       safeSetItem(`residency_profile_${userId}`, JSON.stringify(profile));
-      const timer = setTimeout(() => syncToFirestore({ profile }), 1000);
+      const timer = setTimeout(() => syncToSupabase({ profile }), 1000);
       return () => clearTimeout(timer);
     }
-  }, [profile, userId, isLoggedIn, syncToFirestore]);
+  }, [profile, userId, isLoggedIn, syncToSupabase]);
 
   useEffect(() => {
     if (isLoggedIn && userId) {
       safeSetItem(`residency_modules_${userId}`, JSON.stringify(modules));
-      const timer = setTimeout(() => syncToFirestore({ modules }), 2000);
+      const timer = setTimeout(() => syncToSupabase({ modules }), 2000);
       return () => clearTimeout(timer);
     }
-  }, [modules, userId, isLoggedIn, syncToFirestore]);
+  }, [modules, userId, isLoggedIn, syncToSupabase]);
 
   useEffect(() => {
     if (isLoggedIn && userId) {
       safeSetItem(`residency_flashcards_${userId}`, JSON.stringify(flashcards));
-      const timer = setTimeout(() => syncToFirestore({ flashcards }), 2000);
+      const timer = setTimeout(() => syncToSupabase({ flashcards }), 2000);
       return () => clearTimeout(timer);
     }
-  }, [flashcards, userId, isLoggedIn, syncToFirestore]);
+  }, [flashcards, userId, isLoggedIn, syncToSupabase]);
 
   useEffect(() => {
     if (isLoggedIn && userId) {
       safeSetItem(`residency_attempts_${userId}`, JSON.stringify(attempts));
-      const timer = setTimeout(() => syncToFirestore({ attempts }), 2000);
+      const timer = setTimeout(() => syncToSupabase({ attempts }), 2000);
       return () => clearTimeout(timer);
     }
-  }, [attempts, userId, isLoggedIn, syncToFirestore]);
+  }, [attempts, userId, isLoggedIn, syncToSupabase]);
 
   useEffect(() => {
     if (isLoggedIn && userId) {
       safeSetItem(`residency_questions_count_${userId}`, String(questionsCount));
-      const timer = setTimeout(() => syncToFirestore({ questionsCount }), 2000);
+      const timer = setTimeout(() => syncToSupabase({ questions_count: questionsCount }), 2000);
       return () => clearTimeout(timer);
     }
-  }, [questionsCount, userId, isLoggedIn, syncToFirestore]);
+  }, [questionsCount, userId, isLoggedIn, syncToSupabase]);
 
   useEffect(() => {
     if (isLoggedIn && userId) {
       safeSetItem(`residency_checklist_${userId}`, JSON.stringify(checklist));
-      const timer = setTimeout(() => syncToFirestore({ checklist }), 2000);
+      const timer = setTimeout(() => syncToSupabase({ checklist }), 2000);
       return () => clearTimeout(timer);
     }
-  }, [checklist, userId, isLoggedIn, syncToFirestore]);
+  }, [checklist, userId, isLoggedIn, syncToSupabase]);
 
   useEffect(() => {
     if (isLoggedIn && userId) {
       safeSetItem(`residency_caderno_${userId}`, JSON.stringify(cadernoErros));
-      const timer = setTimeout(() => syncToFirestore({ cadernoErros }), 2000);
+      const timer = setTimeout(() => syncToSupabase({ caderno_erros: cadernoErros }), 2000);
       return () => clearTimeout(timer);
     }
-  }, [cadernoErros, userId, isLoggedIn, syncToFirestore]);
+  }, [cadernoErros, userId, isLoggedIn, syncToSupabase]);
 
   useEffect(() => {
     if (isLoggedIn && userId) {
       safeSetItem(`residency_roadmap_${userId}`, JSON.stringify(roadmap));
-      const timer = setTimeout(() => syncToFirestore({ roadmap }), 2000);
+      const timer = setTimeout(() => syncToSupabase({ roadmap }), 2000);
       return () => clearTimeout(timer);
     }
-  }, [roadmap, userId, isLoggedIn, syncToFirestore]);
+  }, [roadmap, userId, isLoggedIn, syncToSupabase]);
 
   // Auth operations
   const handleLoginSuccess = (email: string, uid: string) => {
@@ -402,9 +362,13 @@ export default function App() {
   };
 
   const handleLogout = () => {
-    getAuth().signOut();
+    if (isSupabaseConfigured && supabase) {
+      supabase.auth.signOut();
+    }
     setIsLoggedIn(false);
     setUserId(null);
+    safeRemoveItem("residency_logged_in");
+    safeRemoveItem("residency_uid");
     setActiveTab("dashboard");
   };
 
