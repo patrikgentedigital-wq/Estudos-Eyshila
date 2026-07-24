@@ -149,7 +149,8 @@ try {
 
         if (mimeType === "application/pdf") {
           const buffer = Buffer.from(fileData, "base64");
-          const pdfParse = (await import("pdf-parse")).default;
+          // @ts-ignore
+          const pdfParse = (await import("pdf-parse/lib/pdf-parse.js")).default;
           const pdfData = await pdfParse(buffer);
           extractedText = pdfData.text;
         } else {
