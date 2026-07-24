@@ -4,7 +4,9 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { z } from "zod";
 import dotenv from "dotenv";
-import pdfParse from "pdf-parse";
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+const pdfParse = require("pdf-parse");
 
 dotenv.config();
 
