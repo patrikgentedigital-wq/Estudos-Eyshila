@@ -20,6 +20,7 @@ import {
   PlayCircle,
   PauseCircle,
   StopCircle,
+  GraduationCap,
 } from "lucide-react";
 import { jsPDF } from "jspdf";
 import { Language } from "../types";
@@ -841,10 +842,8 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
       {/* Overview Intro */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <p className="text-sm text-slate-400 dark:text-slate-500 mt-1 font-medium">
-            {language === "pt" 
-              ? "Anexe um PDF ou digite seus textos de estudo. Nossa Inteligência Artificial lerá o material, elaborará um resumo didático estruturado e formulará um mini simulado com questões explicadas."
-              : "Upload a PDF or paste your study notes. Our AI analyzes the document, generates a structured didactic summary, and builds an interactive practice quiz with detailed rationales."}
+          <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
+            Sintetize apostilas, consensos e resoluções em segundos com o Copiloto de Estudos para a Residência em Enfermagem.
           </p>
         </div>
       </div>
@@ -857,8 +856,8 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
           <div className="lg:col-span-2 space-y-6 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xs">
             
             <h3 className="font-black text-base text-slate-800 dark:text-slate-200 flex items-center space-x-2.5">
-              <Sparkles className="h-5 w-5 text-sky-500 animate-pulse" />
-              <span>{language === "pt" ? "Criar Novo Material de Estudo" : "Create New Study Material"}</span>
+              <GraduationCap className="h-5 w-5 text-sky-500" />
+              <span>Gerador de Resumo & Questões de Fixação</span>
             </h3>
 
             {errorMsg && (
