@@ -713,6 +713,11 @@ export default function App() {
           </button>
         </div>
 
+        {/* GIGANTIC RED BANNER TO DEBUG CACHE */}
+        <div className="bg-rose-600 text-white font-black text-xl p-4 text-center shadow-2xl z-50 animate-pulse">
+          🚨 VERSÃO ATUALIZADA - SE VOCÊ ESTÁ VENDO ISSO, O CÓDIGO NOVO CARREGOU! 🚨
+        </div>
+
         {/* MINI DESKTOP FOOTER */}
         <footer className="hidden lg:block py-4 px-8 border-t border-slate-100 dark:border-slate-900/60 text-center text-[10px] text-slate-400 dark:text-slate-600 font-mono">
           <span>Portal de Estudos • Foco Enfermagem</span>
