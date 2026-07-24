@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { motion } from "motion/react";
 import { 
   CheckCircle2, 
@@ -10,7 +10,10 @@ import {
   ChevronRight, 
   Clock,
   Layout,
-  Flashlight
+  Flashlight,
+  Sparkles,
+  AlertTriangle,
+  Flame
 } from "lucide-react";
 import { RoadmapWeek, Tab } from "../types";
 
@@ -21,25 +24,84 @@ interface RoadmapProps {
 }
 
 const Roadmap: React.FC<RoadmapProps> = ({ roadmap, onToggleTask, setActiveTab }) => {
+  // Target Exam Date State (Default: 2026-10-20, typical ENARE exam period)
+  const [examDate, setExamDate] = useState<string>("2026-10-20");
+
+  // Calculate days & weeks remaining until target date
+  const today = new Date();
+  const target = new Date(examDate);
+  const diffTime = target.getTime() - today.getTime();
+  const daysRemaining = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+  const weeksRemaining = Math.max(1, Math.ceil(daysRemaining / 7));
+
+  // Progress metrics
+  const totalTasks = roadmap.reduce((acc, w) => acc + w.tasks.length, 0);
+  const completedTasks = roadmap.reduce((acc, w) => acc + w.tasks.filter(t => t.completed).length, 0);
+  const remainingTasks = totalTasks - completedTasks;
+
+  // Pace indicator: Tasks per week needed
+  const neededTasksPerWeek = Math.ceil(remainingTasks / weeksRemaining);
+  
+  let paceStatus = { text: "No Ritmo Ideal", color: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20", icon: Sparkles };
+  if (neededTasksPerWeek > 5) {
+    paceStatus = { text: "Necessário Acelerar", color: "bg-rose-500/10 text-rose-600 border-rose-500/20", icon: AlertTriangle };
+  } else if (neededTasksPerWeek <= 2) {
+    paceStatus = { text: "Ritmo Confortável", color: "bg-sky-500/10 text-sky-600 border-sky-500/20", icon: Flame };
+  }
+
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-20">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">
-            Roteiro Personalizado ENARE
-          </h2>
-          <p className="text-slate-500 dark:text-slate-400 font-medium text-sm">
-            Cronograma de 7 semanas baseado no Mapeamento FGV 2024
-          </p>
-        </div>
-        <div className="flex items-center space-x-4 bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-xs">
-          <div className="flex flex-col items-center px-3 border-r border-slate-100 dark:border-slate-800">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tempo/Dia</span>
-            <span className="text-sm font-black text-sky-600">60 min</span>
+      {/* Header & Adaptive Date Banner */}
+      <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xs space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center space-x-2">
+              <span className="px-3 py-1 bg-sky-500/10 text-sky-600 dark:text-sky-400 rounded-full text-xs font-bold uppercase tracking-wider">Edital Esquematizado</span>
+              <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border flex items-center gap-1 ${paceStatus.color}`}>
+                <paceStatus.icon className="h-3 w-3 inline" />
+                {paceStatus.text}
+              </span>
+            </div>
+            <h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight mt-2">
+              Roteiro Adaptativo ENARE
+            </h2>
+            <p className="text-slate-500 dark:text-slate-400 font-medium text-sm">
+              Plano dinâmico que recalcula sua carga de estudos conforme a data da prova.
+            </p>
           </div>
-          <div className="flex flex-col items-center px-3">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Duração</span>
-            <span className="text-sm font-black text-sky-600">7 Semanas</span>
+
+          <div className="flex items-center space-x-3 bg-slate-50 dark:bg-slate-950 p-3 rounded-2xl border border-slate-100 dark:border-slate-800">
+            <Calendar className="h-5 w-5 text-sky-500 shrink-0" />
+            <div className="flex flex-col">
+              <label htmlFor="exam-date-input" className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Data do Concurso</label>
+              <input 
+                id="exam-date-input"
+                type="date"
+                value={examDate}
+                onChange={(e) => setExamDate(e.target.value)}
+                className="bg-transparent text-xs font-bold text-slate-800 dark:text-slate-100 outline-hidden cursor-pointer"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Adaptive Metrics Banner */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+          <div className="bg-slate-50 dark:bg-slate-800/50 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Dias Restantes</span>
+            <span className="text-xl font-black text-slate-900 dark:text-white">{daysRemaining} dias</span>
+          </div>
+          <div className="bg-slate-50 dark:bg-slate-800/50 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Semanas Úteis</span>
+            <span className="text-xl font-black text-sky-600 dark:text-sky-400">{weeksRemaining} sem</span>
+          </div>
+          <div className="bg-slate-50 dark:bg-slate-800/50 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Meta Semanal</span>
+            <span className="text-xl font-black text-indigo-600 dark:text-indigo-400">{neededTasksPerWeek} tópicos/sem</span>
+          </div>
+          <div className="bg-slate-50 dark:bg-slate-800/50 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Conclusão Edital</span>
+            <span className="text-xl font-black text-emerald-600 dark:text-emerald-400">{Math.round((completedTasks / (totalTasks || 1)) * 100)}%</span>
           </div>
         </div>
       </div>
