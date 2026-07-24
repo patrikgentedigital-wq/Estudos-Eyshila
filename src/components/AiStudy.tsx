@@ -134,12 +134,18 @@ export default function AiStudy({ language }: AiStudyProps) {
       if (!res.ok) {
         let errorMessage = `Erro ${res.status}`;
         try {
-          const data = await res.json();
-          if (data.error) {
-            errorMessage = data.error;
-            if (data.error.includes("GEMINI_API_KEY")) {
-              errorMessage = "A chave da API Gemini não está configurada. Por favor, adicione sua GEMINI_API_KEY no painel de Segredos.";
+          const text = await res.text();
+          try {
+            const data = JSON.parse(text);
+            if (data.error) {
+              errorMessage = data.error;
+              if (data.error.includes("GEMINI_API_KEY")) {
+                errorMessage = "A chave da API Gemini não está configurada. Por favor, adicione sua GEMINI_API_KEY no painel de Segredos.";
+              }
             }
+          } catch (e) {
+            // Not JSON, probably Vercel Error Page
+            errorMessage = `Erro ${res.status}: ${text.substring(0, 150)}...`;
           }
         } catch (e) {
           // ignore parsing error
@@ -377,9 +383,14 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
       if (!res.ok) {
         let errorMessage = "HTTP error " + res.status;
         try {
-          const errorData = await res.json();
-          if (errorData.error) {
-            errorMessage = errorData.error;
+          const text = await res.text();
+          try {
+            const errorData = JSON.parse(text);
+            if (errorData.error) {
+              errorMessage = errorData.error;
+            }
+          } catch (e) {
+            errorMessage = `HTTP error ${res.status}: ${text.substring(0, 150)}...`;
           }
         } catch (e) {
           // ignore parsing error
