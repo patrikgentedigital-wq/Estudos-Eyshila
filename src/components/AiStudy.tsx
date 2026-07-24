@@ -57,7 +57,60 @@ export default function AiStudy({ language }: AiStudyProps) {
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("");
   const [activeSubTab, setActiveSubTab] = useState<"summary" | "quiz" | "flashcards">("summary");
-  const [studyData, setStudyData] = useState<GeneratedStudy | null>(null);
+  
+  // Default Initialized Material so user is immediately in Google NotebookLM Studio Workspace
+  const [studyData, setStudyData] = useState<GeneratedStudy | null>(() => ({
+    summary: `# Resumo Didático: Legislação do SUS (Lei nº 8.080/1990)
+
+## 1. Introdução à Lei Orgânica da Saúde
+A Lei nº 8.080/1990 regula, em todo o território nacional, as ações e serviços de saúde, executados isolada ou conjuntamente, em caráter permanente ou eventual, por pessoas físicas ou jurídicas de direito público ou privado.
+
+## 2. Princípios Doutrinários
+* **Universalidade:** Acesso a ações e serviços de saúde garantido a todos os cidadãos sem preconceitos ou privilégios.
+* **Equidade:** Tratamento desigual aos desiguais para diminuir as disparidades e atender com prioridade quem possui maior necessidade.
+* **Integralidade:** Assistência à saúde em todos os níveis de complexidade, englobando promoção, prevenção, tratamento e reabilitação.
+
+## 3. Campo de Atuação do SUS
+* Execução de ações de **Vigilância Sanitária**, **Vigilância Epidemiológica**, **Saúde do Trabalhador** e **Assistência Terapêutica Integral** (incluindo farmacêutica).
+
+## 4. Descentralização e Participação da Iniciativa Privada
+* A direção do SUS é única, exercida em cada esfera de governo (Ministério da Saúde, Secretaria Estadual e Secretaria Municipal).
+* A iniciativa privada pode participar do SUS em caráter **complementar**, mediante contrato de direito público ou convênio, com preferência para entidades filantrópicas e sem fins lucrativos.`,
+    questions: [
+      {
+        question: "De acordo com a Lei nº 8.080/1990, o conjunto de ações que proporcionam o conhecimento, a detecção ou prevenção de qualquer mudança nos fatores determinantes e condicionantes de saúde individual ou coletiva é denominado:",
+        options: [
+          "A) Vigilância Sanitária.",
+          "B) Vigilância Epidemiológica.",
+          "C) Saúde do Trabalhador.",
+          "D) Regulamentação Farmacêutica."
+        ],
+        answer: "B",
+        explanation: "A Vigilância Epidemiológica é definida no Art. 6º da Lei 8.080/90 como o conjunto de ações para detecção, prevenção e controle de doenças transmissíveis e condicionantes de saúde."
+      },
+      {
+        question: "A descentralização político-administrativa é um princípio organizativo do SUS que estabelece ênfase na:",
+        options: [
+          "A) Centralização de decisões no nível federal.",
+          "B) Municipalização dos serviços de saúde.",
+          "C) Extinção das Secretarias Estaduais.",
+          "D) Transferência exclusiva para a iniciativa privada."
+        ],
+        answer: "B",
+        explanation: "A descentralização visa aproximar a gestão do cidadão através da municipalização dos serviços de saúde."
+      }
+    ],
+    flashcards: [
+      {
+        front: "Quais são os 3 princípios doutrinários do SUS?",
+        back: "Universalidade, Equidade e Integralidade."
+      },
+      {
+        front: "A iniciativa privada pode participar do SUS de qual forma?",
+        back: "Em caráter COMPLEMENTAR, tendo preferência entidades filantrópicas e sem fins lucrativos."
+      }
+    ]
+  }));
   const [dragActive, setDragActive] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   
