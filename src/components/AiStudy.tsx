@@ -132,13 +132,19 @@ export default function AiStudy({ language }: AiStudyProps) {
       });
 
       if (!res.ok) {
-        if (res.status === 500) {
+        let errorMessage = `Erro ${res.status}`;
+        try {
           const data = await res.json();
-          if (data.error && data.error.includes("GEMINI_API_KEY")) {
-            throw new Error("A chave da API Gemini não está configurada. Por favor, adicione sua GEMINI_API_KEY no painel de Segredos.");
+          if (data.error) {
+            errorMessage = data.error;
+            if (data.error.includes("GEMINI_API_KEY")) {
+              errorMessage = "A chave da API Gemini não está configurada. Por favor, adicione sua GEMINI_API_KEY no painel de Segredos.";
+            }
           }
+        } catch (e) {
+          // ignore parsing error
         }
-        throw new Error(`Erro ${res.status}`);
+        throw new Error(errorMessage);
       }
       const data = await res.json();
       setChatMessages(prev => [...prev, { role: "ai", content: data.text }]);
@@ -369,7 +375,16 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
       });
 
       if (!res.ok) {
-        throw new Error("HTTP error " + res.status);
+        let errorMessage = "HTTP error " + res.status;
+        try {
+          const errorData = await res.json();
+          if (errorData.error) {
+            errorMessage = errorData.error;
+          }
+        } catch (e) {
+          // ignore parsing error
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await res.json();
