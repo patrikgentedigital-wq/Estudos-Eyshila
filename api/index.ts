@@ -63,35 +63,56 @@ try {
   app.use(express.urlencoded({ limit: "20mb", extended: true }));
 
   async function callOpenRouter(messages: any[], isJsonMode: boolean = false) {
-    const apiKey = process.env.OPENROUTER_API_KEY;
-    const model = process.env.OPENROUTER_MODEL || "nvidia/nemotron-3-nano-30b-a3b:free";
-
+    const apiKey = process.env.OPENROUTER_API_KEY || process.env.VITE_OPENROUTER_API_KEY;
+    
     if (!apiKey) {
-      throw new Error("Chave OPENROUTER_API_KEY ausente nas variáveis de ambiente.");
+      throw new Error("Chave OPENROUTER_API_KEY não configurada nas variáveis de ambiente do Vercel.");
     }
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "HTTP-Referer": process.env.APP_URL || "http://localhost:3000", 
-        "X-Title": "Você Aprovado - Estudos", 
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: model,
-        messages: messages,
-        response_format: isJsonMode ? { type: "json_object" } : undefined
-      })
-    });
+    const modelsToTry = [
+      process.env.OPENROUTER_MODEL,
+      "google/gemini-2.5-flash:free",
+      "meta-llama/llama-3.3-70b-instruct:free",
+      "mistralai/mistral-7b-instruct:free"
+    ].filter(Boolean) as string[];
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`OpenRouter API error: ${response.status} ${errorText}`);
+    let lastError: any = null;
+
+    for (const model of modelsToTry) {
+      try {
+        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${apiKey}`,
+            "HTTP-Referer": process.env.APP_URL || "http://localhost:3000", 
+            "X-Title": "Você Aprovado - Estudos", 
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            model: model,
+            messages: messages,
+            response_format: isJsonMode ? { type: "json_object" } : undefined
+          })
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`[${model}] OpenRouter Error ${response.status}: ${errorText}`);
+        }
+
+        const data = await response.json();
+        if (data.choices && data.choices[0]?.message?.content) {
+          return data.choices[0].message.content;
+        } else {
+          throw new Error(`[${model}] Resposta inválida da OpenRouter.`);
+        }
+      } catch (err: any) {
+        console.warn(`Tentativa com modelo ${model} falhou:`, err.message);
+        lastError = err;
+      }
     }
 
-    const data = await response.json();
-    return data.choices[0].message.content;
+    throw lastError || new Error("Falha ao comunicar com a OpenRouter em todos os modelos.");
   }
 
   // Zod Input Schemas
@@ -190,7 +211,7 @@ CERTIFIQUE-SE QUE EXISTAM EXATAMENTE 5 QUESTÕES E 6 FLASHCARDS.`;
 
     } catch (error: any) {
       Logger.error("Falha ao gerar o material de estudos via OpenRouter.", error, req);
-      res.status(500).json({ error: "Falha ao gerar o material de estudos via OpenRouter. Tente novamente em instantes." });
+      res.status(500).json({ error: `Falha na IA: ${error.message || error}` });
     }
   });
 
@@ -225,7 +246,7 @@ CERTIFIQUE-SE QUE EXISTAM EXATAMENTE 5 QUESTÕES E 6 FLASHCARDS.`;
 
     } catch (error: any) {
       Logger.error("Falha ao processar mensagem da IA via OpenRouter.", error, req);
-      res.status(500).json({ error: "Falha ao processar mensagem da IA via OpenRouter. Tente novamente." });
+      res.status(500).json({ error: `Falha na IA: ${error.message || error}` });
     }
   });
 
