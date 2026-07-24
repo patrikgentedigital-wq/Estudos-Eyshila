@@ -4,13 +4,10 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { z } from "zod";
 import dotenv from "dotenv";
-import { createRequire } from "module";
+import pdfParse from "pdf-parse";
 import { Logger } from "./utils/logger.js";
 import { metricsMiddleware, aiCache } from "./utils/metrics.js";
 import { Request, Response, NextFunction } from "express";
-
-const require = createRequire(import.meta.url);
-const pdfParse = require("pdf-parse");
 
 dotenv.config();
 
@@ -180,9 +177,14 @@ CERTIFIQUE-SE QUE EXISTAM EXATAMENTE 5 QUESTÕES E 6 FLASHCARDS.`;
 
     const responseText = await callOpenRouter(messages, true);
     
-    // Clean response just in case the model added markdown blocks
-    const cleanJson = responseText.replace(/```json/g, "").replace(/```/g, "").trim();
-    const parsedData = JSON.parse(cleanJson);
+    // Clean response & extract strictly the JSON payload
+    const firstBrace = responseText.indexOf("{");
+    const lastBrace = responseText.lastIndexOf("}");
+    const jsonSub = (firstBrace !== -1 && lastBrace !== -1) 
+      ? responseText.substring(firstBrace, lastBrace + 1) 
+      : responseText.replace(/```json/g, "").replace(/```/g, "").trim();
+    
+    const parsedData = JSON.parse(jsonSub);
     
     aiCache.set(cacheKey, parsedData);
     res.json(parsedData);
