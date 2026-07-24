@@ -21,6 +21,8 @@ import {
   PauseCircle,
   StopCircle,
   GraduationCap,
+  FileUp,
+  X
 } from "lucide-react";
 import { jsPDF } from "jspdf";
 import { Language } from "../types";
@@ -890,44 +892,45 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in h-full flex flex-col">
       
       {/* Overview Intro */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
-            Sintetize apostilas, consensos e resoluções em segundos com o Copiloto de Estudos para a Residência em Enfermagem.
+          <h2 className="text-xl font-black text-slate-800 dark:text-slate-100 tracking-tight flex items-center space-x-2">
+            <Sparkles className="h-5 w-5 text-sky-500" />
+            <span>Estúdio de IA</span>
+          </h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mt-1">
+            Sintetize apostilas, consensos e resoluções em segundos.
           </p>
         </div>
       </div>
 
       {/* Main Container */}
       {!studyData && !loading && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+        <div className="flex-1 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-8 shadow-xs flex flex-col items-center justify-center text-center">
           
-          {/* Main Upload / Pasteurizer Area */}
-          <div className="lg:col-span-2 space-y-6 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xs">
-            
-            <h3 className="font-black text-base text-slate-800 dark:text-slate-200 flex items-center space-x-2.5">
-              <GraduationCap className="h-5 w-5 text-sky-500" />
-              <span>Gerador de Resumo & Questões de Fixação</span>
-            </h3>
+          <div className="w-20 h-20 bg-sky-50 dark:bg-slate-800 rounded-full flex items-center justify-center mb-6">
+            <Brain className="h-10 w-10 text-sky-500" />
+          </div>
+          
+          <h3 className="font-black text-2xl text-slate-800 dark:text-slate-200 mb-3">
+            Nenhuma Fonte de Estudo Ativa
+          </h3>
+          <p className="text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-8 font-medium">
+            Arraste um arquivo PDF, cole seu texto de anotações ou use nosso material de exemplo oficial para iniciar o copiloto.
+          </p>
 
-            {errorMsg && (
-              <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 rounded-2xl text-xs sm:text-sm flex items-start space-x-2.5 animate-fade-in shadow-xs">
-                <AlertTriangle className="h-4.5 w-4.5 shrink-0 mt-0.5 text-rose-500" />
-                <div className="flex-1 font-semibold leading-relaxed">
-                  {errorMsg}
-                </div>
-                <button 
-                  onClick={() => setErrorMsg(null)}
-                  className="text-rose-400 hover:text-rose-600 dark:hover:text-rose-300 font-extrabold text-xs cursor-pointer"
-                >
-                  ✕
-                </button>
-              </div>
-            )}
+          {errorMsg && (
+            <div className="mb-6 p-4 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 rounded-2xl text-xs sm:text-sm flex items-start space-x-2.5 animate-fade-in">
+              <AlertTriangle className="h-4.5 w-4.5 shrink-0 mt-0.5" />
+              <div className="flex-1 font-semibold">{errorMsg}</div>
+              <button onClick={() => setErrorMsg(null)} className="font-extrabold text-xs cursor-pointer">✕</button>
+            </div>
+          )}
 
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-3xl">
             {/* Drag and Drop Zone */}
             <div 
               onDragEnter={handleDrag}
@@ -938,7 +941,7 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
               className={`border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center cursor-pointer transition-all ${
                 dragActive 
                   ? "border-sky-500 bg-sky-500/5" 
-                  : "border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 hover:bg-slate-50 dark:hover:bg-slate-950/80 hover:border-sky-500/50"
+                  : "border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-950/80 hover:border-sky-500/50"
               }`}
             >
               <input
@@ -948,198 +951,37 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
                 onChange={handleFileChange}
                 className="hidden"
               />
-              <UploadCloud className={`h-12 w-12 mb-3.5 transition-colors ${dragActive ? "text-sky-500" : "text-slate-300 dark:text-slate-700"}`} />
-              
-              {file ? (
-                <div className="text-center">
-                  <span className="inline-flex items-center space-x-1.5 bg-sky-500/10 text-sky-600 dark:text-sky-400 font-bold text-xs px-3.5 py-1.5 rounded-full border border-sky-500/20">
-                    <FileText className="h-3.5 w-3.5" />
-                    <span className="truncate max-w-[200px]">{file.name}</span>
-                  </span>
-                  <p className="text-[10px] text-slate-400 mt-2 font-medium">
-                    {language === "pt" ? "Clique ou arraste outro para substituir" : "Click or drag another to replace"}
-                  </p>
-                </div>
-              ) : (
-                <div className="text-center">
-                  <p className="text-sm font-bold text-slate-700 dark:text-slate-200">
-                    {language === "pt" ? "Anexar PDF ou TXT de estudos" : "Upload PDF or TXT Study File"}
-                  </p>
-                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 font-medium">
-                    {language === "pt" ? "Arraste e solte o arquivo aqui, ou clique para procurar" : "Drag & drop the file here, or click to browse"}
-                  </p>
-                </div>
-              )}
+              <FileUp className={`h-10 w-10 mb-4 transition-colors ${dragActive ? "text-sky-500" : "text-slate-300 dark:text-slate-600"}`} />
+              <h4 className="font-bold text-slate-700 dark:text-slate-300 mb-1">Upload de PDF</h4>
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-500">
+                Arraste ou clique para enviar (Max 5MB)
+              </p>
             </div>
 
-            {/* Pasted text option */}
-            {!file && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                    {language === "pt" ? "OU COLE O TEXTO DE ESTUDO" : "OR PASTE YOUR STUDY TEXT"}
-                  </label>
-                </div>
-                <textarea
-                  id="paste-study-text"
-                  rows={6}
-                  value={pastedText}
-                  onChange={(e) => setPastedText(e.target.value)}
-                  placeholder={language === "pt" 
-                    ? "Cole aqui anotações, apostilas, trechos de livros ou condutas de enfermagem..." 
-                    : "Paste study notes, textbook excerpts, guidelines, protocols here..."}
-                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-3.5 text-xs sm:text-sm outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/10 transition-all leading-relaxed font-normal"
-                />
-              </div>
-            )}
-
-            {/* Actions */}
-            <div className="flex flex-col sm:flex-row gap-3 pt-2">
-              <button
-                id="btn-generate-ai-study"
-                onClick={handleGenerateStudy}
-                disabled={!file && !pastedText.trim()}
-                className="flex-1 bg-sky-600 hover:bg-sky-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-xs sm:text-sm py-3.5 px-6 rounded-2xl shadow-xl shadow-sky-600/15 hover:shadow-sky-500/25 transition-all flex items-center justify-center space-x-2.5"
-              >
-                <Brain className="h-4 sm:h-5 w-4 sm:w-5" />
-                <span>{language === "pt" ? "Gerar Resumo e Questões" : "Generate Summary & Quiz"}</span>
-              </button>
-            </div>
-
-          </div>
-
-          {/* Quick Access Sidebar */}
-          <div className="space-y-6">
-            
-            {/* Example Card */}
-            <div className="bg-gradient-to-br from-sky-600 to-teal-700 text-white rounded-3xl p-6 shadow-xl relative overflow-hidden">
-              <div className="absolute right-0 bottom-0 opacity-10 pointer-events-none translate-x-4 translate-y-4">
-                <Sparkles className="w-40 h-40" />
-              </div>
-              
-              <div className="relative space-y-4">
-                <div className="p-2 bg-white/10 w-fit rounded-xl">
-                  <Brain className="h-6 w-6 text-sky-100" />
-                </div>
-                <div>
-                  <h4 className="font-extrabold text-base tracking-tight text-white">
-                    {language === "pt" ? "Teste Imediato" : "Quick Test Drive"}
-                  </h4>
-                  <p className="text-xs text-sky-100 mt-1 leading-relaxed font-medium">
-                    {language === "pt" 
-                      ? "Não tem nenhum PDF em mãos agora? Use nosso material de estudo pré-carregado sobre a Lei do SUS para ver a IA em ação!"
-                      : "Don't have a PDF ready? Load our pre-configured SUS Organic Law study packet to explore the summary and quiz generator immediately!"}
-                  </p>
-                </div>
+            <div className="flex flex-col gap-4">
+              <textarea
+                value={pastedText}
+                onChange={(e) => setPastedText(e.target.value)}
+                placeholder="Ou cole seu texto de estudo diretamente aqui..."
+                className="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 text-sm resize-none outline-none focus:border-sky-500 transition-all text-slate-700 dark:text-slate-200"
+              />
+              <div className="flex gap-2">
                 <button
-                  id="btn-load-example"
                   onClick={handleLoadExample}
-                  className="w-full bg-white hover:bg-sky-50 text-sky-700 font-bold text-xs py-3 rounded-xl shadow-md transition-all flex items-center justify-center space-x-2"
+                  className="flex-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs py-3 rounded-xl transition-all"
                 >
-                  <Sparkles className="h-3.5 w-3.5" />
-                  <span>{language === "pt" ? "Usar Material de Exemplo" : "Load Example Packet"}</span>
+                  Carregar Exemplo SUS
+                </button>
+                <button
+                  onClick={handleGenerateStudy}
+                  disabled={!file && !pastedText.trim()}
+                  className="flex-1 bg-sky-600 hover:bg-sky-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-xs py-3 rounded-xl transition-all"
+                >
+                  Gerar Resumo IA
                 </button>
               </div>
             </div>
-
-            {/* PDF Guidance Card */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-5 space-y-4 shadow-xs">
-              <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400 flex items-center space-x-1.5">
-                <HelpCircle className="h-4 w-4 text-sky-500" />
-                <span>{language === "pt" ? "Tipos de Arquivos Suportados" : "Supported Study Materials"}</span>
-              </h4>
-              <ul className="space-y-2 text-xs text-slate-500 dark:text-slate-400 font-medium">
-                <li className="flex items-start space-x-2">
-                  <span className="text-sky-500 mt-0.5">✓</span>
-                  <span><strong>Artigos Acadêmicos:</strong> PDFs de consensos, resoluções COFEN ou diretrizes de saúde.</span>
-                </li>
-                <li className="flex items-start space-x-2">
-                  <span className="text-sky-500 mt-0.5">✓</span>
-                  <span><strong>Editais de Concurso:</strong> TXT ou PDF com conteúdos programáticos para focar.</span>
-                </li>
-                <li className="flex items-start space-x-2">
-                  <span className="text-sky-500 mt-0.5">✓</span>
-                  <span><strong>Anotações de Aulas:</strong> Cole suas anotações pessoais de enfermagem para fixar.</span>
-                </li>
-              </ul>
-            </div>
-
-            {/* AI Chat / Search Section */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl overflow-hidden shadow-xs flex flex-col">
-              <div className="p-5 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-950/20">
-                <div className="flex items-center space-x-2.5">
-                  <div className="p-2 bg-sky-500/10 text-sky-500 rounded-lg">
-                    <Sparkles className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <h4 className="font-extrabold text-xs text-slate-800 dark:text-slate-100">
-                      {language === "pt" ? "Mentor de Estudos IA" : "AI Study Mentor"}
-                    </h4>
-                    <p className="text-[10px] text-slate-400 font-medium">
-                      {language === "pt" ? "Tire dúvidas rápidas com a IA" : "Ask quick questions to AI"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="h-64 overflow-y-auto p-4 space-y-4">
-                {chatMessages.length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center text-center opacity-40">
-                    <Brain className="h-6 w-6 mb-2 text-slate-300" />
-                    <p className="text-[10px] font-medium text-slate-500">
-                      {language === "pt" ? "Como posso ajudar seus estudos?" : "How can I help your studies?"}
-                    </p>
-                  </div>
-                ) : (
-                  chatMessages.map((msg, idx) => (
-                    <div key={idx} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                      <div className={`max-w-[90%] p-2.5 rounded-2xl text-[11px] sm:text-xs leading-relaxed ${
-                        msg.role === "user" 
-                          ? "bg-sky-600 text-white rounded-tr-none" 
-                          : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-tl-none border border-slate-200/50 dark:border-slate-750"
-                      }`}>
-                        {msg.content}
-                      </div>
-                    </div>
-                  ))
-                )}
-                {chatLoading && (
-                  <div className="flex justify-start">
-                    <div className="bg-slate-100 dark:bg-slate-800 p-2.5 rounded-2xl rounded-tl-none border border-slate-200/50 dark:border-slate-750">
-                      <div className="flex space-x-1">
-                        <div className="w-1 h-1 bg-sky-500 rounded-full animate-bounce" />
-                        <div className="w-1 h-1 bg-sky-500 rounded-full animate-bounce [animation-delay:0.2s]" />
-                        <div className="w-1 h-1 bg-sky-500 rounded-full animate-bounce [animation-delay:0.4s]" />
-                      </div>
-                    </div>
-                  </div>
-                )}
-                <div ref={chatEndRef} />
-              </div>
-
-              <div className="p-3 border-t border-slate-50 dark:border-slate-800 bg-white dark:bg-slate-900">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleChatSearch()}
-                    placeholder={language === "pt" ? "Tire sua dúvida..." : "Ask your question..."}
-                    className="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-[11px] outline-none focus:border-sky-500 transition-all"
-                  />
-                  <button
-                    onClick={handleChatSearch}
-                    disabled={chatLoading || !chatInput.trim()}
-                    className="bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white p-2 rounded-xl transition-all"
-                  >
-                    <ArrowRight className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-
           </div>
-
         </div>
       )}
 
