@@ -16,6 +16,22 @@ export interface RoadmapWeek {
   status: "locked" | "current" | "completed";
 }
 
+export interface ChecklistItem {
+  id: string;
+  label: string;
+  completed: boolean;
+}
+
+export interface CadernoErroItem {
+  id: string;
+  questionText: string;
+  userAnswer?: string;
+  correctAnswer?: string;
+  explanation: string;
+  category: string;
+  dateAdded: string;
+}
+
 export interface UserProfile {
   firstName: string;
   lastName: string;

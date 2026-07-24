@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Menu, X, GraduationCap, Calendar, Bell, Shield } from "lucide-react";
 
-import { Tab, Language, UserProfile, StudyModule, Flashcard, ExamAttempt, translations, RoadmapWeek, RoadmapTask } from "./types";
+import { Tab, Language, UserProfile, StudyModule, Flashcard, ExamAttempt, translations, RoadmapWeek, RoadmapTask, ChecklistItem, CadernoErroItem } from "./types";
 import { INITIAL_PROFILE, INITIAL_MODULES, INITIAL_FLASHCARDS, INITIAL_ATTEMPTS } from "./data";
 import { safeGetItem, safeSetItem, safeRemoveItem } from "./utils/storage";
 
@@ -56,17 +56,19 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
   throw new Error(JSON.stringify(errInfo));
 }
 
-// Named component imports
+// Sidebar & Login imports
 import Sidebar from "./components/Sidebar";
 import Login from "./components/Login";
-import Dashboard from "./components/Dashboard";
-import StudyModules from "./components/StudyModules";
-import ExamPrep from "./components/ExamPrep";
-import Flashcards from "./components/Flashcards";
-import Performance from "./components/Performance";
-import ProfileSettings from "./components/ProfileSettings";
-import AiStudy from "./components/AiStudy";
-import Roadmap from "./components/Roadmap";
+
+// Lazy-loaded tab components for code splitting
+const Dashboard = React.lazy(() => import("./components/Dashboard"));
+const StudyModules = React.lazy(() => import("./components/StudyModules"));
+const ExamPrep = React.lazy(() => import("./components/ExamPrep"));
+const Flashcards = React.lazy(() => import("./components/Flashcards"));
+const Performance = React.lazy(() => import("./components/Performance"));
+const ProfileSettings = React.lazy(() => import("./components/ProfileSettings"));
+const AiStudy = React.lazy(() => import("./components/AiStudy"));
+const Roadmap = React.lazy(() => import("./components/Roadmap"));
 
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 
@@ -85,8 +87,8 @@ export default function App() {
   });
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [checklist, setChecklist] = useState<any[]>([]);
-  const [cadernoErros, setCadernoErros] = useState<any[]>([]);
+  const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
+  const [cadernoErros, setCadernoErros] = useState<CadernoErroItem[]>([]);
   const [roadmap, setRoadmap] = useState<RoadmapWeek[]>([]);
 
   // Default Roadmap Data based on PDF
@@ -672,7 +674,14 @@ export default function App() {
 
         {/* MAIN BODY SCROLL CONTAINER */}
         <main className="flex-1 p-6 sm:p-8 max-w-7xl mx-auto w-full overflow-y-auto">
-          {renderTabContent()}
+          <React.Suspense fallback={
+            <div className="flex flex-col items-center justify-center p-12 space-y-3">
+              <div className="w-8 h-8 border-3 border-sky-500 border-t-transparent rounded-full animate-spin" />
+              <span className="text-xs text-slate-400 font-medium animate-pulse">Carregando módulo...</span>
+            </div>
+          }>
+            {renderTabContent()}
+          </React.Suspense>
         </main>
 
         {/* MINI DESKTOP FOOTER */}
