@@ -1,6 +1,10 @@
 import express from "express";
 import path from "path";
 import dotenv from "dotenv";
+import helmet from "helmet";
+import cors from "cors";
+import rateLimit from "express-rate-limit";
+import { z } from "zod";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 
@@ -9,25 +13,57 @@ dotenv.config();
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = process.env.PORT || 3000;
+
+  // Security HTTP Headers with Helmet
+  app.use(
+    helmet({
+      contentSecurityPolicy: false, // Vite injects scripts dynamically in dev
+      crossOriginEmbedderPolicy: false,
+    })
+  );
+
+  // CORS restriction
+  const allowedOrigins = [
+    process.env.APP_URL,
+    "http://localhost:3000",
+    "http://localhost:5173",
+  ].filter(Boolean) as string[];
+
+  app.use(
+    cors({
+      origin: allowedOrigins.length > 0 ? allowedOrigins : "*",
+      methods: ["GET", "POST"],
+      allowedHeaders: ["Content-Type", "Authorization"],
+    })
+  );
+
+  // Rate Limiting for AI endpoints (protect against DDoS / quota abuse)
+  const aiLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 minute
+    max: 10, // max 10 requests per IP per minute
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Muitas requisições enviadas. Aguarde um minuto e tente novamente." },
+  });
 
   // Body parser setup with 20MB limit for base64 file uploads (PDFs)
   app.use(express.json({ limit: "20mb" }));
   app.use(express.urlencoded({ limit: "20mb", extended: true }));
 
-  // Initialize Gemini client lazily to avoid crashing on missing environment keys at startup
+  // Initialize Gemini client lazily
   let aiClient: GoogleGenAI | null = null;
   function getGeminiClient(): GoogleGenAI {
     if (!aiClient) {
       const apiKey = process.env.GEMINI_API_KEY;
       if (!apiKey) {
-        throw new Error("A chave GEMINI_API_KEY não foi encontrada nos segredos do projeto. Por favor, adicione-a no painel 'Settings > Secrets'.");
+        throw new Error("Chave GEMINI_API_KEY ausente nas variáveis de ambiente.");
       }
       aiClient = new GoogleGenAI({
         apiKey: apiKey,
         httpOptions: {
           headers: {
-            "User-Agent": "aistudio-build",
+            "User-Agent": "estudos-eyshila-app",
           },
         },
       });
@@ -48,27 +84,36 @@ async function startServer() {
     }
   }
 
-  // API endpoint to expose Firebase configuration to the frontend
-  app.get("/api/config", (req, res) => {
-    res.json({
-      firebase: {
-        apiKey: process.env.VITE_FIREBASE_API_KEY,
-        authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN,
-        projectId: process.env.VITE_FIREBASE_PROJECT_ID,
-        storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET,
-        messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-        appId: process.env.VITE_FIREBASE_APP_ID,
-      }
-    });
+  // Zod Input Schemas
+  const GenerateStudySchema = z.object({
+    fileData: z.string().optional(),
+    fileName: z.string().max(255).optional(),
+    mimeType: z.enum(["application/pdf", "text/plain", "text/markdown"]).optional(),
+    text: z.string().max(50000, "Texto excede o limite máximo de 50.000 caracteres.").optional(),
+  }).refine((data) => data.fileData || data.text, {
+    message: "Envie um arquivo PDF/texto ou digite um conteúdo de estudo.",
+  });
+
+  const ChatStudySchema = z.object({
+    message: z.string().min(1, "Mensagem vazia.").max(4000, "Mensagem muito longa."),
   });
 
   // API endpoint to generate study summary and questions
-  app.post("/api/generate-study", async (req, res) => {
+  app.post("/api/generate-study", aiLimiter, async (req, res) => {
     try {
-      const { fileData, fileName, mimeType, text } = req.body;
+      const validation = GenerateStudySchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: validation.error.issues[0].message });
+      }
 
-      if (!fileData && !text) {
-        return res.status(400).json({ error: "Missing study material data (fileData or text)." });
+      const { fileData, mimeType, text } = validation.data;
+
+      // Validate base64 file size (max ~15MB decoded)
+      if (fileData) {
+        const decodedSizeBytes = Buffer.byteLength(fileData, "base64");
+        if (decodedSizeBytes > 15 * 1024 * 1024) {
+          return res.status(400).json({ error: "O arquivo excede o tamanho máximo permitido (15MB)." });
+        }
       }
 
       const ai = getGeminiClient();
@@ -156,27 +201,27 @@ async function startServer() {
 
       const responseText = response.text;
       if (!responseText) {
-        throw new Error("Gemini returned an empty response.");
+        throw new Error("Gemini returned empty response.");
       }
 
       const parsedData = JSON.parse(responseText);
       res.json(parsedData);
 
     } catch (error: any) {
-      console.error("Gemini Generation Error:", error);
-      res.status(500).json({ error: error.message || "Failed to generate study materials." });
+      console.error("[Internal Error] Gemini Generation:", error?.message || error);
+      res.status(500).json({ error: "Falha ao gerar o material de estudos. Tente novamente em instantes." });
     }
   });
 
   // API endpoint for AI study chat/search
-  app.post("/api/chat-study", async (req, res) => {
+  app.post("/api/chat-study", aiLimiter, async (req, res) => {
     try {
-      const { message, history } = req.body;
-
-      if (!message) {
-        return res.status(400).json({ error: "Missing message." });
+      const validation = ChatStudySchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: validation.error.issues[0].message });
       }
 
+      const { message } = validation.data;
       const ai = getGeminiClient();
       
       const chat = ai.chats.create({
@@ -186,14 +231,12 @@ async function startServer() {
         }
       });
 
-      // Simple history mapping if provided
       const response = await retryWithBackoff(() => chat.sendMessage({ message }));
-      
       res.json({ text: response.text });
 
     } catch (error: any) {
-      console.error("Gemini Chat Error:", error);
-      res.status(500).json({ error: error.message || "Failed to process AI chat." });
+      console.error("[Internal Error] Gemini Chat:", error?.message || error);
+      res.status(500).json({ error: "Falha ao processar mensagem da IA. Tente novamente." });
     }
   });
 
@@ -209,18 +252,17 @@ async function startServer() {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
     
-    // Fallback all routes to index.html for SPA router (Vite SPA template)
     app.get("*", (req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
     });
     console.log("Serving production build from dist/");
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
+  app.listen(PORT, () => {
     console.log(`Express application running on port ${PORT}`);
   });
 }
 
 startServer().catch((err) => {
-  console.error("Critical server startup crash:", err);
+  console.error("Critical server startup crash:", err?.message || err);
 });

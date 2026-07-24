@@ -37,24 +37,8 @@ interface FirestoreErrorInfo {
 }
 
 function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
-  const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: firebaseAuth?.currentUser?.uid,
-      email: firebaseAuth?.currentUser?.email,
-      emailVerified: firebaseAuth?.currentUser?.emailVerified,
-      isAnonymous: firebaseAuth?.currentUser?.isAnonymous,
-      tenantId: firebaseAuth?.currentUser?.tenantId,
-      providerInfo: firebaseAuth?.currentUser?.providerData?.map(provider => ({
-        providerId: provider.providerId,
-        email: provider.email,
-      })) || []
-    },
-    operationType,
-    path
-  }
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
+  console.error('[Firestore Operations Error]', { operationType, path });
+  throw new Error(`Falha ao sincronizar dados (${operationType}). Tente novamente.`);
 }
 
 // Sidebar & Login imports
