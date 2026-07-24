@@ -14,10 +14,10 @@
     animation: spin 8s linear infinite;
   }
   .animate-fade-in {
-    animation: fadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
   .animate-slide-up {
-    animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
   .animate-pulse-subtle {
     animation: pulseSubtle 3s ease-in-out infinite;
@@ -35,26 +35,37 @@
   .transform-style-3d {
     transform-style: preserve-3d;
   }
-  .glass-card {
-    background: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+
+  /* NotebookLM Style Utility Tokens */
+  .notebook-bg-light {
+    background-color: #f8f9fa;
   }
-  .dark .glass-card {
-    background: rgba(15, 23, 42, 0.85);
+  .notebook-bg-dark {
+    background-color: #131314;
   }
+  .notebook-card-light {
+    background-color: #ffffff;
+    border: 1px solid #e3e3e3;
+  }
+  .notebook-card-dark {
+    background-color: #1e1e20;
+    border: 1px solid #2d2d30;
+  }
+  .notebook-chip {
+    background-color: #e8f0fe;
+    color: #041e49;
+  }
+  .dark .notebook-chip {
+    background-color: #004a77;
+    color: #c2e7ff;
+  }
+
   .hover-glow {
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.2s ease;
   }
   .hover-glow:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 12px 24px -6px rgba(14, 165, 233, 0.2);
-  }
-  .neon-border-sky {
-    box-shadow: 0 0 15px rgba(14, 165, 233, 0.3);
-  }
-  .neon-border-flame {
-    box-shadow: 0 0 20px rgba(244, 63, 94, 0.35);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(11, 87, 208, 0.08);
   }
 }
 
