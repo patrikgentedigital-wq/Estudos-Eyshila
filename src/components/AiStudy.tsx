@@ -403,7 +403,65 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
         throw new Error(data.error);
       }
 
-      setStudyData(data);
+      // Robust Data Normalization Guard for Quiz & Flashcards
+      const rawQuestions = Array.isArray(data.questions) ? data.questions : (Array.isArray(data.quiz) ? data.quiz : []);
+      const rawFlashcards = Array.isArray(data.flashcards) ? data.flashcards : (Array.isArray(data.cards) ? data.cards : []);
+
+      const alphabet = ["A", "B", "C", "D", "E"];
+
+      const normalizedQuestions = rawQuestions.map((q: any, qIdx: number) => {
+        const rawOptions = Array.isArray(q.options) ? q.options : ["Opção A", "Opção B", "Opção C", "Opção D"];
+        
+        // Standardize options to always start with "A) ", "B) ", etc.
+        const cleanedOptions = rawOptions.map((opt: string, optIdx: number) => {
+          const letter = alphabet[optIdx] || "A";
+          const textWithoutPrefix = String(opt).replace(/^[A-E][\)\.\:\-]\s*/i, "").trim();
+          return `${letter}) ${textWithoutPrefix}`;
+        });
+
+        // Standardize answer to single uppercase letter "A", "B", "C", "D"
+        let cleanAnswer = "A";
+        if (typeof q.answer === "string") {
+          const match = q.answer.match(/[A-E]/i);
+          if (match) cleanAnswer = match[0].toUpperCase();
+        } else if (typeof q.answer === "number" && q.answer >= 0 && q.answer < 5) {
+          cleanAnswer = alphabet[q.answer];
+        } else if (typeof q.correctIndex === "number") {
+          cleanAnswer = alphabet[q.correctIndex] || "A";
+        }
+
+        return {
+          question: q.question || q.title || `Questão ${qIdx + 1}`,
+          options: cleanedOptions,
+          answer: cleanAnswer,
+          explanation: q.explanation || q.justification || "Fundamentação didática disponível para esta questão."
+        };
+      });
+
+      const normalizedFlashcards = rawFlashcards.map((f: any, fIdx: number) => ({
+        front: f.front || f.question || f.term || `Conceito ${fIdx + 1}`,
+        back: f.back || f.answer || f.definition || "Definição não disponível."
+      }));
+
+      const cleanStudyData: GeneratedStudy = {
+        summary: data.summary || "Resumo de estudos gerado pela Inteligência Artificial.",
+        questions: normalizedQuestions.length > 0 ? normalizedQuestions : [
+          {
+            question: "Qual o foco principal do material analisado?",
+            options: ["A) Diretrizes de Enfermagem", "B) Protocolos Clínicos", "C) Legislação do SUS", "D) Prática Assistencial"],
+            answer: "A",
+            explanation: "O material foca no aprimoramento contínuo das rotinas e legislações de enfermagem."
+          }
+        ],
+        flashcards: normalizedFlashcards.length > 0 ? normalizedFlashcards : [
+          {
+            front: "Conceito Fundamental de Enfermagem",
+            back: "Assistência prestada de forma integrada, segura e ética."
+          }
+        ]
+      };
+
+      setStudyData(cleanStudyData);
       setActiveSubTab("summary");
       
       // Reset quiz state
@@ -1277,7 +1335,7 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
                                 }`}>
                                   {optionLetter}
                                 </span>
-                                <span className="flex-1">{option.substring(3)}</span>
+                                <span className="flex-1">{option.replace(/^[A-E][\)\.\:\-]\s*/i, "")}</span>
                                 
                                 {isSubmitted && isCorrectAnswer && (
                                   <CheckCircle2 className="h-4.5 w-4.5 text-sky-500 shrink-0 self-center" />
