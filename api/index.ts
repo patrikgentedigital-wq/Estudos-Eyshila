@@ -4,6 +4,7 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { z } from "zod";
 import dotenv from "dotenv";
+import crypto from "crypto";
 import { Logger } from "./utils/logger.js";
 import { metricsMiddleware, aiCache } from "./utils/metrics.js";
 import { Request, Response, NextFunction } from "express";
@@ -63,10 +64,10 @@ try {
   app.use(express.urlencoded({ limit: "20mb", extended: true }));
 
   async function callOpenRouter(messages: any[], isJsonMode: boolean = false) {
-    const apiKey = process.env.OPENROUTER_API_KEY || process.env.VITE_OPENROUTER_API_KEY;
+    const apiKey = process.env.OPENROUTER_API_KEY || process.env.GEMINI_API_KEY;
     
     if (!apiKey) {
-      throw new Error("Chave OPENROUTER_API_KEY não configurada nas variáveis de ambiente do Vercel.");
+      throw new Error("Chave OPENROUTER_API_KEY ou GEMINI_API_KEY não configurada no servidor.");
     }
 
     const modelsToTry = [
@@ -80,12 +81,16 @@ try {
 
     for (const model of modelsToTry) {
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
         const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
           method: "POST",
+          signal: controller.signal,
           headers: {
             "Authorization": `Bearer ${apiKey}`,
             "HTTP-Referer": process.env.APP_URL || "http://localhost:3000", 
-            "X-Title": "Você Aprovado - Estudos", 
+            "X-Title": "Portal de Estudos Eyshila Caxias - ENARE", 
             "Content-Type": "application/json"
           },
           body: JSON.stringify({
@@ -94,6 +99,8 @@ try {
             response_format: isJsonMode ? { type: "json_object" } : undefined
           })
         });
+
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
           const errorText = await response.text();
@@ -107,7 +114,11 @@ try {
           throw new Error(`[${model}] Resposta inválida da OpenRouter.`);
         }
       } catch (err: any) {
-        console.warn(`Tentativa com modelo ${model} falhou:`, err.message);
+        if (err.name === "AbortError") {
+          console.warn(`Tentativa com modelo ${model} excedeu o limite de tempo (30s).`);
+        } else {
+          console.warn(`Tentativa com modelo ${model} falhou:`, err.message);
+        }
         lastError = err;
       }
     }
@@ -217,8 +228,9 @@ CERTIFIQUE-SE QUE EXISTAM EXATAMENTE 5 QUESTÕES E 6 FLASHCARDS.`;
 
       const userPrompt = `Baseado no seguinte texto de estudos, elabore o resumo científico, questões com fundamentação legal/clínica e flashcards em formato JSON estrito:\n\n${extractedText}`;
 
-      // Cache logic
-      const cacheKey = `study_${Buffer.from(userPrompt).toString('base64').substring(0, 50)}`;
+      // Cache logic via SHA-256
+      const promptHash = crypto.createHash("sha256").update(userPrompt).digest("hex");
+      const cacheKey = `study_${promptHash}`;
       const cachedResponse = aiCache.get(cacheKey);
       if (cachedResponse) {
         Logger.info("CACHE_HIT: generate-study", req);

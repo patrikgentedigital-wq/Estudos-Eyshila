@@ -31,7 +31,9 @@ export default function App() {
   const [userId, setUserId] = useState<string | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
   
-  const language: Language = "pt";
+  const [language, setLanguage] = useState<Language>(() => {
+    return (localStorage.getItem("app_language") as Language) || "pt";
+  });
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
   const [darkMode, setDarkMode] = useState<boolean>(() => {
     return safeGetItem("residency_dark_mode") === "true";
