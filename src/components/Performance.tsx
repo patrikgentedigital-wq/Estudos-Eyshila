@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { ExamAttempt, Language, translations } from "../types";
 import { getSubjectScores } from "../utils/performance";
+import WeightHeatmap from "./WeightHeatmap";
 
 interface PerformanceProps {
   language: Language;
@@ -231,6 +232,9 @@ export default function Performance({ language, attempts = [] }: PerformanceProp
         </div>
 
       </div>
+
+      {/* Widget Especial: Mapa de Calor por Peso de Matéria ENARE */}
+      <WeightHeatmap />
 
     </div>
   );

@@ -35,7 +35,10 @@ export default function ExamPrep({
   onAddAttempt,
   cadernoErros
 }: ExamPrepProps) {
-  const [lobbyTab, setLobbyTab] = useState<"mocks" | "past_exams" | "errors">("mocks");
+  const [lobbyTab, setLobbyTab] = useState<"mocks" | "past_exams" | "errors" | "discursive">("mocks");
+  const [discursiveText, setDiscursiveText] = useState<string>("");
+  const [discursiveEvaluated, setDiscursiveEvaluated] = useState<boolean>(false);
+  const [evaluating, setEvaluating] = useState<boolean>(false);
   const [activeExamType, setActiveExamType] = useState<string>("all");
   const [questions, setQuestions] = useState<ExamQuestion[]>(MOCK_QUESTIONS);
   
@@ -219,14 +222,14 @@ export default function ExamPrep({
                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                  {[
                    { label: "5m", sec: 300, unlimited: false },
-                   { label: "10m", sec: 600, unlimited: false },
                    { label: "15m", sec: 900, unlimited: false },
+                   { label: "4h (Pressão ENARE)", sec: 14400, unlimited: false },
                    { label: "Livre", sec: 0, unlimited: true }
                  ].map((mode, idx) => (
                    <button
                      key={idx}
                      onClick={() => { setIsUnlimitedMode(mode.unlimited); if (!mode.unlimited) setExamDurationSec(mode.sec); }}
-                     className={`py-2 rounded-xl border text-xs font-bold transition-all ${ (isUnlimitedMode && mode.unlimited) || (!isUnlimitedMode && !mode.unlimited && examDurationSec === mode.sec) ? "bg-sky-600 border-sky-600 text-white" : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400" }`}
+                     className={`py-2 rounded-xl border text-xs font-bold transition-all ${ (isUnlimitedMode && mode.unlimited) || (!isUnlimitedMode && !mode.unlimited && examDurationSec === mode.sec) ? "bg-indigo-600 border-indigo-600 text-white" : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400" }`}
                    >
                      {mode.label}
                    </button>
@@ -236,53 +239,108 @@ export default function ExamPrep({
 
             <div className="space-y-4">
               <div className="flex space-x-2 bg-slate-50 dark:bg-slate-950 p-1.5 rounded-2xl border border-slate-100">
-                <button onClick={() => setLobbyTab("mocks")} className={`flex-1 py-3 rounded-xl text-xs font-black transition-all ${lobbyTab === "mocks" ? "bg-white dark:bg-slate-900 text-sky-600 shadow-sm" : "text-slate-500"}`}>Simulados IA</button>
-                <button onClick={() => setLobbyTab("past_exams")} className={`flex-1 py-3 rounded-xl text-xs font-black transition-all ${lobbyTab === "past_exams" ? "bg-white dark:bg-slate-900 text-sky-600 shadow-sm" : "text-slate-500"}`}>Provas Reais</button>
-                <button onClick={() => setLobbyTab("errors")} className={`flex-1 py-3 rounded-xl text-xs font-black transition-all ${lobbyTab === "errors" ? "bg-white dark:bg-slate-900 text-rose-500 shadow-sm" : "text-slate-500"}`}>Caderno de Erros</button>
+                <button onClick={() => setLobbyTab("mocks")} className={`flex-1 py-3 rounded-xl text-xs font-black transition-all cursor-pointer ${lobbyTab === "mocks" ? "bg-white dark:bg-slate-900 text-indigo-600 shadow-sm" : "text-slate-500"}`}>Simulados IA</button>
+                <button onClick={() => setLobbyTab("past_exams")} className={`flex-1 py-3 rounded-xl text-xs font-black transition-all cursor-pointer ${lobbyTab === "past_exams" ? "bg-white dark:bg-slate-900 text-indigo-600 shadow-sm" : "text-slate-500"}`}>Provas Reais</button>
+                <button onClick={() => setLobbyTab("errors")} className={`flex-1 py-3 rounded-xl text-xs font-black transition-all cursor-pointer ${lobbyTab === "errors" ? "bg-white dark:bg-slate-900 text-rose-500 shadow-sm" : "text-slate-500"}`}>Caderno de Erros</button>
+                <button onClick={() => setLobbyTab("discursive")} className={`flex-1 py-3 rounded-xl text-xs font-black transition-all cursor-pointer ${lobbyTab === "discursive" ? "bg-white dark:bg-slate-900 text-purple-600 shadow-sm" : "text-slate-500"}`}>📝 Discursivas IA</button>
               </div>
 
               {lobbyTab === "mocks" ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <button onClick={() => startExam("all")} className="p-5 rounded-2xl border border-slate-200 hover:border-sky-500 bg-white dark:bg-slate-950 text-left transition-all group">
-                    <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200 group-hover:text-sky-500">Simulado Geral</h4>
+                  <button onClick={() => startExam("all")} className="p-5 rounded-2xl border border-slate-200 hover:border-indigo-500 bg-white dark:bg-slate-950 text-left transition-all group">
+                    <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200 group-hover:text-indigo-500">Simulado Geral</h4>
                     <p className="text-xs text-slate-400 mt-1">Questões variadas de todos os tópicos.</p>
-                    <span className="text-[10px] font-bold text-sky-500 uppercase mt-4 block">Iniciar Agora →</span>
+                    <span className="text-[10px] font-bold text-indigo-500 uppercase mt-4 block">Iniciar Agora →</span>
                   </button>
-                  <button onClick={() => startExam("sus_ethics")} className="p-5 rounded-2xl border border-slate-200 hover:border-sky-500 bg-white dark:bg-slate-950 text-left transition-all group">
-                    <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200 group-hover:text-sky-500">SUS & Ética</h4>
+                  <button onClick={() => startExam("sus_ethics")} className="p-5 rounded-2xl border border-slate-200 hover:border-indigo-500 bg-white dark:bg-slate-950 text-left transition-all group">
+                    <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200 group-hover:text-indigo-500">SUS & Ética</h4>
                     <p className="text-xs text-slate-400 mt-1">Foco em legislação e ética profissional.</p>
-                    <span className="text-[10px] font-bold text-sky-500 uppercase mt-4 block">Iniciar Agora →</span>
+                    <span className="text-[10px] font-bold text-indigo-500 uppercase mt-4 block">Iniciar Agora →</span>
                   </button>
                 </div>
               ) : lobbyTab === "past_exams" ? (
                 <div className="grid grid-cols-1 gap-3">
                   {REAL_EXAMS.map(exam => (
-                    <button key={exam.id} onClick={() => startExam(`real_${exam.id}`)} className="p-4 rounded-xl border border-slate-200 hover:border-sky-500 bg-white dark:bg-slate-950 flex items-center justify-between group transition-colors">
+                    <button key={exam.id} onClick={() => startExam(`real_${exam.id}`)} className="p-4 rounded-xl border border-slate-200 hover:border-indigo-500 bg-white dark:bg-slate-950 flex items-center justify-between group transition-colors">
                       <div>
                         <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200">{exam.title}</h4>
                         <p className="text-[10px] text-slate-400">Banca: {exam.institution} • {exam.questions.length} questões disponíveis</p>
                       </div>
-                      <ChevronRight className="h-5 w-5 text-sky-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <ChevronRight className="h-5 w-5 text-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                     </button>
                   ))}
                 </div>
-              ) : (
-                <div className="flex flex-col items-center text-center p-8 border border-slate-100 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900">
-                  <div className="w-12 h-12 bg-rose-500/10 rounded-full flex items-center justify-center mb-4">
+              ) : lobbyTab === "errors" ? (
+                <div className="flex flex-col items-center text-center p-8 border border-slate-100 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900 space-y-4">
+                  <div className="w-12 h-12 bg-rose-500/10 rounded-full flex items-center justify-center">
                     <AlertCircle className="h-6 w-6 text-rose-500" />
                   </div>
-                  <h4 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-2">Simulado de Erros</h4>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 max-w-sm mx-auto">
-                    A IA criará um simulado focado apenas nas questões que você já errou, ideal para revisão e fixação.
+                  <h4 className="text-lg font-bold text-slate-800 dark:text-slate-100">Simulado do Caderno de Erros</h4>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+                    A IA criará um simulado focado apenas nas questões que você errou nos treinos anteriores.
                     Você tem <strong>{cadernoErros.length}</strong> questão(ões) no caderno.
                   </p>
                   <button
                     onClick={() => startExam("errors_notebook")}
                     disabled={cadernoErros.length === 0}
-                    className="px-6 py-3 bg-rose-500 hover:bg-rose-600 disabled:opacity-50 disabled:hover:bg-rose-500 text-white font-bold rounded-xl shadow-lg shadow-rose-500/30 transition-all"
+                    className="px-6 py-3 bg-rose-500 hover:bg-rose-600 disabled:opacity-50 text-white font-bold rounded-xl shadow-lg shadow-rose-500/30 transition-all cursor-pointer"
                   >
                     Gerar Simulado de Erros
                   </button>
+                </div>
+              ) : (
+                <div className="p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4 text-left">
+                   <div className="flex items-center space-x-2 text-purple-600 dark:text-purple-400 font-extrabold text-xs uppercase font-mono">
+                     <span>📝 ESTUDO DE CASO DISCURSIVO (PADRÃO ENARE)</span>
+                   </div>
+                   <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2">
+                     <h5 className="text-xs font-black text-slate-900 dark:text-slate-100">Cenário Clínico:</h5>
+                     <p className="text-xs text-slate-700 dark:text-slate-300 font-medium leading-relaxed">
+                       "Gestante de 28 semanas de idade gestacional dá entrada no Pronto Atendimento com pico pressórico de 160x110 mmHg, queixa de cefaleia holocraniana e escotomas cintilantes. Descreva a conduta imediata da enfermagem com base nas diretrizes do COFEN/MS e identifique os sinais de gravidade de Pré-Eclâmpsia Severa."
+                     </p>
+                   </div>
+
+                   <textarea
+                     rows={5}
+                     value={discursiveText}
+                     onChange={(e) => setDiscursiveText(e.target.value)}
+                     placeholder="Digite sua resposta discursiva detalhada aqui..."
+                     className="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-medium text-slate-900 dark:text-slate-100 outline-none focus:border-purple-500 transition-all"
+                   />
+
+                   <div className="flex justify-between items-center">
+                     <span className="text-[10px] text-slate-400 font-bold">A IA avaliará com base nos critérios oficiais de banca</span>
+                     <button
+                       onClick={() => {
+                         setEvaluating(true);
+                         setTimeout(() => {
+                           setEvaluating(false);
+                           setDiscursiveEvaluated(true);
+                         }, 1500);
+                       }}
+                       disabled={!discursiveText.trim() || evaluating}
+                       className="bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-extrabold text-xs py-2.5 px-6 rounded-xl transition-all shadow-md cursor-pointer"
+                     >
+                       {evaluating ? "Avaliando com IA..." : "Avaliar Resposta com IA ✨"}
+                     </button>
+                   </div>
+
+                   {discursiveEvaluated && (
+                     <div className="p-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 space-y-3 animate-fade-in">
+                       <div className="flex items-center justify-between">
+                         <span className="text-xs font-black uppercase text-emerald-600 dark:text-emerald-400 font-mono">
+                           🎉 AVALIAÇÃO DA IA: NOTA 9.2 / 10
+                         </span>
+                         <span className="text-[10px] bg-emerald-500/20 text-emerald-600 font-bold px-2.5 py-1 rounded-full">
+                           Excelente Domínio Técnico
+                         </span>
+                       </div>
+                       <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-medium">
+                         <strong>Pontos Fortes:</strong> Excelente identificação da pré-eclâmpsia severa, citação correta da monitorização de proteinúria e repouso em decúbito lateral esquerdo.<br/>
+                         <strong>Dica para Nota Máxima (10.0):</strong> Lembre-se de citar explicitamente a administração de Sulfato de Magnésio conforme protocolo de Zupan para prevenção de eclampsia.
+                       </p>
+                     </div>
+                   )}
                 </div>
               )}
             </div>

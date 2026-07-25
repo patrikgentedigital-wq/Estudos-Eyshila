@@ -26,6 +26,7 @@ import { Language, translations, StudyModule, Flashcard, ExamAttempt, UserProfil
 import { IMAGES, MOCK_SCHEDULE, MOCK_QUESTIONS } from "../data";
 import { getStudyRecommendation } from "../utils/performance";
 import { ENARE_INSTITUTIONS } from "../data/enareCutoffs";
+import { downloadEicsCalendar } from "../utils/calendarExport";
 
 interface DashboardProps {
   language: Language;
@@ -163,6 +164,16 @@ export default function Dashboard({
                 <p className="text-lg font-black text-white font-mono">13/09/2026</p>
               </div>
             </div>
+
+            {/* Sync Calendar Button */}
+            <button
+              onClick={() => downloadEicsCalendar()}
+              className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:scale-[1.02] active:scale-[0.98] text-white p-3.5 rounded-2xl border border-white/20 backdrop-blur-md flex items-center space-x-2 shadow-xl cursor-pointer text-xs font-black transition-all"
+              title="Adicionar Cronograma Oficial ENARE à Agenda do Celular"
+            >
+              <Calendar className="h-4 w-4" />
+              <span>Agendar no Celular (.ics)</span>
+            </button>
           </div>
         </div>
       </div>
