@@ -139,10 +139,12 @@ export default function App() {
   };
 
   // Business Data States
-  const [profile, setProfile] = useState<UserProfile>(INITIAL_PROFILE);
-  const [modules, setModules] = useState<StudyModule[]>(INITIAL_MODULES);
-  const [flashcards, setFlashcards] = useState<Flashcard[]>(INITIAL_FLASHCARDS);
-  const [attempts, setAttempts] = useState<ExamAttempt[]>(INITIAL_ATTEMPTS);
+  const clone = <T,>(obj: T): T => JSON.parse(JSON.stringify(obj));
+  
+  const [profile, setProfile] = useState<UserProfile>(() => clone(INITIAL_PROFILE));
+  const [modules, setModules] = useState<StudyModule[]>(() => clone(INITIAL_MODULES));
+  const [flashcards, setFlashcards] = useState<Flashcard[]>(() => clone(INITIAL_FLASHCARDS));
+  const [attempts, setAttempts] = useState<ExamAttempt[]>([]);
   const [questionsCount, setQuestionsCount] = useState<number>(0);
 
   const INITIAL_CHECKLIST = [
@@ -206,14 +208,14 @@ export default function App() {
             }
 
             if (data) {
-              setProfile(data.profile || INITIAL_PROFILE);
-              setModules(data.modules || INITIAL_MODULES);
-              setFlashcards(data.flashcards || INITIAL_FLASHCARDS);
+              setProfile(data.profile || clone(INITIAL_PROFILE));
+              setModules(data.modules || clone(INITIAL_MODULES));
+              setFlashcards(data.flashcards || clone(INITIAL_FLASHCARDS));
               setAttempts(data.attempts || []);
               setQuestionsCount(data.questions_count ?? 0);
               setChecklist(data.checklist || INITIAL_CHECKLIST);
               setCadernoErros(data.caderno_erros || []);
-              setRoadmap(data.roadmap || DEFAULT_ROADMAP);
+              setRoadmap(data.roadmap || clone(DEFAULT_ROADMAP));
               setIsLoading(false);
               return;
             }
@@ -229,28 +231,28 @@ export default function App() {
           const savedCaderno = safeGetItem(`residency_caderno_${userId}`);
           const savedRoadmap = safeGetItem(`residency_roadmap_${userId}`);
 
-          setProfile(savedProfile ? JSON.parse(savedProfile) : INITIAL_PROFILE);
-          setModules(savedModules ? JSON.parse(savedModules) : INITIAL_MODULES);
-          setFlashcards(savedFlashcards ? JSON.parse(savedFlashcards) : INITIAL_FLASHCARDS);
+          setProfile(savedProfile ? JSON.parse(savedProfile) : clone(INITIAL_PROFILE));
+          setModules(savedModules ? JSON.parse(savedModules) : clone(INITIAL_MODULES));
+          setFlashcards(savedFlashcards ? JSON.parse(savedFlashcards) : clone(INITIAL_FLASHCARDS));
           setAttempts(savedAttempts ? JSON.parse(savedAttempts) : []);
           setQuestionsCount(savedQuestions ? Number(savedQuestions) : 0);
           setChecklist(savedChecklist ? JSON.parse(savedChecklist) : INITIAL_CHECKLIST);
           setCadernoErros(savedCaderno ? JSON.parse(savedCaderno) : []);
-          setRoadmap(savedRoadmap ? JSON.parse(savedRoadmap) : DEFAULT_ROADMAP);
+          setRoadmap(savedRoadmap ? JSON.parse(savedRoadmap) : clone(DEFAULT_ROADMAP));
         } catch (error) {
           console.error("Erro ao carregar dados do usuário:", error);
         } finally {
           setIsLoading(false);
         }
       } else if (!isLoggedIn) {
-        setProfile(INITIAL_PROFILE);
-        setModules(INITIAL_MODULES);
-        setFlashcards(INITIAL_FLASHCARDS);
+        setProfile(clone(INITIAL_PROFILE));
+        setModules(clone(INITIAL_MODULES));
+        setFlashcards(clone(INITIAL_FLASHCARDS));
         setAttempts([]);
         setQuestionsCount(0);
-        setChecklist([]);
+        setChecklist(INITIAL_CHECKLIST);
         setCadernoErros([]);
-        setRoadmap(DEFAULT_ROADMAP);
+        setRoadmap(clone(DEFAULT_ROADMAP));
       }
     };
 
@@ -382,14 +384,14 @@ export default function App() {
     safeRemoveItem("residency_logged_in");
     safeRemoveItem("residency_uid");
     setActiveTab("dashboard");
-    setProfile(INITIAL_PROFILE);
-    setModules(INITIAL_MODULES);
-    setFlashcards(INITIAL_FLASHCARDS);
+    setProfile(clone(INITIAL_PROFILE));
+    setModules(clone(INITIAL_MODULES));
+    setFlashcards(clone(INITIAL_FLASHCARDS));
     setAttempts([]);
     setQuestionsCount(0);
-    setChecklist([]);
+    setChecklist(INITIAL_CHECKLIST);
     setCadernoErros([]);
-    setRoadmap(DEFAULT_ROADMAP);
+    setRoadmap(clone(DEFAULT_ROADMAP));
   };
 
   const handleToggleLesson = (moduleId: string, lessonId: string) => {
@@ -409,7 +411,7 @@ export default function App() {
 
   const handleToggleRoadmapTask = (weekIdx: number, taskIdx: number) => {
     setRoadmap((prev) => {
-      const updated = [...prev];
+      const updated = JSON.parse(JSON.stringify(prev));
       updated[weekIdx].tasks[taskIdx].completed = !updated[weekIdx].tasks[taskIdx].completed;
       
       const allCompleted = updated[weekIdx].tasks.every(t => t.completed);
