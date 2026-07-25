@@ -17,11 +17,15 @@ import {
   Flame,
   Target,
   GraduationCap,
-  Sparkles
+  Sparkles,
+  Zap,
+  Building2,
+  AlertCircle
 } from "lucide-react";
 import { Language, translations, StudyModule, Flashcard, ExamAttempt, UserProfile } from "../types";
-import { IMAGES, MOCK_SCHEDULE } from "../data";
+import { IMAGES, MOCK_SCHEDULE, MOCK_QUESTIONS } from "../data";
 import { getStudyRecommendation } from "../utils/performance";
+import { ENARE_INSTITUTIONS } from "../data/enareCutoffs";
 
 interface DashboardProps {
   language: Language;
@@ -42,17 +46,35 @@ export default function Dashboard({
   language,
   profile,
   modules,
+  flashcards,
   attempts = [],
   setActiveTab,
   questionsCount,
   onQuestionsAnswered,
   checklist,
   setChecklist,
-  cadernoErros,
+  cadernoErros = [],
   setCadernoErros
 }: DashboardProps) {
   const [activeSyllabusTab, setActiveSyllabusTab] = useState<"basics" | "specifics" | "strategy">("basics");
   const t = translations[language];
+
+  // Target Institution Simulator State
+  const [selectedInstId, setSelectedInstId] = useState<string>("ebserh-nacional");
+  const selectedInstitution = ENARE_INSTITUTIONS.find(i => i.id === selectedInstId) || ENARE_INSTITUTIONS[0];
+
+  // Calculate current score average
+  const currentAvgScore = attempts.length > 0 
+    ? Math.round(attempts.reduce((a, b) => a + b.score, 0) / attempts.length) 
+    : 78; // Default initial benchmark
+
+  const cutoffGap = selectedInstitution.cutoffPercentage - currentAvgScore;
+  const isAboveCutoff = currentAvgScore >= selectedInstitution.cutoffPercentage;
+
+  // Daily 3-Question Challenge State
+  const dailyQuestions = MOCK_QUESTIONS.slice(0, 3);
+  const [dailyAnswers, setDailyAnswers] = useState<{ [key: number]: number }>({});
+  const [dailySubmitted, setDailySubmitted] = useState<boolean>(false);
 
   const toggleChecklistItem = (id: string) => {
     const updated = checklist.map(item => item.id === id ? { ...item, completed: !item.completed } : item);
@@ -196,6 +218,162 @@ export default function Dashboard({
         </div>
       </div>
 
+
+      {/* Widget Especial: Hospital dos Sonhos & Simulador de Aprovação ENARE */}
+      <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-indigo-900/90 via-slate-900 to-slate-950 border border-indigo-500/30 text-white shadow-2xl space-y-6">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="space-y-2">
+            <div className="inline-flex items-center space-x-2 bg-indigo-500/20 border border-indigo-400/30 px-3 py-1 rounded-full text-xs font-extrabold text-indigo-300">
+              <Building2 className="h-3.5 w-3.5 text-indigo-400" />
+              <span>Hospital dos Sonhos • Residência Enfermagem</span>
+            </div>
+            <h3 className="text-2xl font-black tracking-tight text-white">
+              Simulador de Nota de Corte ENARE
+            </h3>
+            <p className="text-slate-300 text-xs sm:text-sm max-w-xl font-medium">
+              Escolha a instituição onde deseja conquistar sua vaga de residência e acompanhe a distância exata até a nota de corte histórica.
+            </p>
+          </div>
+
+          {/* Institutional Selector */}
+          <div className="shrink-0 bg-white/10 p-3 rounded-2xl border border-white/20 backdrop-blur-md space-y-1.5 w-full sm:w-80">
+            <label className="text-[10px] font-extrabold text-indigo-300 uppercase tracking-wider block font-mono">
+              Selecione seu Hospital dos Sonhos
+            </label>
+            <select
+              value={selectedInstId}
+              onChange={(e) => setSelectedInstId(e.target.value)}
+              className="w-full bg-slate-950 text-white text-xs font-extrabold p-2.5 rounded-xl border border-indigo-500/40 outline-none cursor-pointer"
+            >
+              {ENARE_INSTITUTIONS.map(inst => (
+                <option key={inst.id} value={inst.id}>
+                  {inst.name} ({inst.cutoffPercentage}%)
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Comparison Gauge */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-white/10">
+          <div className="bg-white/5 p-4 rounded-2xl border border-white/10 flex items-center space-x-3.5">
+            <div className="p-3 bg-indigo-500/20 text-indigo-400 rounded-xl">
+              <Building2 className="h-5 w-5" />
+            </div>
+            <div>
+              <span className="text-[10px] text-slate-400 font-mono font-bold uppercase block">Instituição Alvo</span>
+              <p className="text-sm font-black text-white">{selectedInstitution.name}</p>
+              <span className="text-[10px] text-indigo-400 font-bold">{selectedInstitution.badge} • {selectedInstitution.vacancies} Vagas</span>
+            </div>
+          </div>
+
+          <div className="bg-white/5 p-4 rounded-2xl border border-white/10 flex items-center space-x-3.5">
+            <div className="p-3 bg-purple-500/20 text-purple-400 rounded-xl">
+              <Target className="h-5 w-5" />
+            </div>
+            <div>
+              <span className="text-[10px] text-slate-400 font-mono font-bold uppercase block">Nota de Corte Histórica</span>
+              <p className="text-2xl font-black text-white font-mono">{selectedInstitution.cutoffPercentage}%</p>
+              <span className="text-[10px] text-slate-400 font-medium">Média mínima estimada</span>
+            </div>
+          </div>
+
+          <div className="bg-white/5 p-4 rounded-2xl border border-white/10 flex items-center space-x-3.5">
+            <div className={`p-3 rounded-xl ${isAboveCutoff ? "bg-emerald-500/20 text-emerald-400" : "bg-amber-500/20 text-amber-400"}`}>
+              {isAboveCutoff ? <CheckCircle2 className="h-5 w-5" /> : <AlertCircle className="h-5 w-5" />}
+            </div>
+            <div>
+              <span className="text-[10px] text-slate-400 font-mono font-bold uppercase block">Status da Sua Média</span>
+              <p className={`text-2xl font-black font-mono ${isAboveCutoff ? "text-emerald-400" : "text-amber-400"}`}>
+                {currentAvgScore}%
+              </p>
+              <span className="text-[10px] font-bold">
+                {isAboveCutoff 
+                  ? "🎉 Você está ACIMA da nota de corte!" 
+                  : `Faltam ${cutoffGap.toFixed(1)}% para a nota de corte!`}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Widget Especial: Desafio Diário ENARE em 5 Minutos */}
+      <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="p-2.5 bg-gradient-to-tr from-indigo-600 to-teal-500 text-white rounded-xl shadow-md">
+              <Zap className="h-5 w-5 animate-pulse" />
+            </div>
+            <div>
+              <h4 className="text-base font-black text-slate-900 dark:text-white tracking-tight">
+                ⚡ Desafio Diário ENARE (3 Questões do Dia)
+              </h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                Responda às 3 questões do dia para manter sua Ofensiva Viva ativada!
+              </p>
+            </div>
+          </div>
+          {dailySubmitted && (
+            <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-3 py-1 rounded-full text-xs font-black">
+              ✓ Desafio Concluído Hoje! (+1 Dia na Ofensiva)
+            </span>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+          {dailyQuestions.map((q, qIdx) => (
+            <div key={q.id} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200/60 dark:border-slate-800 space-y-3 flex flex-col justify-between">
+              <div>
+                <span className="text-[10px] font-black uppercase text-indigo-500 font-mono block">Questão {qIdx + 1} • {q.category}</span>
+                <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 mt-1 line-clamp-3">
+                  {q.question}
+                </p>
+              </div>
+
+              <div className="space-y-1.5 pt-2">
+                {q.options.map((opt, optIdx) => {
+                  const isSelected = dailyAnswers[qIdx] === optIdx;
+                  const isCorrect = optIdx === q.correctIndex;
+                  let btnStyle = "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300";
+                  
+                  if (dailySubmitted) {
+                    if (isCorrect) btnStyle = "bg-emerald-500/20 border-emerald-500 text-emerald-700 dark:text-emerald-300 font-extrabold";
+                    else if (isSelected) btnStyle = "bg-rose-500/20 border-rose-500 text-rose-700 dark:text-rose-300 font-extrabold";
+                  } else if (isSelected) {
+                    btnStyle = "bg-indigo-600 text-white font-extrabold border-indigo-600";
+                  }
+
+                  return (
+                    <button
+                      key={optIdx}
+                      disabled={dailySubmitted}
+                      onClick={() => setDailyAnswers(prev => ({ ...prev, [qIdx]: optIdx }))}
+                      className={`w-full text-left p-2 rounded-xl border text-[11px] font-medium transition-all ${btnStyle}`}
+                    >
+                      {opt}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {!dailySubmitted && (
+          <div className="flex justify-end pt-2">
+            <button
+              onClick={() => {
+                setDailySubmitted(true);
+                if (onQuestionsAnswered) onQuestionsAnswered(3);
+              }}
+              disabled={Object.keys(dailyAnswers).length < 3}
+              className="bg-gradient-to-r from-indigo-600 via-purple-600 to-teal-500 hover:scale-[1.02] text-white text-xs font-extrabold py-2.5 px-6 rounded-xl transition-all shadow-md cursor-pointer disabled:opacity-50"
+            >
+              Concluir Desafio Diário ✨
+            </button>
+          </div>
+        )}
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">

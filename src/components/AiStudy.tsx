@@ -23,11 +23,13 @@ import {
   GraduationCap,
   FileUp,
   X,
-  Play
+  Play,
+  Printer
 } from "lucide-react";
 import { jsPDF } from "jspdf";
 import { Language } from "../types";
 import { useTTS } from "../hooks/useTTS";
+import { exportToPrintablePdf } from "../utils/pdfExport";
 
 interface AiStudyProps {
   language: Language;
@@ -1200,11 +1202,21 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
                     <span className="text-xs font-bold text-slate-400 font-mono uppercase">
                       📖 {language === "pt" ? "LEITURA DIRECIONADA" : "DIRECTED READING"}
                     </span>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <button
+                        id="btn-print-pdf-sheet"
+                        onClick={() => exportToPrintablePdf(studyData.title || "Resumo Didático ENARE", studyData.summary)}
+                        className="bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs px-3.5 py-1.5 rounded-xl shadow-xs transition-all flex items-center space-x-1.5 cursor-pointer"
+                        title="Gerar Ficha de Estudos Imprimível"
+                      >
+                        <Printer className="h-4 w-4" />
+                        <span>Imprimir Ficha</span>
+                      </button>
+
                       <button
                         id="btn-download-pdf"
                         onClick={downloadSummaryPDF}
-                        className="bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs px-3.5 py-1.5 rounded-xl shadow-xs transition-all flex items-center space-x-1.5 cursor-pointer"
+                        className="bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs px-3.5 py-1.5 rounded-xl shadow-xs transition-all flex items-center space-x-1.5 cursor-pointer"
                         title={language === "pt" ? "Baixar resumo em PDF" : "Download summary as PDF"}
                       >
                         <FileDown className="h-4 w-4" />
