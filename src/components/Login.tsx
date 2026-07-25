@@ -110,11 +110,11 @@ export default function Login({
         
         {/* Brand */}
         <div className="relative z-10 flex items-center space-x-3">
-          <div className="h-10 w-10 bg-sky-500 rounded-xl flex items-center justify-center shadow-lg shadow-sky-500/30">
+          <div className="h-10 w-10 bg-gradient-to-tr from-indigo-600 via-purple-600 to-emerald-400 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/30">
             <GraduationCap className="h-6 w-6 text-white" />
           </div>
-          <h1 className="text-2xl font-display font-extrabold tracking-tight">
-            Portal <span className="text-sky-400">Estudos</span>
+          <h1 className="text-xl font-display font-black tracking-tight">
+            Portal de Estudos <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-300 to-emerald-400">Eyshila Caxias</span>
           </h1>
         </div>
 

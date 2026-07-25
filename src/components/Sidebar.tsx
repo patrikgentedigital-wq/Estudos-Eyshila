@@ -58,12 +58,15 @@ export default function Sidebar({
           <div className="h-9 w-9 bg-gradient-to-tr from-indigo-600 via-purple-600 to-emerald-400 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/25">
             <GraduationCap className="h-5 w-5 text-white" />
           </div>
-          <h1 className="text-xl font-display font-black tracking-tight">
-            Você <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-300 to-emerald-400">Aprovado</span>
+          <h1 className="text-base font-display font-black tracking-tight leading-snug">
+            Portal de Estudos <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-300 to-emerald-400">
+              Eyshila Caxias
+            </span>
           </h1>
         </div>
-        <p className="text-[9px] font-black uppercase tracking-[0.25em] text-indigo-400/80 mt-1">
-          ENADE • Residencia Enfermagem
+        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-indigo-400/90 mt-1">
+          ENARE • RESIDÊNCIA ENFERMAGEM
         </p>
       </div>
 
