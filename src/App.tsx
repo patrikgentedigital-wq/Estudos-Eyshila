@@ -206,17 +206,14 @@ export default function App() {
             }
 
             if (data) {
-              if (data.profile) setProfile(data.profile);
-              if (data.modules) setModules(data.modules);
-              if (data.flashcards) setFlashcards(data.flashcards);
-              if (data.attempts) setAttempts(data.attempts);
-              if (data.questions_count !== undefined) setQuestionsCount(data.questions_count);
-              if (data.checklist) setChecklist(data.checklist);
-              else setChecklist(INITIAL_CHECKLIST);
-              if (data.caderno_erros) setCadernoErros(data.caderno_erros);
-              else setCadernoErros([]);
-              if (data.roadmap) setRoadmap(data.roadmap);
-              else setRoadmap(DEFAULT_ROADMAP);
+              setProfile(data.profile || INITIAL_PROFILE);
+              setModules(data.modules || INITIAL_MODULES);
+              setFlashcards(data.flashcards || INITIAL_FLASHCARDS);
+              setAttempts(data.attempts || []);
+              setQuestionsCount(data.questions_count ?? 0);
+              setChecklist(data.checklist || INITIAL_CHECKLIST);
+              setCadernoErros(data.caderno_erros || []);
+              setRoadmap(data.roadmap || DEFAULT_ROADMAP);
               setIsLoading(false);
               return;
             }
@@ -232,16 +229,14 @@ export default function App() {
           const savedCaderno = safeGetItem(`residency_caderno_${userId}`);
           const savedRoadmap = safeGetItem(`residency_roadmap_${userId}`);
 
-          if (savedProfile) setProfile(JSON.parse(savedProfile));
-          if (savedModules) setModules(JSON.parse(savedModules));
-          if (savedFlashcards) setFlashcards(JSON.parse(savedFlashcards));
-          if (savedAttempts) setAttempts(JSON.parse(savedAttempts));
-          if (savedQuestions) setQuestionsCount(Number(savedQuestions));
-          if (savedChecklist) setChecklist(JSON.parse(savedChecklist));
-          else setChecklist(INITIAL_CHECKLIST);
-          if (savedCaderno) setCadernoErros(JSON.parse(savedCaderno));
-          if (savedRoadmap) setRoadmap(JSON.parse(savedRoadmap));
-          else setRoadmap(DEFAULT_ROADMAP);
+          setProfile(savedProfile ? JSON.parse(savedProfile) : INITIAL_PROFILE);
+          setModules(savedModules ? JSON.parse(savedModules) : INITIAL_MODULES);
+          setFlashcards(savedFlashcards ? JSON.parse(savedFlashcards) : INITIAL_FLASHCARDS);
+          setAttempts(savedAttempts ? JSON.parse(savedAttempts) : []);
+          setQuestionsCount(savedQuestions ? Number(savedQuestions) : 0);
+          setChecklist(savedChecklist ? JSON.parse(savedChecklist) : INITIAL_CHECKLIST);
+          setCadernoErros(savedCaderno ? JSON.parse(savedCaderno) : []);
+          setRoadmap(savedRoadmap ? JSON.parse(savedRoadmap) : DEFAULT_ROADMAP);
         } catch (error) {
           console.error("Erro ao carregar dados do usuário:", error);
         } finally {
@@ -251,7 +246,7 @@ export default function App() {
         setProfile(INITIAL_PROFILE);
         setModules(INITIAL_MODULES);
         setFlashcards(INITIAL_FLASHCARDS);
-        setAttempts(INITIAL_ATTEMPTS);
+        setAttempts([]);
         setQuestionsCount(0);
         setChecklist([]);
         setCadernoErros([]);
@@ -387,6 +382,14 @@ export default function App() {
     safeRemoveItem("residency_logged_in");
     safeRemoveItem("residency_uid");
     setActiveTab("dashboard");
+    setProfile(INITIAL_PROFILE);
+    setModules(INITIAL_MODULES);
+    setFlashcards(INITIAL_FLASHCARDS);
+    setAttempts([]);
+    setQuestionsCount(0);
+    setChecklist([]);
+    setCadernoErros([]);
+    setRoadmap(DEFAULT_ROADMAP);
   };
 
   const handleToggleLesson = (moduleId: string, lessonId: string) => {
