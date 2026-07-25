@@ -22,7 +22,8 @@ import {
   StopCircle,
   GraduationCap,
   FileUp,
-  X
+  X,
+  Play
 } from "lucide-react";
 import { jsPDF } from "jspdf";
 import { Language } from "../types";
@@ -58,8 +59,80 @@ export default function AiStudy({ language }: AiStudyProps) {
   const [pastedText, setPastedText] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("");
-  const [activeSubTab, setActiveSubTab] = useState<"summary" | "quiz" | "flashcards">("summary");
+  const [activeSubTab, setActiveSubTab] = useState<"summary" | "quiz" | "flashcards" | "full-audio">("summary");
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [fullPdfText, setFullPdfText] = useState<string>("");
+  const [isExtractingPdf, setIsExtractingPdf] = useState(false);
+
+  // Client-side PDF text extraction helper using PDF.js
+  const extractPdfTextWithPdfJs = async (file: File): Promise<string> => {
+    if (file.name.endsWith(".txt")) {
+      return await file.text();
+    }
+
+    if (!(window as any).pdfjsLib) {
+      await new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+        script.onload = () => {
+          (window as any).pdfjsLib.GlobalWorkerOptions.workerSrc =
+            "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+          resolve(true);
+        };
+        script.onerror = () => reject(new Error("Não foi possível carregar o leitor de PDF. Verifique sua conexão."));
+        document.head.appendChild(script);
+      });
+    }
+
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await (window as any).pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    let fullText = "";
+
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      const pageText = content.items.map((item: any) => item.str).join(" ");
+      fullText += `\n--- Página ${i} ---\n` + pageText + "\n";
+    }
+
+    return fullText.trim();
+  };
+
+  const handleReadFullPdf = async () => {
+    setErrorMsg(null);
+    if (!file && !pastedText.trim()) {
+      setErrorMsg(language === "pt"
+        ? "Selecione um arquivo PDF/TXT ou cole um texto para ouvir a narração na íntegra."
+        : "Select a PDF/TXT file or paste text to hear full audio narration.");
+      return;
+    }
+
+    setIsExtractingPdf(true);
+    setLoadingMessage("Extraindo texto completo do PDF para narração...");
+    try {
+      let extracted = "";
+      if (file) {
+        extracted = await extractPdfTextWithPdfJs(file);
+      } else {
+        extracted = pastedText;
+      }
+
+      if (!extracted || extracted.trim().length < 10) {
+        throw new Error("Não foi possível extrair texto do PDF enviado. O arquivo pode ser uma imagem digitalizada sem camada de texto.");
+      }
+
+      setFullPdfText(extracted);
+      setIsUploadModalOpen(false);
+      setActiveSubTab("full-audio");
+      setIsExtractingPdf(false);
+
+      speak(extracted, rate);
+    } catch (err: any) {
+      console.error(err);
+      setIsExtractingPdf(false);
+      setErrorMsg(err.message || "Erro ao processar PDF para áudio.");
+    }
+  };
   
   // Default Initialized Material so user is immediately in Google NotebookLM Studio Workspace
   const [studyData, setStudyData] = useState<GeneratedStudy | null>(() => ({
@@ -1097,6 +1170,17 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
             >
               📇 {language === "pt" ? "Flashcards IA" : "AI Flashcards"}
             </button>
+            <button
+              id="subtab-full-audio"
+              onClick={() => setActiveSubTab("full-audio")}
+              className={`pb-3 transition-all border-b-2 relative flex items-center space-x-1 ${
+                activeSubTab === "full-audio" 
+                  ? "border-sky-500 text-sky-600 dark:text-sky-400 font-bold" 
+                  : "border-transparent text-slate-400 hover:text-slate-600"
+              }`}
+            >
+              <span>🎧 {language === "pt" ? "Narração do PDF na Íntegra (100% Texto)" : "Full PDF Audio Narration"}</span>
+            </button>
           </div>
 
           {/* Study Content Rendering */}
@@ -1694,6 +1778,104 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
                 </div>
               )}
 
+              {activeSubTab === "full-audio" && (
+                <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+                  
+                  {/* Audio Control Header Box */}
+                  <div className="bg-gradient-to-r from-sky-600 to-teal-600 text-white rounded-3xl p-6 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <span className="bg-white/20 text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">
+                          Audiobook Completo (100% Texto Original)
+                        </span>
+                      </div>
+                      <h3 className="font-black text-xl text-white">
+                        {file ? file.name : "Caderno de Legislação do SUS (Texto Integral)"}
+                      </h3>
+                      <p className="text-xs text-sky-100 font-medium">
+                        O leitor neural está lendo o texto do documento linha por linha do início ao fim.
+                      </p>
+                    </div>
+
+                    {/* Main Playback Controls */}
+                    <div className="flex flex-col items-center sm:items-end gap-3 shrink-0">
+                      <div className="flex items-center space-x-3 bg-white/10 backdrop-blur-xs rounded-2xl p-2.5">
+                        {!isSpeaking && !isPaused ? (
+                          <button
+                            onClick={() => speak(fullPdfText || studyData.summary, rate)}
+                            className="bg-white text-sky-700 hover:bg-sky-50 font-bold text-xs px-5 py-2.5 rounded-xl transition-all flex items-center space-x-2 shadow-md cursor-pointer"
+                          >
+                            <Play className="h-4 w-4 fill-current" />
+                            <span>Iniciar Narração</span>
+                          </button>
+                        ) : (
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={isPaused ? resume : pause}
+                              className="bg-white text-sky-700 hover:bg-sky-50 font-bold text-xs px-4 py-2 rounded-xl transition-all flex items-center space-x-1.5 shadow-md cursor-pointer"
+                            >
+                              {isPaused ? <Play className="h-4 w-4 fill-current" /> : <PauseCircle className="h-4 w-4" />}
+                              <span>{isPaused ? "Retomar" : "Pausar"}</span>
+                            </button>
+                            <button
+                              onClick={stop}
+                              className="bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs px-3 py-2 rounded-xl transition-all flex items-center space-x-1 shadow-md cursor-pointer"
+                            >
+                              <StopCircle className="h-4 w-4" />
+                              <span>Parar</span>
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Speed Selector */}
+                        <select
+                          value={rate}
+                          onChange={(e) => {
+                            const newRate = parseFloat(e.target.value);
+                            setRate(newRate);
+                            if (isSpeaking) {
+                              speak(fullPdfText || studyData.summary, newRate);
+                            }
+                          }}
+                          className="bg-white/20 text-white font-bold text-xs py-2 px-2.5 rounded-xl outline-none border border-white/30 cursor-pointer"
+                        >
+                          <option value="0.75" className="text-slate-900">0.75x</option>
+                          <option value="1.0" className="text-slate-900">1.0x (Normal)</option>
+                          <option value="1.25" className="text-slate-900">1.25x</option>
+                          <option value="1.5" className="text-slate-900">1.5x</option>
+                          <option value="2.0" className="text-slate-900">2.0x (Rápido)</option>
+                        </select>
+                      </div>
+
+                      {/* Progress percent */}
+                      <div className="w-full max-w-xs space-y-1">
+                        <div className="flex justify-between text-[10px] text-sky-100 font-bold">
+                          <span>Progresso da Narração</span>
+                          <span>{progressPercent}%</span>
+                        </div>
+                        <div className="h-2 bg-white/20 rounded-full overflow-hidden">
+                          <div 
+                            className="bg-white h-full transition-all duration-300"
+                            style={{ width: `${progressPercent}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Full Text Display for Reading Along */}
+                  <div className="space-y-3">
+                    <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400 font-mono">
+                      📖 Transcrição / Texto Original Sendo Lido:
+                    </h4>
+                    <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 font-mono text-xs text-slate-700 dark:text-slate-300 leading-relaxed max-h-[500px] overflow-y-auto whitespace-pre-wrap">
+                      {fullPdfText || "Nenhum PDF lido na íntegra ainda. Clique em '+ Anexar / Trocar PDF' no topo e selecione 'Ouvir PDF Completo (Sem Resumir)'."}
+                    </div>
+                  </div>
+
+                </div>
+              )}
+
             </div>
 
             {/* Right sidebar: Quick stats of this material */}
@@ -1843,20 +2025,22 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
               />
             </div>
 
-            <div className="flex gap-3 pt-2">
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
               <button
-                onClick={() => setIsUploadModalOpen(false)}
-                className="px-5 py-3 rounded-2xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-bold text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                onClick={handleReadFullPdf}
+                disabled={!file && !pastedText.trim() || isExtractingPdf}
+                className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-xs py-3 px-4 rounded-2xl shadow-lg transition-all flex items-center justify-center space-x-2 cursor-pointer"
               >
-                Cancelar
+                <Headphones className="h-4 w-4" />
+                <span>{isExtractingPdf ? "Lendo PDF..." : "🎧 Ouvir PDF Completo (Sem Resumir)"}</span>
               </button>
               <button
                 onClick={handleGenerateStudy}
-                disabled={!file && !pastedText.trim()}
-                className="flex-1 bg-sky-600 hover:bg-sky-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-xs py-3 rounded-2xl shadow-lg transition-all flex items-center justify-center space-x-2"
+                disabled={!file && !pastedText.trim() || isExtractingPdf}
+                className="flex-1 bg-sky-600 hover:bg-sky-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-xs py-3 px-4 rounded-2xl shadow-lg transition-all flex items-center justify-center space-x-2 cursor-pointer"
               >
                 <Brain className="h-4 w-4" />
-                <span>Gerar Resumo e Questões com IA</span>
+                <span>🧠 Gerar Resumo + Questões (IA)</span>
               </button>
             </div>
 
