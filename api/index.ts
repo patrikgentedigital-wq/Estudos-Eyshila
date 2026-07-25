@@ -135,7 +135,7 @@ try {
     fileData: z.string().optional(),
     fileName: z.string().max(255).optional(),
     mimeType: z.enum(["application/pdf", "text/plain", "text/markdown"]).optional(),
-    text: z.string().max(50000, "Texto excede o limite máximo de 50.000 caracteres.").optional(),
+    text: z.string().max(500000).optional(),
   }).refine((data) => data.fileData || data.text, {
     message: "Envie um arquivo PDF/texto ou digite um conteúdo de estudo.",
   });
@@ -198,6 +198,11 @@ try {
         return res.status(400).json({
           error: "O conteúdo de texto extraído é muito curto ou vazio. Por favor, digite ou cole um texto com as matérias que deseja estudar."
         });
+      }
+
+      // Auto-truncate very large documents to avoid exceeding LLM context & timeouts
+      if (extractedText.length > 45000) {
+        extractedText = extractedText.substring(0, 45000) + "\n\n[Nota: O documento original excede 45.000 caracteres e foi resumido para otimizar a geração do material didático.]";
       }
 
       const systemPrompt = `Você é o Preceptor e Mentor Especialista do 'Você Aprovado', referência em preparação científica para o ENADE e ENARE de Enfermagem.

@@ -504,8 +504,12 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
         }
 
         if (extractedText && extractedText.trim().length > 30) {
+          let textToSend = extractedText;
+          if (textToSend.length > 40000) {
+            textToSend = textToSend.substring(0, 40000) + "\n\n[Nota: Texto do PDF resumido nos primeiros 40.000 caracteres para garantir processamento rápido.]";
+          }
           payload = {
-            text: `[DOCUMENTO FONTE: ${file.name}]\n\n` + extractedText
+            text: `[DOCUMENTO FONTE: ${file.name}]\n\n` + textToSend
           };
         } else {
           // Fallback to base64 for scanned image PDFs
@@ -517,8 +521,12 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
           };
         }
       } else {
+        let textToSend = pastedText;
+        if (textToSend.length > 40000) {
+          textToSend = textToSend.substring(0, 40000) + "\n\n[Nota: Texto resumido nos primeiros 40.000 caracteres para garantir processamento rápido.]";
+        }
         payload = {
-          text: pastedText
+          text: textToSend
         };
       }
 
