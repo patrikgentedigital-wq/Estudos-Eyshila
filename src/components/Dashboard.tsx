@@ -27,6 +27,7 @@ import { IMAGES, MOCK_SCHEDULE, MOCK_QUESTIONS } from "../data";
 import { getStudyRecommendation } from "../utils/performance";
 import { ENARE_INSTITUTIONS } from "../data/enareCutoffs";
 import { downloadEicsCalendar } from "../utils/calendarExport";
+import StudyHeatmap from "./StudyHeatmap";
 
 interface DashboardProps {
   language: Language;
@@ -307,6 +308,9 @@ export default function Dashboard({
           </div>
         </div>
       </div>
+
+      {/* Widget Especial: Heatmap de Estudo Diário (GitHub Style) */}
+      <StudyHeatmap />
 
       {/* Widget Especial: Desafio Diário ENARE em 5 Minutos */}
       <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">

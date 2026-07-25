@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import html2canvas from "html2canvas";
 import { 
   Award, 
   Clock, 
@@ -14,6 +15,7 @@ import {
   TrendingUp,
   RotateCcw,
   AlertCircle,
+  Share2,
   X
 } from "lucide-react";
 import { Language, ExamQuestion, ExamAttempt, translations, CadernoErroItem } from "../types";
@@ -385,19 +387,21 @@ export default function ExamPrep({
                   })}
                 </div>
 
-                {quizFinished && (
-                  <div className="p-4 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-800 space-y-2">
+                {(selectedAnswers[currentIndex] !== undefined || quizFinished) && (
+                  <div className="p-4 bg-indigo-500/10 dark:bg-indigo-950/40 rounded-xl border border-indigo-500/30 space-y-2 animate-fade-in">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-sky-500 uppercase">Fundamentação Técnica e Referência</span>
+                      <span className="text-[10px] font-extrabold text-indigo-600 dark:text-indigo-400 uppercase font-mono">
+                        {selectedAnswers[currentIndex] === questions[currentIndex].correctIndex ? "✅ Resposta Correta!" : "❌ Resposta Incorreta"} • Fundamentação Técnica COFEN / MS
+                      </span>
                       <button 
-                        onClick={() => alert("Questão sinalizada com sucesso! Ela foi enviada para verificação e adicionada ao seu Caderno de Erros com a tag 'Sob Revisão'.")}
+                        onClick={() => alert("Questão sinalizada com sucesso! Adicionada ao seu Caderno de Erros.")}
                         className="text-[10px] font-bold text-rose-500 hover:text-rose-600 dark:hover:text-rose-400 flex items-center space-x-1 cursor-pointer"
                       >
                         <AlertCircle className="h-3 w-3" />
-                        <span>Sinalizar / Reportar Erro</span>
+                        <span>Sinalizar Erro</span>
                       </button>
                     </div>
-                    <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">{questions[currentIndex].explanation}</p>
+                    <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-medium">{questions[currentIndex].explanation}</p>
                   </div>
                 )}
               </div>
