@@ -106,6 +106,8 @@ export interface Flashcard {
   category: string;
   difficulty: "Easy" | "Medium" | "Hard";
   isOfficial?: boolean;
+  isCustom?: boolean;
+  authorId?: string;
 }
 
 export interface TranslationDict {

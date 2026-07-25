@@ -13,6 +13,7 @@ import { supabase, isSupabaseConfigured } from "./supabase";
 import Sidebar from "./components/Sidebar";
 import { measureQuery } from "./dbLogger";
 import Login from "./components/Login";
+import { OnboardingModal } from "./components/OnboardingModal";
 
 // Lazy-loaded tab components for code splitting
 const Dashboard = React.lazy(() => import("./components/Dashboard"));
@@ -441,6 +442,26 @@ export default function App() {
     safeSetItem("app_language", newLang);
   };
 
+  const handleAddFlashcard = (newCard: Flashcard) => {
+    setFlashcards(prev => [newCard, ...prev]);
+  };
+
+  const handleDeleteFlashcard = (id: string) => {
+    setFlashcards(prev => prev.filter(f => f.id !== id));
+  };
+
+  const handleOnboardingComplete = (data: { institution: string; hoursPerWeek: number; focusAreas: string[] }) => {
+    setProfile(prev => ({
+      ...prev,
+      institution: data.institution,
+      focusAreas: data.focusAreas,
+      onboarded: true
+    }));
+    setAttempts([]);
+    setQuestionsCount(0);
+    setCadernoErros([]);
+  };
+
   // Render correct views based on Tab selection
   const renderTabContent = () => {
     switch (activeTab) {
@@ -486,6 +507,8 @@ export default function App() {
             language={language}
             flashcards={flashcards}
             t={translations[language]}
+            onAddFlashcard={handleAddFlashcard}
+            onDeleteFlashcard={handleDeleteFlashcard}
           />
         );
       case "performance":
@@ -558,6 +581,14 @@ export default function App() {
   return (
     <div className={`h-screen flex overflow-hidden transition-colors duration-300 ${darkMode ? "bg-black text-slate-100" : "bg-slate-100 text-slate-800"}`}>
       
+      {/* Modal de Onboarding de Boas-Vindas */}
+      {isLoggedIn && !profile.onboarded && (
+        <OnboardingModal
+          language={language}
+          onComplete={handleOnboardingComplete}
+        />
+      )}
+
       {/* Desktop Persistent Sidebar */}
       <div className="hidden lg:flex shrink-0 h-full">
         <Sidebar

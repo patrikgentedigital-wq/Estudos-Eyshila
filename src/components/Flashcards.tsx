@@ -12,7 +12,10 @@ import {
   Sparkles,
   Play,
   Pause,
-  Layers
+  Layers,
+  Plus,
+  Trash2,
+  X
 } from "lucide-react";
 import { Flashcard, Language, TranslationDict } from "../types";
 import { OFFICIAL_FLASHCARDS } from "../data/officialFlashcards";
@@ -22,14 +25,21 @@ interface FlashcardsProps {
   flashcards: Flashcard[];
   language: Language;
   t: TranslationDict;
+  onAddFlashcard?: (newCard: Flashcard) => void;
+  onDeleteFlashcard?: (id: string) => void;
 }
 
-const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, language, t }) => {
+const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, language, t, onAddFlashcard, onDeleteFlashcard }) => {
   const [filter, setFilter] = useState<"all" | "official" | "my_cards">("all");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [masteredIds, setMasteredIds] = useState<Set<string>>(new Set());
   const [direction, setDirection] = useState(0);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [newQuestion, setNewQuestion] = useState("");
+  const [newAnswer, setNewAnswer] = useState("");
+  const [newCategory, setNewCategory] = useState("Legislação do SUS");
+  const [newDifficulty, setNewDifficulty] = useState<"Easy" | "Medium" | "Hard">("Medium");
   const { speak, stop, supported: ttsSupported } = useTTS();
 
   // Combine custom & official flashcards avoiding duplicate IDs
@@ -154,10 +164,22 @@ const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, language, t }) => {
           </div>
         </div>
         
-        <div className="flex border-b border-slate-100 dark:border-slate-800 pb-px space-x-6 text-sm font-semibold">
-          <button onClick={() => setFilter("all")} className={`pb-3 transition-all border-b-2 ${filter === "all" ? "border-sky-500 text-sky-600 dark:text-sky-400" : "border-transparent text-slate-400 hover:text-slate-600"}`}>Todos os Flashcards</button>
-          <button onClick={() => setFilter("official")} className={`pb-3 transition-all border-b-2 ${filter === "official" ? "border-sky-500 text-sky-600 dark:text-sky-400" : "border-transparent text-slate-400 hover:text-slate-600"}`}>Oficiais ENARE</button>
-          <button onClick={() => setFilter("my_cards")} className={`pb-3 transition-all border-b-2 ${filter === "my_cards" ? "border-sky-500 text-sky-600 dark:text-sky-400" : "border-transparent text-slate-400 hover:text-slate-600"}`}>Meus Flashcards (IA)</button>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-px text-sm font-semibold">
+          <div className="flex space-x-6">
+            <button onClick={() => setFilter("all")} className={`pb-3 transition-all border-b-2 ${filter === "all" ? "border-sky-500 text-sky-600 dark:text-sky-400" : "border-transparent text-slate-400 hover:text-slate-600"}`}>Todos os Flashcards</button>
+            <button onClick={() => setFilter("official")} className={`pb-3 transition-all border-b-2 ${filter === "official" ? "border-sky-500 text-sky-600 dark:text-sky-400" : "border-transparent text-slate-400 hover:text-slate-600"}`}>Oficiais ENARE</button>
+            <button onClick={() => setFilter("my_cards")} className={`pb-3 transition-all border-b-2 ${filter === "my_cards" ? "border-sky-500 text-sky-600 dark:text-sky-400" : "border-transparent text-slate-400 hover:text-slate-600"}`}>Meus Flashcards</button>
+          </div>
+
+          {onAddFlashcard && (
+            <button
+              onClick={() => setIsCreateModalOpen(true)}
+              className="flex items-center gap-2 mb-2 sm:mb-0 px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold shadow-md shadow-purple-500/20 transition"
+            >
+              <Plus className="h-4 w-4" />
+              + Criar Flashcard
+            </button>
+          )}
         </div>
       </div>
 
@@ -377,6 +399,125 @@ const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, language, t }) => {
           </div>
         </div>
       </div>
+
+      {/* Modal de Criação de Flashcard */}
+      {isCreateModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
+          <div className="relative w-full max-w-lg bg-slate-900 border border-white/10 rounded-2xl p-6 shadow-2xl text-slate-100">
+            <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-4">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-purple-600/30 text-purple-400">
+                  <Sparkles className="h-5 w-5" />
+                </div>
+                <h3 className="text-lg font-bold text-white">Criar Flashcard Personalizado</h3>
+              </div>
+              <button
+                onClick={() => setIsCreateModalOpen(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              if (!newQuestion.trim() || !newAnswer.trim()) return;
+              const newCard: Flashcard = {
+                id: "custom-fc-" + Date.now(),
+                question: newQuestion.trim(),
+                answer: newAnswer.trim(),
+                category: newCategory,
+                difficulty: newDifficulty,
+                isOfficial: false,
+                isCustom: true
+              };
+              if (onAddFlashcard) onAddFlashcard(newCard);
+              setNewQuestion("");
+              setNewAnswer("");
+              setIsCreateModalOpen(false);
+            }} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-400 mb-1">
+                  Pergunta / Conceito (Frente)
+                </label>
+                <textarea
+                  required
+                  rows={3}
+                  value={newQuestion}
+                  onChange={(e) => setNewQuestion(e.target.value)}
+                  placeholder="Ex: Quais são os princípios doutrinários do SUS?"
+                  className="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-purple-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-400 mb-1">
+                  Resposta Fundamentada (Verso)
+                </label>
+                <textarea
+                  required
+                  rows={3}
+                  value={newAnswer}
+                  onChange={(e) => setNewAnswer(e.target.value)}
+                  placeholder="Ex: Universalidade, Equidade e Integralidade."
+                  className="w-full bg-slate-800 border border-white/10 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-purple-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 mb-1">
+                    Disciplina / Categoria
+                  </label>
+                  <select
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value)}
+                    className="w-full bg-slate-800 border border-white/10 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-purple-500"
+                  >
+                    <option value="Legislação do SUS">Legislação do SUS</option>
+                    <option value="Código de Ética COFEN">Código de Ética COFEN</option>
+                    <option value="Urgência e UTI">Urgência e UTI</option>
+                    <option value="Saúde da Mulher">Saúde da Mulher</option>
+                    <option value="Enfermagem Geral">Enfermagem Geral</option>
+                    <option value="Outros">Outros</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 mb-1">
+                    Dificuldade
+                  </label>
+                  <select
+                    value={newDifficulty}
+                    onChange={(e) => setNewDifficulty(e.target.value as any)}
+                    className="w-full bg-slate-800 border border-white/10 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-purple-500"
+                  >
+                    <option value="Easy">Fácil (Easy)</option>
+                    <option value="Medium">Médio (Medium)</option>
+                    <option value="Hard">Difícil (Hard)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setIsCreateModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-800 text-slate-400 text-xs font-bold hover:text-white"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold shadow-lg shadow-purple-500/20"
+                >
+                  Salvar Flashcard
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       <style dangerouslySetInnerHTML={{ __html: `
         .perspective-1000 { perspective: 1000px; }
