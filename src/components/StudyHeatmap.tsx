@@ -19,7 +19,7 @@ export default function StudyHeatmap({ attempts = [] }: StudyHeatmapProps) {
     }).length;
 
     // Intensity level: 0 = none, 1 = low, 2 = medium, 3 = high
-    let intensity = attemptsOnDay > 2 ? 3 : attemptsOnDay > 0 ? 2 : (dayNum % 3 === 0 ? 1 : 0);
+    let intensity = attemptsOnDay > 2 ? 3 : attemptsOnDay > 0 ? 2 : 0;
     return { day: dayNum, intensity, count: attemptsOnDay };
   });
 

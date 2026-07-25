@@ -136,8 +136,8 @@ export default function AiStudy({ language }: AiStudyProps) {
     }
   };
   
-  // Default Initialized Material so user is immediately in Google NotebookLM Studio Workspace
-  const [studyData, setStudyData] = useState<GeneratedStudy | null>(() => ({
+  // Sample demo material (loaded only when user requests demo)
+  const DEMO_SAMPLE_STUDY: GeneratedStudy = {
     summary: `# Resumo Didático: Legislação do SUS (Lei nº 8.080/1990)
 
 ## 1. Introdução à Lei Orgânica da Saúde
@@ -188,7 +188,9 @@ A Lei nº 8.080/1990 regula, em todo o território nacional, as ações e servi�
         back: "Em caráter COMPLEMENTAR, tendo preferência entidades filantrópicas e sem fins lucrativos."
       }
     ]
-  }));
+  };
+
+  const [studyData, setStudyData] = useState<GeneratedStudy | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   

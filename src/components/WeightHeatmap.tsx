@@ -16,30 +16,31 @@ interface WeightHeatmapProps {
 
 export default function WeightHeatmap({ attempts = [] }: WeightHeatmapProps) {
   // Compute user's overall accuracy from attempts if available
-  const overallAvg = attempts.length > 0 
+  const hasAttempts = attempts.length > 0;
+  const overallAvg = hasAttempts 
     ? Math.round(attempts.reduce((acc, a) => acc + a.score, 0) / attempts.length)
-    : 80;
+    : 0;
 
   const ENARE_WEIGHT_SUBJECTS: WeightSubject[] = [
     {
       name: "Enfermagem Específica (SAE, Urgência, UTI & Imunização)",
       weight: 3.0,
-      userAccuracy: Math.min(100, overallAvg + 4),
-      hoursInvested: 35,
+      userAccuracy: hasAttempts ? Math.min(100, overallAvg + 4) : 0,
+      hoursInvested: hasAttempts ? 35 : 0,
       badge: "🏆 Peso 3 (Máximo Retorno)"
     },
     {
       name: "Legislação e Políticas do SUS (Lei 8080, 8142, Decreto 7508)",
       weight: 2.0,
-      userAccuracy: Math.max(50, overallAvg - 2),
-      hoursInvested: 18,
+      userAccuracy: hasAttempts ? Math.max(50, overallAvg - 2) : 0,
+      hoursInvested: hasAttempts ? 18 : 0,
       badge: "⭐ Peso 2 (Estratégico)"
     },
     {
       name: "Língua Portuguesa & Interpretação de Texto",
       weight: 1.0,
-      userAccuracy: Math.min(100, overallAvg + 10),
-      hoursInvested: 10,
+      userAccuracy: hasAttempts ? Math.min(100, overallAvg + 10) : 0,
+      hoursInvested: hasAttempts ? 10 : 0,
       badge: "📝 Peso 1 (Manutenção)"
     }
   ];

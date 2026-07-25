@@ -66,12 +66,13 @@ export default function Dashboard({
   const selectedInstitution = ENARE_INSTITUTIONS.find(i => i.id === selectedInstId) || ENARE_INSTITUTIONS[0];
 
   // Calculate current score average
-  const currentAvgScore = attempts.length > 0 
+  const hasAttempts = attempts.length > 0;
+  const currentAvgScore = hasAttempts 
     ? Math.round(attempts.reduce((a, b) => a + b.score, 0) / attempts.length) 
-    : 78; // Default initial benchmark
+    : 0;
 
   const cutoffGap = selectedInstitution.cutoffPercentage - currentAvgScore;
-  const isAboveCutoff = currentAvgScore >= selectedInstitution.cutoffPercentage;
+  const isAboveCutoff = hasAttempts && currentAvgScore >= selectedInstitution.cutoffPercentage;
 
   // Daily 3-Question Challenge State
   const dailyQuestions = MOCK_QUESTIONS.slice(0, 3);
@@ -223,10 +224,16 @@ export default function Dashboard({
               {attempts.length > 0 ? Math.round(attempts.reduce((a, b) => a + b.score, 0) / attempts.length) : 0}%
             </p>
           </div>
-          <p className="text-[10px] text-emerald-500 font-bold mt-4 uppercase font-mono flex items-center space-x-1">
-            <ArrowUpRight className="h-3.5 w-3.5" />
-            <span>Desempenho acima da média nacional</span>
-          </p>
+          {attempts.length > 0 ? (
+            <p className="text-[10px] text-emerald-500 font-bold mt-4 uppercase font-mono flex items-center space-x-1">
+              <ArrowUpRight className="h-3.5 w-3.5" />
+              <span>Desempenho acima da média nacional</span>
+            </p>
+          ) : (
+            <p className="text-[10px] text-slate-400 font-bold mt-4 uppercase font-mono flex items-center space-x-1">
+              <span>Aguardando seu 1º simulado</span>
+            </p>
+          )}
         </div>
       </div>
 
