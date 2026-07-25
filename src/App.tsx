@@ -597,20 +597,21 @@ export default function App() {
       {/* RIGHT SIDEBAR: Content Canvas */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         
-        {/* TOP COMPREHENSIVE HEADER ROW (NotebookLM Style) */}
-        <header className="sticky top-0 z-30 bg-[#f8f9fa]/90 dark:bg-[#131314]/90 backdrop-blur-md border-b border-[#e3e3e3] dark:border-[#2d2d30] h-16 px-6 flex items-center justify-between">
+        {/* TOP COMPREHENSIVE HEADER ROW */}
+        <header className="sticky top-0 z-30 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800/80 h-16 px-6 flex items-center justify-between transition-colors">
           
           {/* Left Column: Title / Hamburger */}
           <div className="flex items-center space-x-4">
             <button
               id="btn-open-mobile-menu"
               onClick={() => setMobileMenuOpen(true)}
-              className="p-2 -ml-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 lg:hidden"
+              className="p-2 -ml-2 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-900 lg:hidden cursor-pointer"
             >
               <Menu className="h-5 w-5" />
             </button>
 
-            <div>
+            <div className="flex items-center space-x-2.5">
+              <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
               <h2 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-slate-100 tracking-tight">
                 {getTabTitle()}
               </h2>
@@ -622,12 +623,12 @@ export default function App() {
             
             {/* Calendar indicators */}
             <div className="hidden sm:flex items-center space-x-1.5 text-xs text-slate-400 font-medium">
-              <Calendar className="h-3.5 w-3.5 text-sky-500" />
+              <Calendar className="h-3.5 w-3.5 text-indigo-500" />
               <span>16 de Julho de 2026</span>
             </div>
 
             {/* Quick preceptor alert */}
-            <div className="notebook-chip px-3 py-1 rounded-full text-[10px] font-bold font-mono hidden md:inline-block uppercase tracking-wider">
+            <div className="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 px-3.5 py-1 rounded-full text-[10px] font-extrabold hidden md:inline-block uppercase tracking-wider">
               {profile.residencyYear.includes("Mentora") || profile.residencyYear.includes("Preceptor") 
                 ? "🎓 Mentoria" 
                 : "📝 Estudante ENARE"}
@@ -637,17 +638,17 @@ export default function App() {
             <button 
               id="btn-header-notifs"
               onClick={() => addToast("Sua caixa de notificações está limpa! ✓", "success")}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors relative cursor-pointer"
+              className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900 transition-all relative cursor-pointer"
             >
               <Bell className="h-4.5 w-4.5" />
-              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-sky-500 animate-pulse" />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
             </button>
           </div>
 
         </header>
 
-        {/* MAIN BODY SCROLL CONTAINER (NotebookLM Background) */}
-        <main className="flex-1 p-4 sm:p-8 max-w-7xl mx-auto w-full overflow-y-auto pb-20 lg:pb-8 bg-[#f8f9fa] dark:bg-[#131314]">
+        {/* MAIN BODY SCROLL CONTAINER */}
+        <main className="flex-1 p-4 sm:p-8 max-w-7xl mx-auto w-full overflow-y-auto pb-20 lg:pb-8 bg-slate-50 dark:bg-[#0b0f19]">
           <React.Suspense fallback={
             <div className="flex flex-col items-center justify-center p-12 space-y-3">
               <div className="w-8 h-8 border-3 border-sky-500 border-t-transparent rounded-full animate-spin" />

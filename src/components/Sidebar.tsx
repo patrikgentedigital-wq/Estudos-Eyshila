@@ -50,45 +50,48 @@ export default function Sidebar({
   return (
     <aside 
       id="app-sidebar"
-      className="h-full w-64 bg-slate-900 text-slate-100 flex flex-col border-r border-slate-800 transition-colors duration-300 pt-12 lg:pt-4"
+      className="h-full w-64 bg-slate-950 text-slate-100 flex flex-col border-r border-slate-800/80 transition-colors duration-300 pt-12 lg:pt-4"
     >
       {/* Brand Header */}
-      <div className="px-6 py-6 border-b border-slate-800">
+      <div className="px-6 py-6 border-b border-slate-800/80">
         <div className="flex items-center space-x-3 mb-1">
-          <div className="h-8 w-8 bg-sky-500 rounded-lg flex items-center justify-center shadow-lg shadow-sky-500/20">
+          <div className="h-9 w-9 bg-gradient-to-tr from-indigo-600 via-purple-600 to-emerald-400 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/25">
             <GraduationCap className="h-5 w-5 text-white" />
           </div>
-          <h1 className="text-xl font-display font-bold tracking-tight">
-            Portal <span className="text-sky-500">Estudos</span>
+          <h1 className="text-xl font-display font-black tracking-tight">
+            Você <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-300 to-emerald-400">Aprovado</span>
           </h1>
         </div>
-        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
-          Portal de Estudos Enfermagem
+        <p className="text-[9px] font-black uppercase tracking-[0.25em] text-indigo-400/80 mt-1">
+          ENADE • Residencia Enfermagem
         </p>
       </div>
 
       {/* Profile Card */}
-      <div className="p-5 border-b border-slate-800 bg-slate-950/40">
+      <div className="p-5 border-b border-slate-800/80 bg-slate-900/40 backdrop-blur-xs">
         <div className="flex items-center space-x-3">
           <img
             src={profile.avatar}
             alt={profile.firstName}
             referrerPolicy="no-referrer"
-            className="w-12 h-12 rounded-full border-2 border-sky-500 object-cover shadow-inner"
+            className="w-11 h-11 rounded-full border-2 border-indigo-500/60 object-cover shadow-md shadow-indigo-500/10"
           />
           <div className="flex-1 min-w-0">
-            <h2 className="text-sm font-semibold text-slate-200 truncate">
+            <h2 className="text-xs font-extrabold text-slate-100 truncate">
               {profile.firstName} {profile.lastName}
             </h2>
-            <p className="text-xs text-slate-400 truncate font-mono">
-              {profile.residencyYear}
-            </p>
+            <div className="flex items-center space-x-1.5 mt-0.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <p className="text-[10px] text-emerald-400/90 font-bold truncate">
+                {profile.residencyYear}
+              </p>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Main Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+      <nav className="flex-1 px-3 py-5 space-y-1.5 overflow-y-auto">
         {menuItems.map((item) => {
           const IconComponent = item.icon;
           const isActive = activeTab === item.id;
@@ -97,13 +100,13 @@ export default function Sidebar({
               key={item.id}
               id={`nav-link-${item.id}`}
               onClick={() => setActiveTab(item.id)}
-              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${
+              className={`w-full flex items-center space-x-3.5 px-4 py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
                 isActive
-                  ? "bg-sky-600 text-white shadow-md shadow-sky-950/30 font-semibold"
-                  : "text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+                  ? "bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 text-white font-extrabold shadow-lg shadow-indigo-500/25 scale-[1.02]"
+                  : "text-slate-400 hover:bg-slate-900 hover:text-slate-100"
               }`}
             >
-              <IconComponent className={`h-5 w-5 ${isActive ? "text-white" : "text-slate-400 group-hover:text-slate-200"}`} />
+              <IconComponent className={`h-4.5 w-4.5 ${isActive ? "text-white" : "text-slate-400"}`} />
               <span>{item.label}</span>
             </button>
           );
@@ -114,7 +117,7 @@ export default function Sidebar({
           <button
             id="sidebar-cta-quiz"
             onClick={() => setActiveTab("exams")}
-            className="w-full bg-slate-800 hover:bg-sky-700 hover:text-white text-sky-400 border border-sky-500/20 hover:border-transparent transition-all py-2.5 px-4 rounded-lg text-xs font-semibold uppercase tracking-wider flex items-center justify-center space-x-2"
+            className="w-full bg-gradient-to-r from-indigo-600 via-purple-600 to-teal-500 hover:from-indigo-500 hover:to-teal-400 text-white transition-all py-3 px-4 rounded-2xl text-xs font-extrabold uppercase tracking-wider flex items-center justify-center space-x-2 shadow-lg shadow-indigo-500/20 hover:scale-[1.02] cursor-pointer"
           >
             <span>✨ {t.startQuizBtn}</span>
           </button>
@@ -122,18 +125,18 @@ export default function Sidebar({
       </nav>
 
       {/* Quick Utilities: Theme Toggle */}
-      <div className="px-4 py-3 border-t border-slate-800 bg-slate-950/20 flex items-center justify-end">
+      <div className="px-4 py-3 border-t border-slate-800/80 bg-slate-950 flex items-center justify-end">
         {/* Theme switcher */}
         <button
           id="btn-theme-toggle"
           onClick={() => setDarkMode(!darkMode)}
-          className="p-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors"
+          className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition-colors cursor-pointer"
           title={darkMode ? "Modo Claro" : "Modo Escuro"}
         >
           {darkMode ? (
-            <Sun className="h-3.5 w-3.5 text-amber-400" />
+            <Sun className="h-4 w-4 text-amber-400" />
           ) : (
-            <Moon className="h-3.5 w-3.5 text-slate-400" />
+            <Moon className="h-4 w-4 text-slate-400" />
           )}
         </button>
       </div>
