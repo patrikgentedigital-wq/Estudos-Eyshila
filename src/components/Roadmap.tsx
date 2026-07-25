@@ -24,8 +24,8 @@ interface RoadmapProps {
 }
 
 const Roadmap: React.FC<RoadmapProps> = ({ roadmap, onToggleTask, setActiveTab }) => {
-  // Target Exam Date State (Default: 2026-10-18, Sunday - official ENARE exam date)
-  const [examDate, setExamDate] = useState<string>("2026-10-18");
+  // Target Exam Date State (Default: 2026-09-13, official ENARE 2026/2027 exam date)
+  const [examDate, setExamDate] = useState<string>("2026-09-13");
 
   // Calculate days & weeks remaining until target date
   const today = new Date();
@@ -64,10 +64,10 @@ const Roadmap: React.FC<RoadmapProps> = ({ roadmap, onToggleTask, setActiveTab }
               </span>
             </div>
             <h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight mt-2">
-              Roteiro Adaptativo ENARE
+              Roteiro Adaptativo ENARE 2026/2027
             </h2>
             <p className="text-slate-500 dark:text-slate-400 font-medium text-sm">
-              Plano dinâmico que recalcula sua carga de estudos conforme a data da prova.
+              Plano dinâmico recalculado para a Prova Objetiva Oficial em 13 de Setembro de 2026.
             </p>
           </div>
 
@@ -75,7 +75,7 @@ const Roadmap: React.FC<RoadmapProps> = ({ roadmap, onToggleTask, setActiveTab }
             <Calendar className="h-5 w-5 text-indigo-500 shrink-0" />
             <div className="flex flex-col">
               <label htmlFor="exam-date-input" className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
-                Data do Concurso (Clique para alterar)
+                Data Oficial do Concurso
               </label>
               <input 
                 id="exam-date-input"
@@ -84,6 +84,31 @@ const Roadmap: React.FC<RoadmapProps> = ({ roadmap, onToggleTask, setActiveTab }
                 onChange={(e) => setExamDate(e.target.value)}
                 className="bg-transparent text-xs font-extrabold text-slate-900 dark:text-slate-100 outline-none cursor-pointer"
               />
+            </div>
+          </div>
+        </div>
+
+        {/* Cronograma Oficial ENARE 2026/2027 Timeline */}
+        <div className="p-4 bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-teal-500/10 border border-indigo-500/20 rounded-2xl space-y-3">
+          <span className="text-[10px] font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400 block font-mono">
+            🗓️ CRONOGRAMA OFICIAL CONFIRMADO (MEC / ENARE 2026/2027)
+          </span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs font-semibold">
+            <div className="bg-white/80 dark:bg-slate-900/80 p-3 rounded-xl border border-slate-200/60 dark:border-slate-800 shadow-xs">
+              <span className="text-slate-400 block text-[9px] uppercase font-mono">1. Prova Objetiva</span>
+              <span className="text-indigo-600 dark:text-indigo-400 font-extrabold">13 de Setembro 2026</span>
+            </div>
+            <div className="bg-white/80 dark:bg-slate-900/80 p-3 rounded-xl border border-slate-200/60 dark:border-slate-800 shadow-xs">
+              <span className="text-slate-400 block text-[9px] uppercase font-mono">2. Resultado Prova</span>
+              <span className="text-purple-600 dark:text-purple-400 font-extrabold">04/12/26 (29/10 Pré)</span>
+            </div>
+            <div className="bg-white/80 dark:bg-slate-900/80 p-3 rounded-xl border border-slate-200/60 dark:border-slate-800 shadow-xs">
+              <span className="text-slate-400 block text-[9px] uppercase font-mono">3. Nota Final</span>
+              <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">08 de Janeiro 2027</span>
+            </div>
+            <div className="bg-white/80 dark:bg-slate-900/80 p-3 rounded-xl border border-slate-200/60 dark:border-slate-800 shadow-xs">
+              <span className="text-slate-400 block text-[9px] uppercase font-mono">4. Escolha de Vagas</span>
+              <span className="text-teal-600 dark:text-teal-400 font-extrabold">11 e 12/01/2027</span>
             </div>
           </div>
         </div>
