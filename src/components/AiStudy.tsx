@@ -435,12 +435,6 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
       const droppedFile = e.dataTransfer.files[0];
       const ext = droppedFile.name.split(".").pop()?.toLowerCase();
       if (ext === "pdf" || ext === "txt") {
-        if (droppedFile.size > 3.5 * 1024 * 1024) {
-          setErrorMsg(language === "pt"
-            ? "O arquivo PDF excede 3.5MB (limite do servidor). Por favor, use um arquivo menor ou cole o texto diretamente."
-            : "PDF exceeds 3.5MB server limit. Please use a smaller file or paste text.");
-          return;
-        }
         setFile(droppedFile);
         setErrorMsg(null);
       } else {
@@ -456,12 +450,6 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
       const selectedFile = e.target.files[0];
       const ext = selectedFile.name.split(".").pop()?.toLowerCase();
       if (ext === "pdf" || ext === "txt") {
-        if (selectedFile.size > 3.5 * 1024 * 1024) {
-          setErrorMsg(language === "pt"
-            ? "O arquivo PDF excede 3.5MB (limite do servidor). Por favor, use um arquivo menor ou cole o texto diretamente."
-            : "PDF exceeds 3.5MB server limit. Please use a smaller file or paste text.");
-          return;
-        }
         setFile(selectedFile);
         setErrorMsg(null);
       } else {
