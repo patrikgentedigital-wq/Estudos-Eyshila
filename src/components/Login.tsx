@@ -101,10 +101,6 @@ export default function Login({
     }
   };
 
-  const handleQuickDemo = () => {
-    onLoginSuccess("enfermagem@estudos.com.br", "user-eyshila-demo");
-  };
-
   return (
     <div className="min-h-screen flex bg-slate-950 text-slate-100 relative overflow-hidden font-sans">
       
@@ -326,19 +322,6 @@ export default function Login({
                 {!loading && <ArrowRight className="h-4 w-4" />}
               </button>
             </form>
-
-            {/* Quick Demo Access Button */}
-            <div className="pt-2 border-t border-slate-800/80 text-center">
-              <button
-                type="button"
-                onClick={handleQuickDemo}
-                className="w-full py-3 px-4 rounded-2xl border border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 font-extrabold text-xs transition-all flex items-center justify-center space-x-2 cursor-pointer"
-              >
-                <Zap className="h-3.5 w-3.5 text-amber-400 animate-pulse" />
-                <span>Entrar em 1-Clique (Modo Demonstração)</span>
-              </button>
-            </div>
-
           </div>
 
           {/* Footer Copyright */}
