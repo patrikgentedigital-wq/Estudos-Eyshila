@@ -1099,21 +1099,22 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
         <div className="space-y-6">
           
           {/* NotebookLM Header & Source Chip */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-gradient-to-r from-white via-slate-50/50 to-white dark:from-slate-900 dark:via-slate-900/80 dark:to-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-5 shadow-sm backdrop-blur-md">
             <div className="flex items-center space-x-3.5">
-              <div className="p-2.5 bg-sky-500/10 text-sky-600 dark:text-sky-400 rounded-2xl">
+              <div className="p-3 bg-gradient-to-br from-sky-500 to-teal-500 text-white rounded-2xl shadow-md shadow-sky-500/20">
                 <FileText className="h-5 w-5" />
               </div>
               <div>
                 <div className="flex items-center space-x-2">
-                  <span className="text-[10px] font-bold notebook-chip px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-                    {file ? "PDF FONTE CARREGADA" : "FONTE DE TEXTO ATIVA"}
+                  <span className="inline-flex items-center space-x-1.5 text-[10px] font-black tracking-wider uppercase bg-sky-500/10 text-sky-600 dark:text-sky-400 px-3 py-0.5 rounded-full border border-sky-500/20">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                    <span>{file ? "PDF FONTE CARREGADA" : "FONTE DE TEXTO ATIVA"}</span>
                   </span>
                   <span className="text-[10px] font-mono text-slate-400">
-                    • 1 Fonte
+                    • 1 Documento
                   </span>
                 </div>
-                <h3 className="font-extrabold text-base text-slate-900 dark:text-slate-100 truncate max-w-md mt-0.5">
+                <h3 className="font-extrabold text-base text-slate-900 dark:text-slate-100 truncate max-w-md mt-1 tracking-tight">
                   {file ? file.name : "Caderno de Enfermagem / Legislação SUS"}
                 </h3>
               </div>
@@ -1125,58 +1126,65 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
                 setErrorMsg(null);
                 setIsUploadModalOpen(true);
               }}
-              className="bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs px-4 py-2.5 rounded-2xl shadow-md transition-all flex items-center justify-center space-x-2 cursor-pointer"
+              className="bg-gradient-to-r from-sky-600 to-teal-600 hover:from-sky-500 hover:to-teal-500 text-white font-extrabold text-xs px-5 py-3 rounded-2xl shadow-lg shadow-sky-500/20 hover:shadow-sky-500/35 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center space-x-2 cursor-pointer shrink-0"
             >
-              <FileUp className="h-3.5 w-3.5" />
+              <FileUp className="h-4 w-4" />
               <span>+ Anexar / Trocar PDF</span>
             </button>
           </div>
 
-          {/* Sub tabs: Summary VS Quiz VS Flashcards */}
-          <div className="flex border-b border-slate-100 dark:border-slate-800 pb-px space-x-6 text-sm font-semibold">
+          {/* Sub tabs: Summary VS Quiz VS Flashcards VS Full Audio */}
+          <div className="bg-slate-100/80 dark:bg-slate-900/80 p-1.5 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 shadow-inner flex flex-wrap sm:flex-nowrap gap-1 text-xs font-semibold">
             <button
               id="subtab-summary"
               onClick={() => setActiveSubTab("summary")}
-              className={`pb-3 transition-all border-b-2 relative ${
+              className={`flex-1 py-2.5 px-4 rounded-xl transition-all flex items-center justify-center space-x-2 cursor-pointer ${
                 activeSubTab === "summary" 
-                  ? "border-sky-500 text-sky-600 dark:text-sky-400 font-bold" 
-                  : "border-transparent text-slate-400 hover:text-slate-600"
+                  ? "bg-white dark:bg-slate-800 text-sky-600 dark:text-sky-400 font-extrabold shadow-md scale-[1.01]" 
+                  : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-800/50"
               }`}
             >
-              📝 {language === "pt" ? "Resumo de Estudo" : "Study Summary"}
+              <span className="text-base">📝</span>
+              <span>{language === "pt" ? "Resumo Didático" : "Study Summary"}</span>
             </button>
+
             <button
               id="subtab-quiz"
               onClick={() => setActiveSubTab("quiz")}
-              className={`pb-3 transition-all border-b-2 relative ${
+              className={`flex-1 py-2.5 px-4 rounded-xl transition-all flex items-center justify-center space-x-2 cursor-pointer ${
                 activeSubTab === "quiz" 
-                  ? "border-sky-500 text-sky-600 dark:text-sky-400 font-bold" 
-                  : "border-transparent text-slate-400 hover:text-slate-600"
+                  ? "bg-white dark:bg-slate-800 text-sky-600 dark:text-sky-400 font-extrabold shadow-md scale-[1.01]" 
+                  : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-800/50"
               }`}
             >
-              🏆 {language === "pt" ? "Testar Conhecimento (Quiz)" : "Practice Quiz"}
+              <span className="text-base">🏆</span>
+              <span>{language === "pt" ? "Simulado (Quiz)" : "Practice Quiz"}</span>
             </button>
+
             <button
               id="subtab-flashcards"
               onClick={() => setActiveSubTab("flashcards")}
-              className={`pb-3 transition-all border-b-2 relative ${
+              className={`flex-1 py-2.5 px-4 rounded-xl transition-all flex items-center justify-center space-x-2 cursor-pointer ${
                 activeSubTab === "flashcards" 
-                  ? "border-sky-500 text-sky-600 dark:text-sky-400 font-bold" 
-                  : "border-transparent text-slate-400 hover:text-slate-600"
+                  ? "bg-white dark:bg-slate-800 text-sky-600 dark:text-sky-400 font-extrabold shadow-md scale-[1.01]" 
+                  : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-800/50"
               }`}
             >
-              📇 {language === "pt" ? "Flashcards IA" : "AI Flashcards"}
+              <span className="text-base">📇</span>
+              <span>{language === "pt" ? "Flashcards" : "Flashcards"}</span>
             </button>
+
             <button
               id="subtab-full-audio"
               onClick={() => setActiveSubTab("full-audio")}
-              className={`pb-3 transition-all border-b-2 relative flex items-center space-x-1 ${
+              className={`flex-1 py-2.5 px-4 rounded-xl transition-all flex items-center justify-center space-x-2 cursor-pointer ${
                 activeSubTab === "full-audio" 
-                  ? "border-sky-500 text-sky-600 dark:text-sky-400 font-bold" 
-                  : "border-transparent text-slate-400 hover:text-slate-600"
+                  ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-extrabold shadow-md scale-[1.01]" 
+                  : "text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
               }`}
             >
-              <span>🎧 {language === "pt" ? "Narração do PDF na Íntegra (100% Texto)" : "Full PDF Audio Narration"}</span>
+              <span className="text-base">🎧</span>
+              <span>{language === "pt" ? "Ouvir PDF Completo" : "Full PDF Audio"}</span>
             </button>
           </div>
 
@@ -1205,7 +1213,7 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
 
                       {/* Botões de Áudio TTS com Equalizador Visual e Controle de Velocidade */}
                       {ttsSupported && (
-                        <div className="flex items-center space-x-2 bg-slate-100 dark:bg-slate-800 rounded-2xl px-3 py-1.5 border border-slate-200 dark:border-slate-700">
+                        <div className="flex items-center space-x-2 bg-gradient-to-r from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 rounded-2xl px-3 py-1.5 border border-slate-200/80 dark:border-slate-700/80 shadow-xs">
                           {isSpeaking && (
                             <div className="flex items-center space-x-0.5 h-3 text-sky-500 mr-1.5">
                               <span className="equalizer-bar" />
@@ -1218,7 +1226,7 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
                           {!isSpeaking && !isPaused ? (
                             <button
                               onClick={() => speak(studyData.summary, rate)}
-                              className="text-sky-600 dark:text-sky-400 hover:text-sky-500 transition-colors p-1 flex items-center space-x-1.5 font-bold text-xs cursor-pointer"
+                              className="bg-gradient-to-r from-sky-600 to-teal-600 hover:from-sky-500 hover:to-teal-500 text-white font-extrabold text-xs px-3.5 py-1.5 rounded-xl shadow-md shadow-sky-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center space-x-1.5 cursor-pointer"
                               title="Transformar PDF em Áudio / Ouvir Resumo"
                             >
                               <Headphones className="h-4 w-4" />
@@ -1228,17 +1236,17 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
                             <div className="flex items-center space-x-2">
                               <button
                                 onClick={isPaused ? resume : pause}
-                                className="text-sky-500 hover:text-sky-600 transition-colors p-1 cursor-pointer"
+                                className="bg-sky-500 hover:bg-sky-400 text-white p-1.5 rounded-xl transition-all shadow-md cursor-pointer"
                                 title={isPaused ? "Retomar Áudio" : "Pausar Áudio"}
                               >
-                                {isPaused ? <PlayCircle className="h-5 w-5" /> : <PauseCircle className="h-5 w-5" />}
+                                {isPaused ? <Play className="h-4 w-4 fill-current" /> : <PauseCircle className="h-4 w-4" />}
                               </button>
                               <button
                                 onClick={stop}
-                                className="text-rose-500 hover:text-rose-600 transition-colors p-1 cursor-pointer"
+                                className="bg-rose-500 hover:bg-rose-600 text-white p-1.5 rounded-xl transition-all shadow-md cursor-pointer"
                                 title="Parar Áudio do PDF"
                               >
-                                <StopCircle className="h-5 w-5" />
+                                <StopCircle className="h-4 w-4" />
                               </button>
                             </div>
                           )}
@@ -1253,7 +1261,7 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
                                 speak(studyData.summary, newRate);
                               }
                             }}
-                            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-[10px] font-bold rounded-lg px-1.5 py-0.5 outline-none cursor-pointer"
+                            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-[10px] font-bold rounded-lg px-2 py-1 outline-none cursor-pointer"
                             title="Velocidade da Leitura em Áudio"
                           >
                             <option value={1.0}>1.0x</option>
@@ -1946,33 +1954,33 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
 
       {/* Modal de Upload de Novo Material / PDF */}
       {isUploadModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 max-w-2xl w-full shadow-2xl relative space-y-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 sm:p-8 max-w-2xl w-full shadow-2xl relative space-y-6">
             
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
-              <div className="flex items-center space-x-2.5">
-                <div className="p-2 bg-sky-500/10 text-sky-500 rounded-xl">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800/80">
+              <div className="flex items-center space-x-3">
+                <div className="p-3 bg-gradient-to-br from-sky-500 to-teal-500 text-white rounded-2xl shadow-md shadow-sky-500/20">
                   <FileUp className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-base text-slate-900 dark:text-white">
-                    Anexar Nova Fonte de Estudo (PDF/Texto)
+                  <h3 className="font-extrabold text-base text-slate-900 dark:text-white tracking-tight">
+                    Anexar Material de Estudo (PDF/Texto)
                   </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                    Envie um novo arquivo PDF (máx 3.5MB) ou cole o texto para a IA processar.
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
+                    Escolha o que deseja fazer com seu arquivo de enfermagem.
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setIsUploadModalOpen(false)}
-                className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                className="p-2 rounded-2xl text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             {errorMsg && (
-              <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 rounded-2xl text-xs sm:text-sm flex items-start space-x-2.5 animate-fade-in">
+              <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 rounded-2xl text-xs sm:text-sm flex items-start space-x-2.5 animate-fade-in shadow-xs">
                 <AlertTriangle className="h-4.5 w-4.5 shrink-0 mt-0.5" />
                 <div className="flex-1 font-semibold leading-relaxed">{errorMsg}</div>
                 <button onClick={() => setErrorMsg(null)} className="font-extrabold text-xs cursor-pointer">✕</button>
@@ -1988,7 +1996,7 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
               onClick={() => fileInputRef.current?.click()}
               className={`border-2 border-dashed rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer transition-all ${
                 dragActive 
-                  ? "border-sky-500 bg-sky-500/5" 
+                  ? "border-sky-500 bg-sky-500/10 scale-[1.01]" 
                   : "border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 hover:bg-slate-50 dark:hover:bg-slate-950/80 hover:border-sky-500/50"
               }`}
             >
@@ -1999,42 +2007,46 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
                 onChange={handleFileChange}
                 className="hidden"
               />
-              <FileUp className={`h-8 w-8 mb-2 transition-colors ${dragActive ? "text-sky-500" : "text-slate-300 dark:text-slate-600"}`} />
-              <h4 className="font-bold text-sm text-slate-700 dark:text-slate-300">
-                {file ? file.name : "Clique para selecionar PDF ou TXT"}
+              <div className="p-3 bg-sky-500/10 text-sky-500 rounded-full mb-3">
+                <FileUp className="h-6 w-6" />
+              </div>
+              <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200">
+                {file ? file.name : "Clique para selecionar seu arquivo PDF ou TXT"}
               </h4>
-              <p className="text-[11px] font-medium text-slate-400 mt-0.5">
-                {file ? `${(file.size / (1024 * 1024)).toFixed(2)} MB selecionados` : "Ou arraste e solte o arquivo aqui (Máximo 3.5MB)"}
+              <p className="text-[11px] font-medium text-slate-400 mt-1">
+                {file ? `${(file.size / (1024 * 1024)).toFixed(2)} MB selecionados` : "Ou arraste e solte o arquivo diretamente aqui"}
               </p>
             </div>
 
             {/* Pasted text option */}
             <div className="space-y-2">
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                Ou cole seu texto de estudo diretamente:
+              <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                Ou cole o texto de estudo diretamente:
               </label>
               <textarea
                 rows={4}
                 value={pastedText}
                 onChange={(e) => setPastedText(e.target.value)}
                 placeholder="Cole anotações, resoluções COFEN ou diretrizes de enfermagem aqui..."
-                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 text-xs outline-none focus:border-sky-500 transition-all leading-relaxed text-slate-800 dark:text-slate-200"
+                className="w-full bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 text-xs outline-none focus:border-sky-500 focus:ring-4 focus:ring-sky-500/10 transition-all leading-relaxed text-slate-800 dark:text-slate-200 font-medium"
               />
             </div>
 
+            {/* Dual Action Cards */}
             <div className="flex flex-col sm:flex-row gap-3 pt-2">
               <button
                 onClick={handleReadFullPdf}
-                disabled={!file && !pastedText.trim() || isExtractingPdf}
-                className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-xs py-3 px-4 rounded-2xl shadow-lg transition-all flex items-center justify-center space-x-2 cursor-pointer"
+                disabled={(!file && !pastedText.trim()) || isExtractingPdf}
+                className="flex-1 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-extrabold text-xs py-3.5 px-4 rounded-2xl shadow-xl shadow-emerald-600/20 hover:shadow-emerald-600/35 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center space-x-2 cursor-pointer"
               >
                 <Headphones className="h-4 w-4" />
-                <span>{isExtractingPdf ? "Lendo PDF..." : "🎧 Ouvir PDF Completo (Sem Resumir)"}</span>
+                <span>{isExtractingPdf ? "Extraindo PDF..." : "🎧 Ouvir PDF Completo (Sem Resumir)"}</span>
               </button>
+
               <button
                 onClick={handleGenerateStudy}
-                disabled={!file && !pastedText.trim() || isExtractingPdf}
-                className="flex-1 bg-sky-600 hover:bg-sky-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-xs py-3 px-4 rounded-2xl shadow-lg transition-all flex items-center justify-center space-x-2 cursor-pointer"
+                disabled={(!file && !pastedText.trim()) || isExtractingPdf}
+                className="flex-1 bg-gradient-to-r from-sky-600 via-indigo-600 to-sky-600 hover:from-sky-500 hover:to-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-extrabold text-xs py-3.5 px-4 rounded-2xl shadow-xl shadow-sky-600/20 hover:shadow-sky-600/35 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center space-x-2 cursor-pointer"
               >
                 <Brain className="h-4 w-4" />
                 <span>🧠 Gerar Resumo + Questões (IA)</span>
