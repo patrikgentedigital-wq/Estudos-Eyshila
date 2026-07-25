@@ -485,24 +485,33 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
       return;
     }
 
-    if (file && file.size > 3.5 * 1024 * 1024) {
-      setErrorMsg(language === "pt"
-        ? "O arquivo PDF excede 3.5MB (limite do servidor). Por favor, use um arquivo menor ou cole o texto diretamente."
-        : "PDF exceeds 3.5MB server limit. Please use a smaller file or paste text.");
-      return;
-    }
-
     setLoading(true);
+    setLoadingMessage(language === "pt" ? "Extraindo e analisando conteúdo do arquivo..." : "Extracting file content...");
+
     try {
       let payload: any = {};
       
       if (file) {
-        const base64 = await fileToBase64(file);
-        payload = {
-          fileData: base64,
-          fileName: file.name,
-          mimeType: file.type || (file.name.endsWith(".txt") ? "text/plain" : "application/pdf")
-        };
+        let extractedText = "";
+        try {
+          extractedText = await extractPdfTextWithPdfJs(file);
+        } catch (e) {
+          console.warn("Client-side text extraction failed, falling back to base64:", e);
+        }
+
+        if (extractedText && extractedText.trim().length > 30) {
+          payload = {
+            text: `[DOCUMENTO FONTE: ${file.name}]\n\n` + extractedText
+          };
+        } else {
+          // Fallback to base64 for scanned image PDFs
+          const base64 = await fileToBase64(file);
+          payload = {
+            fileData: base64,
+            fileName: file.name,
+            mimeType: file.type || (file.name.endsWith(".txt") ? "text/plain" : "application/pdf")
+          };
+        }
       } else {
         payload = {
           text: pastedText
