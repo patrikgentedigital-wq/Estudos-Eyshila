@@ -3,13 +3,13 @@
   "name": "Portal de Estudos Eyshila Caxias - ENARE",
   "icons": [
     {
-      "src": "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=192&auto=format&fit=crop&q=80",
-      "type": "image/jpeg",
+      "src": "/icon-192.png",
+      "type": "image/png",
       "sizes": "192x192"
     },
     {
-      "src": "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=512&auto=format&fit=crop&q=80",
-      "type": "image/jpeg",
+      "src": "/icon-512.png",
+      "type": "image/png",
       "sizes": "512x512"
     }
   ],

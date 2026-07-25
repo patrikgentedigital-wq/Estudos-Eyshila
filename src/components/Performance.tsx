@@ -234,7 +234,7 @@ export default function Performance({ language, attempts = [] }: PerformanceProp
       </div>
 
       {/* Widget Especial: Mapa de Calor por Peso de Matéria ENARE */}
-      <WeightHeatmap />
+      <WeightHeatmap attempts={attempts} />
 
     </div>
   );

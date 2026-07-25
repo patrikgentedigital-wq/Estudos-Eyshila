@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import html2canvas from "html2canvas";
 import { 
   Award, 
@@ -28,6 +28,7 @@ interface ExamPrepProps {
   attempts: ExamAttempt[];
   onAddAttempt: (attempt: ExamAttempt) => void;
   cadernoErros: CadernoErroItem[];
+  setCadernoErros?: React.Dispatch<React.SetStateAction<CadernoErroItem[]>>;
 }
 
 export default function ExamPrep({
@@ -35,7 +36,8 @@ export default function ExamPrep({
   onQuestionsAnswered,
   attempts,
   onAddAttempt,
-  cadernoErros
+  cadernoErros,
+  setCadernoErros
 }: ExamPrepProps) {
   const [lobbyTab, setLobbyTab] = useState<"mocks" | "past_exams" | "errors" | "discursive">("mocks");
   const [discursiveText, setDiscursiveText] = useState<string>("");

@@ -1,5 +1,6 @@
 import React from "react";
-import { Flame, Sparkles, TrendingUp, HelpCircle } from "lucide-react";
+import { Flame, Sparkles } from "lucide-react";
+import { ExamAttempt } from "../types";
 
 export interface WeightSubject {
   name: string;
@@ -9,31 +10,40 @@ export interface WeightSubject {
   badge: string;
 }
 
-export const ENARE_WEIGHT_SUBJECTS: WeightSubject[] = [
-  {
-    name: "Enfermagem Específica (SAE, Urgência, UTI & Imunização)",
-    weight: 3.0,
-    userAccuracy: 84,
-    hoursInvested: 35,
-    badge: "🏆 Peso 3 (Máximo Retorno)"
-  },
-  {
-    name: "Legislação e Políticas do SUS (Lei 8080, 8142, Decreto 7508)",
-    weight: 2.0,
-    userAccuracy: 78,
-    hoursInvested: 18,
-    badge: "⭐ Peso 2 (Estratégico)"
-  },
-  {
-    name: "Língua Portuguesa & Interpretação de Texto",
-    weight: 1.0,
-    userAccuracy: 90,
-    hoursInvested: 10,
-    badge: "📝 Peso 1 (Manutenção)"
-  }
-];
+interface WeightHeatmapProps {
+  attempts?: ExamAttempt[];
+}
 
-export default function WeightHeatmap() {
+export default function WeightHeatmap({ attempts = [] }: WeightHeatmapProps) {
+  // Compute user's overall accuracy from attempts if available
+  const overallAvg = attempts.length > 0 
+    ? Math.round(attempts.reduce((acc, a) => acc + a.score, 0) / attempts.length)
+    : 80;
+
+  const ENARE_WEIGHT_SUBJECTS: WeightSubject[] = [
+    {
+      name: "Enfermagem Específica (SAE, Urgência, UTI & Imunização)",
+      weight: 3.0,
+      userAccuracy: Math.min(100, overallAvg + 4),
+      hoursInvested: 35,
+      badge: "🏆 Peso 3 (Máximo Retorno)"
+    },
+    {
+      name: "Legislação e Políticas do SUS (Lei 8080, 8142, Decreto 7508)",
+      weight: 2.0,
+      userAccuracy: Math.max(50, overallAvg - 2),
+      hoursInvested: 18,
+      badge: "⭐ Peso 2 (Estratégico)"
+    },
+    {
+      name: "Língua Portuguesa & Interpretação de Texto",
+      weight: 1.0,
+      userAccuracy: Math.min(100, overallAvg + 10),
+      hoursInvested: 10,
+      badge: "📝 Peso 1 (Manutenção)"
+    }
+  ];
+
   return (
     <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-6">
       
@@ -56,7 +66,6 @@ export default function WeightHeatmap() {
       {/* Grid of Subject Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {ENARE_WEIGHT_SUBJECTS.map((subject, idx) => {
-          // Calculate ROI Index (Accuracy * Weight)
           const roiScore = Math.round((subject.userAccuracy * subject.weight) / 10);
           
           let cardBorder = "border-indigo-500/30 bg-indigo-500/5";

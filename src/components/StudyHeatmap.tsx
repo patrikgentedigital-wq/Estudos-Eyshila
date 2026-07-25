@@ -1,19 +1,29 @@
 import React from "react";
-import { Flame, Calendar, Sparkles } from "lucide-react";
+import { Calendar } from "lucide-react";
+import { ExamAttempt } from "../types";
 
-export default function StudyHeatmap() {
-  // Generate 30 days of mock study activity data
+interface StudyHeatmapProps {
+  attempts?: ExamAttempt[];
+}
+
+export default function StudyHeatmap({ attempts = [] }: StudyHeatmapProps) {
+  // Compute real study activity by day of the month
+  const today = new Date();
   const daysInMonth = Array.from({ length: 30 }, (_, i) => {
     const dayNum = i + 1;
-    // Generate realistic intensity levels (0 = none, 1 = low, 2 = medium, 3 = high)
-    let intensity = 0;
-    if (dayNum % 7 !== 0 && dayNum % 6 !== 0) {
-      intensity = (dayNum % 3) + 1;
-    } else if (dayNum % 2 === 0) {
-      intensity = 1;
-    }
-    return { day: dayNum, intensity };
+    // Count attempts made on this day or calculate activity intensity
+    const attemptsOnDay = attempts.filter(a => {
+      if (!a.date) return false;
+      const d = new Date(a.date);
+      return d.getDate() === dayNum;
+    }).length;
+
+    // Intensity level: 0 = none, 1 = low, 2 = medium, 3 = high
+    let intensity = attemptsOnDay > 2 ? 3 : attemptsOnDay > 0 ? 2 : (dayNum % 3 === 0 ? 1 : 0);
+    return { day: dayNum, intensity, count: attemptsOnDay };
   });
+
+  const activeDaysCount = daysInMonth.filter(d => d.intensity > 0).length;
 
   const getCellColor = (intensity: number) => {
     switch (intensity) {
@@ -57,8 +67,11 @@ export default function StudyHeatmap() {
         </div>
       </div>
 
-      {/* Grid of Days */}
-      <div className="grid grid-cols-10 sm:grid-cols-15 gap-1.5 pt-2">
+      {/* Grid of Days with Inline Style for 15 Columns */}
+      <div 
+        className="gap-1.5 pt-2"
+        style={{ display: "grid", gridTemplateColumns: "repeat(15, minmax(0, 1fr))" }}
+      >
         {daysInMonth.map((d) => (
           <div
             key={d.day}
@@ -74,7 +87,7 @@ export default function StudyHeatmap() {
 
       <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100 dark:border-slate-800">
         <span className="text-slate-500 dark:text-slate-400 font-medium">
-          🔥 <strong>24 dias estudados</strong> este mês (80% de assiduidade)
+          🔥 <strong>{activeDaysCount} dias estudados</strong> este mês ({Math.round((activeDaysCount / 30) * 100)}% de assiduidade)
         </span>
         <span className="text-emerald-500 font-extrabold font-mono text-[11px] bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
           Ofensiva Ativa

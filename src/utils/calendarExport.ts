@@ -45,7 +45,7 @@ export const ENARE_OFFICIAL_EVENTS: CalendarEvent[] = [
   }
 ];
 
-export function downloadEicsCalendar(events: CalendarEvent[] = ENARE_OFFICIAL_EVENTS) {
+export function downloadIcsCalendar(events: CalendarEvent[] = ENARE_OFFICIAL_EVENTS) {
   let icsData = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
@@ -80,3 +80,6 @@ export function downloadEicsCalendar(events: CalendarEvent[] = ENARE_OFFICIAL_EV
   document.body.removeChild(a);
   window.URL.revokeObjectURL(url);
 }
+
+// Alias for backwards compatibility
+export const downloadEicsCalendar = downloadIcsCalendar;

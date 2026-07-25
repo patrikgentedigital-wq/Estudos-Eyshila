@@ -24,6 +24,87 @@ const ProfileSettings = React.lazy(() => import("./components/ProfileSettings"))
 const AiStudy = React.lazy(() => import("./components/AiStudy"));
 const Roadmap = React.lazy(() => import("./components/Roadmap"));
 
+// Default 45-Day ENADE/ENARE Study Plan (7 Weeks / 1h daily)
+const DEFAULT_ROADMAP: RoadmapWeek[] = [
+  {
+    week: 1,
+    label: "Dias 1-7: Formação Geral ENADE (Peso 25%)",
+    topics: ["Direitos Humanos", "Ética Global", "Sustentabilidade", "Interpretação de Texto"],
+    status: "current",
+    tasks: [
+      { id: "w1-t1", title: "Estudar 5 questões de Formação Geral (Direitos Humanos e Diversidade)", completed: false },
+      { id: "w1-t2", title: "Treino de Interpretação e Coesão Textual aplicada a Saúde Pública", completed: false },
+      { id: "w1-t3", title: "Prática de 10 min de flashcards de Formação Geral", completed: false }
+    ]
+  },
+  {
+    week: 2,
+    label: "Dias 8-14: Legislação Estruturante do SUS",
+    topics: ["Lei 8080/90", "Lei 8142/90", "Decreto 7508/11", "Controle Social"],
+    status: "locked",
+    tasks: [
+      { id: "w2-t1", title: "Dominar Princípios Doutrinários x Organizativos do SUS", completed: false },
+      { id: "w2-t2", title: "Resumir Regiões de Saúde e Portas de Entrada (Decreto 7.508)", completed: false },
+      { id: "w2-t3", title: "Simulado 1 (20 questões de Legislação SUS)", completed: false }
+    ]
+  },
+  {
+    week: 3,
+    label: "Dias 15-21: Processo de Enfermagem (COFEN 736/2024)",
+    topics: ["5 Etapas SAE", "NANDA-I", "Taxonomia NIC/NOC", "Código de Ética 564/17"],
+    status: "locked",
+    tasks: [
+      { id: "w3-t1", title: "Mapear as 5 etapas do Processo de Enfermagem segundo Res. COFEN 736/24", completed: false },
+      { id: "w3-t2", title: "Estudo de Caso: Formulação de Diagnóstico de Enfermagem", completed: false },
+      { id: "w3-t3", title: "Revisar Direitos e Proibições no Código de Ética", completed: false }
+    ]
+  },
+  {
+    week: 4,
+    label: "Dias 22-28: Urgência, Emergência e UTI",
+    topics: ["Protocolo XABCDE", "PCR AHA 2020", "Protocolo Manchester", "Drogas Vasoativas"],
+    status: "locked",
+    tasks: [
+      { id: "w4-t1", title: "Memorizar Ritmos Chocáveis x Não Chocáveis na PCR", completed: false },
+      { id: "w4-t2", title: "Cálculos de Gotejamento de Soro e Doses de Inotrópicos", completed: false },
+      { id: "w4-t3", title: "Simulado 2 (Urgência, Emergência e UTI)", completed: false }
+    ]
+  },
+  {
+    week: 5,
+    label: "Dias 29-35: Saúde da Mulher, Criança e Imunização",
+    topics: ["Pré-Natal", "Calendário PNI 2024", "Puericultura", "Rede Cegonha"],
+    status: "locked",
+    tasks: [
+      { id: "w5-t1", title: "Revisar Esquema Vacinal do Recém-Nascido e Criança (PNI)", completed: false },
+      { id: "w5-t2", title: "Consultas de Pré-Natal e Intercorrências Gravídicas", completed: false },
+      { id: "w5-t3", title: "Prática de Flashcards de Imunização e Puericultura", completed: false }
+    ]
+  },
+  {
+    week: 6,
+    label: "Dias 36-41: Gestão, Saúde Mental e Biossegurança",
+    topics: ["Dimensionamento COFEN", "RAPS", "NR-32", "Vigilância Epidemiológica"],
+    status: "locked",
+    tasks: [
+      { id: "w6-t1", title: "Estudar Dimensionamento de Pessoal de Enfermagem", completed: false },
+      { id: "w6-t2", title: "Rede de Atenção Psicossocial (RAPS) e Saúde Mental", completed: false },
+      { id: "w6-t3", title: "Revisar Lista de Notificação Compulsória Imediata", completed: false }
+    ]
+  },
+  {
+    week: 7,
+    label: "Dias 42-45: Reta Final ENADE (Simulado & Discursivas)",
+    topics: ["Simulado Geral", "Questão Discursiva com Espelho", "Revisão Caderno de Erros"],
+    status: "locked",
+    tasks: [
+      { id: "w7-t1", title: "Redigir 1 Questão Discursiva no formato ENADE", completed: false },
+      { id: "w7-t2", title: "Simulado Geral ENADE (100 Questões Multidisciplinares)", completed: false },
+      { id: "w7-t3", title: "Revisão Final de 100% das questões do Caderno de Erros", completed: false }
+    ]
+  }
+];
+
 export default function App() {
   
   // Session & UI States
@@ -32,7 +113,7 @@ export default function App() {
   const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
   
   const [language, setLanguage] = useState<Language>(() => {
-    return (localStorage.getItem("app_language") as Language) || "pt";
+    return (safeGetItem("app_language") as Language) || "pt";
   });
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
   const [darkMode, setDarkMode] = useState<boolean>(() => {
@@ -56,87 +137,6 @@ export default function App() {
   const dismissToast = (id: string) => {
     setToasts(prev => prev.filter(t => t.id !== id));
   };
-
-  // Default 45-Day ENADE/ENARE Study Plan (7 Weeks / 1h daily)
-  const DEFAULT_ROADMAP: RoadmapWeek[] = [
-    {
-      week: 1,
-      label: "Dias 1-7: Formação Geral ENADE (Peso 25%)",
-      topics: ["Direitos Humanos", "Ética Global", "Sustentabilidade", "Interpretação de Texto"],
-      status: "current",
-      tasks: [
-        { id: "w1-t1", title: "Estudar 5 questões de Formação Geral (Direitos Humanos e Diversidade)", completed: false },
-        { id: "w1-t2", title: "Treino de Interpretação e Coesão Textual aplicada a Saúde Pública", completed: false },
-        { id: "w1-t3", title: "Prática de 10 min de flashcards de Formação Geral", completed: false }
-      ]
-    },
-    {
-      week: 2,
-      label: "Dias 8-14: Legislação Estruturante do SUS",
-      topics: ["Lei 8080/90", "Lei 8142/90", "Decreto 7508/11", "Controle Social"],
-      status: "locked",
-      tasks: [
-        { id: "w2-t1", title: "Dominar Princípios Doutrinários x Organizativos do SUS", completed: false },
-        { id: "w2-t2", title: "Resumir Regiões de Saúde e Portas de Entrada (Decreto 7.508)", completed: false },
-        { id: "w2-t3", title: "Simulado 1 (20 questões de Legislação SUS)", completed: false }
-      ]
-    },
-    {
-      week: 3,
-      label: "Dias 15-21: Processo de Enfermagem (COFEN 736/2024)",
-      topics: ["5 Etapas SAE", "NANDA-I", "Taxonomia NIC/NOC", "Código de Ética 564/17"],
-      status: "locked",
-      tasks: [
-        { id: "w3-t1", title: "Mapear as 5 etapas do Processo de Enfermagem segundo Res. COFEN 736/24", completed: false },
-        { id: "w3-t2", title: "Estudo de Caso: Formulação de Diagnóstico de Enfermagem", completed: false },
-        { id: "w3-t3", title: "Revisar Direitos e Proibições no Código de Ética", completed: false }
-      ]
-    },
-    {
-      week: 4,
-      label: "Dias 22-28: Urgência, Emergência e UTI",
-      topics: ["Protocolo XABCDE", "PCR AHA 2020", "Protocolo Manchester", "Drogas Vasoativas"],
-      status: "locked",
-      tasks: [
-        { id: "w4-t1", title: "Memorizar Ritmos Chocáveis x Não Chocáveis na PCR", completed: false },
-        { id: "w4-t2", title: "Cálculos de Gotejamento de Soro e Doses de Inotrópicos", completed: false },
-        { id: "w4-t3", title: "Simulado 2 (Urgência, Emergência e UTI)", completed: false }
-      ]
-    },
-    {
-      week: 5,
-      label: "Dias 29-35: Saúde da Mulher, Criança e Imunização",
-      topics: ["Pré-Natal", "Calendário PNI 2024", "Puericultura", "Rede Cegonha"],
-      status: "locked",
-      tasks: [
-        { id: "w5-t1", title: "Revisar Esquema Vacinal do Recém-Nascido e Criança (PNI)", completed: false },
-        { id: "w5-t2", title: "Consultas de Pré-Natal e Intercorrências Gravídicas", completed: false },
-        { id: "w5-t3", title: "Prática de Flashcards de Imunização e Puericultura", completed: false }
-      ]
-    },
-    {
-      week: 6,
-      label: "Dias 36-41: Gestão, Saúde Mental e Biossegurança",
-      topics: ["Dimensionamento COFEN", "RAPS", "NR-32", "Vigilância Epidemiológica"],
-      status: "locked",
-      tasks: [
-        { id: "w6-t1", title: "Estudar Dimensionamento de Pessoal de Enfermagem", completed: false },
-        { id: "w6-t2", title: "Rede de Atenção Psicossocial (RAPS) e Saúde Mental", completed: false },
-        { id: "w6-t3", title: "Revisar Lista de Notificação Compulsória Imediata", completed: false }
-      ]
-    },
-    {
-      week: 7,
-      label: "Dias 42-45: Reta Final ENADE (Simulado & Discursivas)",
-      topics: ["Simulado Geral", "Questão Discursiva com Espelho", "Revisão Caderno de Erros"],
-      status: "locked",
-      tasks: [
-        { id: "w7-t1", title: "Redigir 1 Questão Discursiva no formato ENADE", completed: false },
-        { id: "w7-t2", title: "Simulado Geral ENADE (100 Questões Multidisciplinares)", completed: false },
-        { id: "w7-t3", title: "Revisão Final de 100% das questões do Caderno de Erros", completed: false }
-      ]
-    }
-  ];
 
   // Business Data States
   const [profile, setProfile] = useState<UserProfile>(INITIAL_PROFILE);
@@ -230,6 +230,7 @@ export default function App() {
           const savedQuestions = safeGetItem(`residency_questions_count_${userId}`);
           const savedChecklist = safeGetItem(`residency_checklist_${userId}`);
           const savedCaderno = safeGetItem(`residency_caderno_${userId}`);
+          const savedRoadmap = safeGetItem(`residency_roadmap_${userId}`);
 
           if (savedProfile) setProfile(JSON.parse(savedProfile));
           if (savedModules) setModules(JSON.parse(savedModules));
@@ -239,6 +240,8 @@ export default function App() {
           if (savedChecklist) setChecklist(JSON.parse(savedChecklist));
           else setChecklist(INITIAL_CHECKLIST);
           if (savedCaderno) setCadernoErros(JSON.parse(savedCaderno));
+          if (savedRoadmap) setRoadmap(JSON.parse(savedRoadmap));
+          else setRoadmap(DEFAULT_ROADMAP);
         } catch (error) {
           console.error("Erro ao carregar dados do usuário:", error);
         } finally {
@@ -252,6 +255,7 @@ export default function App() {
         setQuestionsCount(0);
         setChecklist([]);
         setCadernoErros([]);
+        setRoadmap(DEFAULT_ROADMAP);
       }
     };
 
@@ -427,7 +431,9 @@ export default function App() {
   };
 
   const handleToggleLanguage = () => {
-    // No-op or removed
+    const newLang: Language = language === "pt" ? "en" : "pt";
+    setLanguage(newLang);
+    safeSetItem("app_language", newLang);
   };
 
   // Render correct views based on Tab selection
@@ -466,6 +472,7 @@ export default function App() {
             attempts={attempts}
             onAddAttempt={handleAddExamAttempt}
             cadernoErros={cadernoErros}
+            setCadernoErros={setCadernoErros}
           />
         );
       case "flashcards":
@@ -518,7 +525,7 @@ export default function App() {
       roadmap: "Personalized Study Roadmap"
     };
 
-    return titlesPt[activeTab];
+    return language === "en" ? titlesEn[activeTab] : titlesPt[activeTab];
   };
 
   if (isAuthLoading) {
