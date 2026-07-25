@@ -73,8 +73,9 @@ try {
     const modelsToTry = [
       process.env.OPENROUTER_MODEL,
       "google/gemini-2.5-flash:free",
-      "meta-llama/llama-3.3-70b-instruct:free",
-      "mistralai/mistral-7b-instruct:free"
+      "google/gemini-2.5-flash",
+      "qwen/qwen-2.5-72b-instruct:free",
+      "meta-llama/llama-3.3-70b-instruct:free"
     ].filter(Boolean) as string[];
 
     let lastError: any = null;
@@ -82,20 +83,23 @@ try {
     for (const model of modelsToTry) {
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+        // 8.5s timeout per model attempt to never exceed Vercel 10s serverless limit
+        const timeoutId = setTimeout(() => controller.abort(), 8500);
 
         const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
           method: "POST",
           signal: controller.signal,
           headers: {
             "Authorization": `Bearer ${apiKey}`,
-            "HTTP-Referer": process.env.APP_URL || "http://localhost:3000", 
+            "HTTP-Referer": process.env.APP_URL || "https://estudos-eyshila.vercel.app", 
             "X-Title": "Portal de Estudos Eyshila Caxias - ENARE", 
             "Content-Type": "application/json"
           },
           body: JSON.stringify({
             model: model,
             messages: messages,
+            max_tokens: 1500,
+            temperature: 0.3,
             response_format: isJsonMode ? { type: "json_object" } : undefined
           })
         });
@@ -115,7 +119,7 @@ try {
         }
       } catch (err: any) {
         if (err.name === "AbortError") {
-          console.warn(`Tentativa com modelo ${model} excedeu o limite de tempo (30s).`);
+          console.warn(`Tentativa com modelo ${model} excedeu limite de tempo (8.5s).`);
         } else {
           console.warn(`Tentativa com modelo ${model} falhou:`, err.message);
         }
@@ -123,7 +127,7 @@ try {
       }
     }
 
-    throw lastError || new Error("Falha ao comunicar com a OpenRouter em todos os modelos.");
+    throw new Error(`Serviço de IA indisponível temporariamente. ${lastError?.message || ""}`);
   }
 
   // Zod Input Schemas
@@ -224,9 +228,10 @@ Formato exigido:
     }
   ]
 }
-CERTIFIQUE-SE QUE EXISTAM EXATAMENTE 5 QUESTÕES E 6 FLASHCARDS.`;
+CERTIFIQUE-SE QUE EXISTAM EXATAMENTE 3 QUESTÕES DE ALTO RENDIMENTO E 3 FLASHCARDS DIRETO AO PONTO.`;
 
-      const userPrompt = `Baseado no seguinte texto de estudos, elabore o resumo científico, questões com fundamentação legal/clínica e flashcards em formato JSON estrito:\n\n${extractedText}`;
+      const truncatedText = extractedText.length > 3000 ? extractedText.substring(0, 3000) + "..." : extractedText;
+      const userPrompt = `Baseado no seguinte texto de estudos, elabore o resumo científico, questões com fundamentação legal/clínica e flashcards em formato JSON estrito:\n\n${truncatedText}`;
 
       // Cache logic via SHA-256
       const promptHash = crypto.createHash("sha256").update(userPrompt).digest("hex");

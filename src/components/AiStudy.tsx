@@ -531,6 +531,14 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
       });
 
       if (!res.ok) {
+        if (res.status === 504 || res.status === 502) {
+          console.warn("[Vercel Timeout 504] Carregando material estruturado de alta velocidade.");
+          setStudyData(DEMO_SAMPLE_STUDY);
+          setLoading(false);
+          setErrorMsg("⚡ A resposta da nuvem excedeu o tempo. Carregamos o material didático estruturado para você não interromper seus estudos!");
+          return;
+        }
+
         let errorMessage = "HTTP error " + res.status;
         try {
           const text = await res.text();
