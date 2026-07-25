@@ -179,7 +179,7 @@ export const translations: Record<Language, TranslationDict> = {
     forgotPassword: "Esqueceu sua senha?",
     loginBtn: "Entrar",
     supportLink: "Precisa de suporte técnico? Contatar Suporte",
-    welcomeBack: "Seja bem-vinda!",
+    welcomeBack: "Seja bem-vindo(a)",
     portalSubtitle: "Seu plano de estudos de enfermagem personalizado.",
     modulesCompleted: "Módulos Concluídos",
     questionsAnswered: "Questões Respondidas",

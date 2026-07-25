@@ -138,7 +138,7 @@ export default function Dashboard({
               </div>
               <div>
                 <span className="text-[10px] font-extrabold text-sky-300 uppercase tracking-widest block font-mono">Prova ENARE</span>
-                <p className="text-lg font-black text-white font-mono">Outubrar 2026</p>
+                <p className="text-lg font-black text-white font-mono">Outubro de 2026</p>
               </div>
             </div>
           </div>

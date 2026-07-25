@@ -624,7 +624,7 @@ export default function App() {
             {/* Calendar indicators */}
             <div className="hidden sm:flex items-center space-x-1.5 text-xs text-slate-400 font-medium">
               <Calendar className="h-3.5 w-3.5 text-indigo-500" />
-              <span>16 de Julho de 2026</span>
+              <span>{new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
             </div>
 
             {/* Quick preceptor alert */}

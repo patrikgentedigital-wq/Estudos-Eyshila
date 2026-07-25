@@ -24,8 +24,8 @@ interface RoadmapProps {
 }
 
 const Roadmap: React.FC<RoadmapProps> = ({ roadmap, onToggleTask, setActiveTab }) => {
-  // Target Exam Date State (Default: 2026-10-20, typical ENARE exam period)
-  const [examDate, setExamDate] = useState<string>("2026-10-20");
+  // Target Exam Date State (Default: 2026-10-18, Sunday - official ENARE exam date)
+  const [examDate, setExamDate] = useState<string>("2026-10-18");
 
   // Calculate days & weeks remaining until target date
   const today = new Date();
@@ -50,13 +50,14 @@ const Roadmap: React.FC<RoadmapProps> = ({ roadmap, onToggleTask, setActiveTab }
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 pb-20">
-      {/* Header & Adaptive Date Banner */}
-      <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-xs space-y-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-6 animate-fade-in">
+      
+      {/* Header Info Banner */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+        
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-6">
           <div>
             <div className="flex items-center space-x-2">
-              <span className="px-3 py-1 bg-sky-500/10 text-sky-600 dark:text-sky-400 rounded-full text-xs font-bold uppercase tracking-wider">Edital Esquematizado</span>
               <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border flex items-center gap-1 ${paceStatus.color}`}>
                 <paceStatus.icon className="h-3 w-3 inline" />
                 {paceStatus.text}
@@ -70,16 +71,18 @@ const Roadmap: React.FC<RoadmapProps> = ({ roadmap, onToggleTask, setActiveTab }
             </p>
           </div>
 
-          <div className="flex items-center space-x-3 bg-slate-50 dark:bg-slate-950 p-3 rounded-2xl border border-slate-100 dark:border-slate-800">
-            <Calendar className="h-5 w-5 text-sky-500 shrink-0" />
+          <div className="flex items-center space-x-3 bg-slate-100 dark:bg-slate-950 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-inner">
+            <Calendar className="h-5 w-5 text-indigo-500 shrink-0" />
             <div className="flex flex-col">
-              <label htmlFor="exam-date-input" className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Data do Concurso</label>
+              <label htmlFor="exam-date-input" className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                Data do Concurso (Clique para alterar)
+              </label>
               <input 
                 id="exam-date-input"
                 type="date"
                 value={examDate}
                 onChange={(e) => setExamDate(e.target.value)}
-                className="bg-transparent text-xs font-bold text-slate-800 dark:text-slate-100 outline-hidden cursor-pointer"
+                className="bg-transparent text-xs font-extrabold text-slate-900 dark:text-slate-100 outline-none cursor-pointer"
               />
             </div>
           </div>
