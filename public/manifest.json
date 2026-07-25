@@ -1,21 +1,25 @@
 {
   "short_name": "Portal Eyshila",
-  "name": "Portal de Estudos Eyshila Caxias - ENARE",
+  "name": "Portal de Estudos Eyshila Caxias - ENARE Enfermagem",
+  "description": "Plano de estudos personalizado, simulados e flashcards para residência em enfermagem ENARE.",
   "icons": [
     {
       "src": "/icon-192.png",
       "type": "image/png",
-      "sizes": "192x192"
+      "sizes": "192x192",
+      "purpose": "any maskable"
     },
     {
       "src": "/icon-512.png",
       "type": "image/png",
-      "sizes": "512x512"
+      "sizes": "512x512",
+      "purpose": "any maskable"
     }
   ],
   "start_url": "/",
-  "background_color": "#0b0f19",
-  "theme_color": "#4f46e5",
+  "background_color": "#030712",
+  "theme_color": "#7c3aed",
   "display": "standalone",
-  "orientation": "portrait"
+  "orientation": "portrait",
+  "categories": ["education", "medical"]
 }
