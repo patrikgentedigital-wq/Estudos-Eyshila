@@ -14,6 +14,7 @@ import Sidebar from "./components/Sidebar";
 import { measureQuery } from "./dbLogger";
 import Login from "./components/Login";
 import { OnboardingModal } from "./components/OnboardingModal";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 // Lazy-loaded tab components for code splitting
 const Dashboard = React.lazy(() => import("./components/Dashboard"));
@@ -25,11 +26,11 @@ const ProfileSettings = React.lazy(() => import("./components/ProfileSettings"))
 const AiStudy = React.lazy(() => import("./components/AiStudy"));
 const Roadmap = React.lazy(() => import("./components/Roadmap"));
 
-// Default 45-Day ENADE/ENARE Study Plan (7 Weeks / 1h daily)
+// Default 45-Day ENARE Study Plan (7 Weeks / 1h daily)
 const DEFAULT_ROADMAP: RoadmapWeek[] = [
   {
     week: 1,
-    label: "Dias 1-7: Formação Geral ENADE (Peso 25%)",
+    label: "Dias 1-7: Competências gerais ENARE (20%)",
     topics: ["Direitos Humanos", "Ética Global", "Sustentabilidade", "Interpretação de Texto"],
     status: "current",
     tasks: [
@@ -95,16 +96,23 @@ const DEFAULT_ROADMAP: RoadmapWeek[] = [
   },
   {
     week: 7,
-    label: "Dias 42-45: Reta Final ENADE (Simulado & Discursivas)",
-    topics: ["Simulado Geral", "Questão Discursiva com Espelho", "Revisão Caderno de Erros"],
+    label: "Dias 42-45: Reta final ENARE (objetiva)",
+    topics: ["Simulado de 100 questões", "Gestão do tempo", "Revisão Caderno de Erros"],
     status: "locked",
     tasks: [
-      { id: "w7-t1", title: "Redigir 1 Questão Discursiva no formato ENADE", completed: false },
-      { id: "w7-t2", title: "Simulado Geral ENADE (100 Questões Multidisciplinares)", completed: false },
+      { id: "w7-t1", title: "Fazer um simulado objetivo de 100 questões em até 5 horas", completed: false },
+      { id: "w7-t2", title: "Revisar o desempenho por competência do ENARE", completed: false },
       { id: "w7-t3", title: "Revisão Final de 100% das questões do Caderno de Erros", completed: false }
     ]
   }
 ];
+
+const normalizeProfile = (value: Partial<UserProfile> | null | undefined, fallback: UserProfile): UserProfile => ({
+  ...fallback,
+  ...(value || {}),
+  hoursPerWeek: value?.hoursPerWeek ?? fallback.hoursPerWeek ?? 15,
+  onboarded: value ? (value.onboarded ?? true) : fallback.onboarded,
+});
 
 export default function App() {
   
@@ -122,6 +130,8 @@ export default function App() {
   });
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isUserDataHydrated, setIsUserDataHydrated] = useState<boolean>(false);
+  const [remoteLoadFailed, setRemoteLoadFailed] = useState<boolean>(false);
   const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
   const [cadernoErros, setCadernoErros] = useState<CadernoErroItem[]>([]);
   const [roadmap, setRoadmap] = useState<RoadmapWeek[]>([]);
@@ -149,10 +159,10 @@ export default function App() {
   const [questionsCount, setQuestionsCount] = useState<number>(0);
 
   const INITIAL_CHECKLIST = [
-    { id: "theory", label: "Estudar Módulos de Enfermagem (SUS / Ética / UTI)", completed: true },
+    { id: "theory", label: "Estudar Módulos de Enfermagem (SUS / Ética / UTI)", completed: false },
     { id: "questions", label: "Resolver 300 questões recomendadas", completed: false },
     { id: "caderno", label: "Alimentar Caderno de Erros", completed: false },
-    { id: "flashcards", label: "Revisar Flashcards com Resumos Rápidos", completed: true },
+    { id: "flashcards", label: "Revisar Flashcards com Resumos Rápidos", completed: false },
     { id: "mock", label: "Realizar Simulado Parcial no Fim de Semana", completed: false }
   ];
 
@@ -194,6 +204,8 @@ export default function App() {
     const loadUserData = async () => {
       if (isLoggedIn && userId && !isAuthLoading) {
         setIsLoading(true);
+        setIsUserDataHydrated(false);
+        setRemoteLoadFailed(false);
         try {
           if (isSupabaseConfigured && supabase) {
             const { data, error } = await measureQuery("fetch_user_data", () => 
@@ -206,10 +218,11 @@ export default function App() {
 
             if (error) {
               console.warn("[Supabase Data Load Error]", error.message);
+              setRemoteLoadFailed(true);
             }
 
             if (data) {
-              setProfile(data.profile || clone(INITIAL_PROFILE));
+              setProfile(normalizeProfile(data.profile, clone(INITIAL_PROFILE)));
               setModules(data.modules || clone(INITIAL_MODULES));
               setFlashcards(data.flashcards || clone(INITIAL_FLASHCARDS));
               setAttempts(data.attempts || []);
@@ -217,7 +230,6 @@ export default function App() {
               setChecklist(data.checklist || INITIAL_CHECKLIST);
               setCadernoErros(data.caderno_erros || []);
               setRoadmap(data.roadmap || clone(DEFAULT_ROADMAP));
-              setIsLoading(false);
               return;
             }
           }
@@ -232,7 +244,8 @@ export default function App() {
           const savedCaderno = safeGetItem(`residency_caderno_${userId}`);
           const savedRoadmap = safeGetItem(`residency_roadmap_${userId}`);
 
-          setProfile(savedProfile ? JSON.parse(savedProfile) : clone(INITIAL_PROFILE));
+          const parsedProfile = savedProfile ? JSON.parse(savedProfile) : null;
+          setProfile(normalizeProfile(parsedProfile, clone(INITIAL_PROFILE)));
           setModules(savedModules ? JSON.parse(savedModules) : clone(INITIAL_MODULES));
           setFlashcards(savedFlashcards ? JSON.parse(savedFlashcards) : clone(INITIAL_FLASHCARDS));
           setAttempts(savedAttempts ? JSON.parse(savedAttempts) : []);
@@ -242,8 +255,18 @@ export default function App() {
           setRoadmap(savedRoadmap ? JSON.parse(savedRoadmap) : clone(DEFAULT_ROADMAP));
         } catch (error) {
           console.error("Erro ao carregar dados do usuário:", error);
+          setRemoteLoadFailed(true);
+          setProfile(clone(INITIAL_PROFILE));
+          setModules(clone(INITIAL_MODULES));
+          setFlashcards(clone(INITIAL_FLASHCARDS));
+          setAttempts([]);
+          setQuestionsCount(0);
+          setChecklist(INITIAL_CHECKLIST);
+          setCadernoErros([]);
+          setRoadmap(clone(DEFAULT_ROADMAP));
         } finally {
           setIsLoading(false);
+          setIsUserDataHydrated(true);
         }
       } else if (!isLoggedIn) {
         setProfile(clone(INITIAL_PROFILE));
@@ -254,6 +277,8 @@ export default function App() {
         setChecklist(INITIAL_CHECKLIST);
         setCadernoErros([]);
         setRoadmap(clone(DEFAULT_ROADMAP));
+        setRemoteLoadFailed(false);
+        setIsUserDataHydrated(true);
       }
     };
 
@@ -262,7 +287,7 @@ export default function App() {
 
   // Debounced save to Supabase
   const syncToSupabase = useCallback(async (dataToSync: any) => {
-    if (isLoggedIn && userId && isSupabaseConfigured && supabase) {
+    if (isLoggedIn && userId && isSupabaseConfigured && supabase && isUserDataHydrated && !remoteLoadFailed) {
       try {
         const { error } = await measureQuery("upsert_user_data", () => 
           supabase.from("user_data").upsert({
@@ -278,7 +303,7 @@ export default function App() {
         console.error("Erro ao sincronizar no Supabase:", err);
       }
     }
-  }, [isLoggedIn, userId]);
+  }, [isLoggedIn, userId, isUserDataHydrated, remoteLoadFailed]);
 
 
   // Synchronize state preferences into LocalStorage
@@ -306,68 +331,68 @@ export default function App() {
   }, [darkMode]);
 
   useEffect(() => {
-    if (isLoggedIn && userId) {
+    if (isLoggedIn && userId && isUserDataHydrated) {
       safeSetItem(`residency_profile_${userId}`, JSON.stringify(profile));
       const timer = setTimeout(() => syncToSupabase({ profile }), 1000);
       return () => clearTimeout(timer);
     }
-  }, [profile, userId, isLoggedIn, syncToSupabase]);
+  }, [profile, userId, isLoggedIn, isUserDataHydrated, syncToSupabase]);
 
   useEffect(() => {
-    if (isLoggedIn && userId) {
+    if (isLoggedIn && userId && isUserDataHydrated) {
       safeSetItem(`residency_modules_${userId}`, JSON.stringify(modules));
       const timer = setTimeout(() => syncToSupabase({ modules }), 2000);
       return () => clearTimeout(timer);
     }
-  }, [modules, userId, isLoggedIn, syncToSupabase]);
+  }, [modules, userId, isLoggedIn, isUserDataHydrated, syncToSupabase]);
 
   useEffect(() => {
-    if (isLoggedIn && userId) {
+    if (isLoggedIn && userId && isUserDataHydrated) {
       safeSetItem(`residency_flashcards_${userId}`, JSON.stringify(flashcards));
       const timer = setTimeout(() => syncToSupabase({ flashcards }), 2000);
       return () => clearTimeout(timer);
     }
-  }, [flashcards, userId, isLoggedIn, syncToSupabase]);
+  }, [flashcards, userId, isLoggedIn, isUserDataHydrated, syncToSupabase]);
 
   useEffect(() => {
-    if (isLoggedIn && userId) {
+    if (isLoggedIn && userId && isUserDataHydrated) {
       safeSetItem(`residency_attempts_${userId}`, JSON.stringify(attempts));
       const timer = setTimeout(() => syncToSupabase({ attempts }), 2000);
       return () => clearTimeout(timer);
     }
-  }, [attempts, userId, isLoggedIn, syncToSupabase]);
+  }, [attempts, userId, isLoggedIn, isUserDataHydrated, syncToSupabase]);
 
   useEffect(() => {
-    if (isLoggedIn && userId) {
+    if (isLoggedIn && userId && isUserDataHydrated) {
       safeSetItem(`residency_questions_count_${userId}`, String(questionsCount));
       const timer = setTimeout(() => syncToSupabase({ questions_count: questionsCount }), 2000);
       return () => clearTimeout(timer);
     }
-  }, [questionsCount, userId, isLoggedIn, syncToSupabase]);
+  }, [questionsCount, userId, isLoggedIn, isUserDataHydrated, syncToSupabase]);
 
   useEffect(() => {
-    if (isLoggedIn && userId) {
+    if (isLoggedIn && userId && isUserDataHydrated) {
       safeSetItem(`residency_checklist_${userId}`, JSON.stringify(checklist));
       const timer = setTimeout(() => syncToSupabase({ checklist }), 2000);
       return () => clearTimeout(timer);
     }
-  }, [checklist, userId, isLoggedIn, syncToSupabase]);
+  }, [checklist, userId, isLoggedIn, isUserDataHydrated, syncToSupabase]);
 
   useEffect(() => {
-    if (isLoggedIn && userId) {
+    if (isLoggedIn && userId && isUserDataHydrated) {
       safeSetItem(`residency_caderno_${userId}`, JSON.stringify(cadernoErros));
       const timer = setTimeout(() => syncToSupabase({ caderno_erros: cadernoErros }), 2000);
       return () => clearTimeout(timer);
     }
-  }, [cadernoErros, userId, isLoggedIn, syncToSupabase]);
+  }, [cadernoErros, userId, isLoggedIn, isUserDataHydrated, syncToSupabase]);
 
   useEffect(() => {
-    if (isLoggedIn && userId) {
+    if (isLoggedIn && userId && isUserDataHydrated) {
       safeSetItem(`residency_roadmap_${userId}`, JSON.stringify(roadmap));
       const timer = setTimeout(() => syncToSupabase({ roadmap }), 2000);
       return () => clearTimeout(timer);
     }
-  }, [roadmap, userId, isLoggedIn, syncToSupabase]);
+  }, [roadmap, userId, isLoggedIn, isUserDataHydrated, syncToSupabase]);
 
   // Auth operations
   const handleLoginSuccess = (email: string, uid: string) => {
@@ -450,16 +475,32 @@ export default function App() {
     setFlashcards(prev => prev.filter(f => f.id !== id));
   };
 
+  const handleReviewFlashcard = (card: Flashcard, rating: "again" | "hard" | "easy") => {
+    const intervalDays = rating === "again" ? 1 : rating === "hard" ? 3 : 7;
+    const nextReview = new Date();
+    nextReview.setDate(nextReview.getDate() + intervalDays);
+    const reviewedCard: Flashcard = {
+      ...card,
+      nextReview: nextReview.toISOString().slice(0, 10),
+      intervalDays,
+      repetitions: (card.repetitions || 0) + 1,
+      easeFactor: card.easeFactor || 2.5,
+    };
+
+    setFlashcards(prev => {
+      const exists = prev.some(f => f.id === card.id);
+      return exists ? prev.map(f => f.id === card.id ? reviewedCard : f) : [reviewedCard, ...prev];
+    });
+  };
+
   const handleOnboardingComplete = (data: { institution: string; hoursPerWeek: number; focusAreas: string[] }) => {
     setProfile(prev => ({
       ...prev,
       institution: data.institution,
       focusAreas: data.focusAreas,
+      hoursPerWeek: data.hoursPerWeek,
       onboarded: true
     }));
-    setAttempts([]);
-    setQuestionsCount(0);
-    setCadernoErros([]);
   };
 
   // Render correct views based on Tab selection
@@ -509,6 +550,7 @@ export default function App() {
             t={translations[language]}
             onAddFlashcard={handleAddFlashcard}
             onDeleteFlashcard={handleDeleteFlashcard}
+            onReviewFlashcard={handleReviewFlashcard}
           />
         );
       case "performance":
@@ -516,7 +558,7 @@ export default function App() {
       case "ai-study":
         return <AiStudy language={language} />;
       case "roadmap":
-        return <Roadmap roadmap={roadmap} onToggleTask={handleToggleRoadmapTask} setActiveTab={setActiveTab} />;
+        return <Roadmap roadmap={roadmap} onToggleTask={handleToggleRoadmapTask} setActiveTab={setActiveTab} hoursPerWeek={profile.hoursPerWeek} />;
       case "settings":
         return (
           <ProfileSettings
@@ -578,6 +620,17 @@ export default function App() {
     );
   }
 
+  if (!isUserDataHydrated || isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-black p-6">
+        <div className="flex flex-col items-center">
+          <div className="w-10 h-10 border-4 border-sky-500 border-t-transparent rounded-full animate-spin mb-4" />
+          <p className="text-slate-500 font-medium">Carregando seus dados de estudo...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`h-screen flex overflow-hidden transition-colors duration-300 ${darkMode ? "bg-black text-slate-100" : "bg-slate-100 text-slate-800"}`}>
       
@@ -617,6 +670,7 @@ export default function App() {
               <button
                 id="btn-close-mobile-menu"
                 onClick={() => setMobileMenuOpen(false)}
+                aria-label="Fechar menu"
                 className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white"
               >
                 <X className="h-4 w-4" />
@@ -650,6 +704,7 @@ export default function App() {
             <button
               id="btn-open-mobile-menu"
               onClick={() => setMobileMenuOpen(true)}
+              aria-label="Abrir menu"
               className="p-2 -ml-2 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-900 lg:hidden cursor-pointer"
             >
               <Menu className="h-5 w-5" />
@@ -683,6 +738,7 @@ export default function App() {
             <button 
               id="btn-header-notifs"
               onClick={() => addToast("Sua caixa de notificações está limpa! ✓", "success")}
+              aria-label="Abrir notificações"
               className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900 transition-all relative cursor-pointer"
             >
               <Bell className="h-4.5 w-4.5" />
@@ -694,14 +750,16 @@ export default function App() {
 
         {/* MAIN BODY SCROLL CONTAINER */}
         <main className="flex-1 p-4 sm:p-8 max-w-7xl mx-auto w-full overflow-y-auto pb-20 lg:pb-8 bg-slate-50 dark:bg-[#0b0f19]">
-          <React.Suspense fallback={
-            <div className="flex flex-col items-center justify-center p-12 space-y-3">
-              <div className="w-8 h-8 border-3 border-sky-500 border-t-transparent rounded-full animate-spin" />
-              <span className="text-xs text-slate-400 font-medium animate-pulse">Carregando módulo...</span>
-            </div>
-          }>
-            {renderTabContent()}
-          </React.Suspense>
+          <ErrorBoundary>
+            <React.Suspense fallback={
+              <div className="flex flex-col items-center justify-center p-12 space-y-3">
+                <div className="w-8 h-8 border-3 border-sky-500 border-t-transparent rounded-full animate-spin" />
+                <span className="text-xs text-slate-400 font-medium animate-pulse">Carregando módulo...</span>
+              </div>
+            }>
+              {renderTabContent()}
+            </React.Suspense>
+          </ErrorBoundary>
         </main>
 
         {/* MOBILE BOTTOM NAVIGATION BAR */}

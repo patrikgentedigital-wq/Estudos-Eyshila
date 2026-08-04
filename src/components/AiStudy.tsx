@@ -78,40 +78,6 @@ export default function AiStudy({ language }: AiStudyProps) {
   const [fullPdfText, setFullPdfText] = useState<string>("");
   const [isExtractingPdf, setIsExtractingPdf] = useState(false);
 
-  // Client-side PDF text extraction helper using PDF.js
-  const extractPdfTextWithPdfJs = async (file: File): Promise<string> => {
-    if (file.name.endsWith(".txt")) {
-      return await file.text();
-    }
-
-    if (!(window as any).pdfjsLib) {
-      await new Promise((resolve, reject) => {
-        const script = document.createElement("script");
-        script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
-        script.onload = () => {
-          (window as any).pdfjsLib.GlobalWorkerOptions.workerSrc =
-            "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
-          resolve(true);
-        };
-        script.onerror = () => reject(new Error("Não foi possível carregar o leitor de PDF. Verifique sua conexão."));
-        document.head.appendChild(script);
-      });
-    }
-
-    const arrayBuffer = await file.arrayBuffer();
-    const pdf = await (window as any).pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-    let fullText = "";
-
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const content = await page.getTextContent();
-      const pageText = content.items.map((item: any) => item.str).join(" ");
-      fullText += `\n--- Página ${i} ---\n` + pageText + "\n";
-    }
-
-    return fullText.trim();
-  };
-
   const handleReadFullPdf = async () => {
     setErrorMsg(null);
     if (!file && !pastedText.trim()) {
@@ -126,7 +92,19 @@ export default function AiStudy({ language }: AiStudyProps) {
     try {
       let extracted = "";
       if (file) {
-        extracted = await extractPdfTextWithPdfJs(file);
+        if (file.name.toLowerCase().endsWith(".txt")) {
+          extracted = await file.text();
+        } else {
+          const base64 = await fileToBase64(file);
+          const res = await fetch("/api/extract-pdf-text", {
+            method: "POST",
+            headers: await getApiHeaders(),
+            body: JSON.stringify({ fileData: base64, fileName: file.name, mimeType: "application/pdf" }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.error || "Não foi possível extrair o texto do PDF.");
+          extracted = data.text || "";
+        }
       } else {
         extracted = pastedText;
       }
@@ -148,60 +126,6 @@ export default function AiStudy({ language }: AiStudyProps) {
     }
   };
   
-  // Sample demo material (loaded only when user requests demo)
-  const DEMO_SAMPLE_STUDY: GeneratedStudy = {
-    summary: `# Resumo Didático: Legislação do SUS (Lei nº 8.080/1990)
-
-## 1. Introdução à Lei Orgânica da Saúde
-A Lei nº 8.080/1990 regula, em todo o território nacional, as ações e serviços de saúde, executados isolada ou conjuntamente, em caráter permanente ou eventual, por pessoas físicas ou jurídicas de direito público ou privado.
-
-## 2. Princípios Doutrinários
-* **Universalidade:** Acesso a ações e serviços de saúde garantido a todos os cidadãos sem preconceitos ou privilégios.
-* **Equidade:** Tratamento desigual aos desiguais para diminuir as disparidades e atender com prioridade quem possui maior necessidade.
-* **Integralidade:** Assistência à saúde em todos os níveis de complexidade, englobando promoção, prevenção, tratamento e reabilitação.
-
-## 3. Campo de Atuação do SUS
-* Execução de ações de **Vigilância Sanitária**, **Vigilância Epidemiológica**, **Saúde do Trabalhador** e **Assistência Terapêutica Integral** (incluindo farmacêutica).
-
-## 4. Descentralização e Participação da Iniciativa Privada
-* A direção do SUS é única, exercida em cada esfera de governo (Ministério da Saúde, Secretaria Estadual e Secretaria Municipal).
-* A iniciativa privada pode participar do SUS em caráter **complementar**, mediante contrato de direito público ou convênio, com preferência para entidades filantrópicas e sem fins lucrativos.`,
-    questions: [
-      {
-        question: "De acordo com a Lei nº 8.080/1990, o conjunto de ações que proporcionam o conhecimento, a detecção ou prevenção de qualquer mudança nos fatores determinantes e condicionantes de saúde individual ou coletiva é denominado:",
-        options: [
-          "A) Vigilância Sanitária.",
-          "B) Vigilância Epidemiológica.",
-          "C) Saúde do Trabalhador.",
-          "D) Regulamentação Farmacêutica."
-        ],
-        answer: "B",
-        explanation: "A Vigilância Epidemiológica é definida no Art. 6º da Lei 8.080/90 como o conjunto de ações para detecção, prevenção e controle de doenças transmissíveis e condicionantes de saúde."
-      },
-      {
-        question: "A descentralização político-administrativa é um princípio organizativo do SUS que estabelece ênfase na:",
-        options: [
-          "A) Centralização de decisões no nível federal.",
-          "B) Municipalização dos serviços de saúde.",
-          "C) Extinção das Secretarias Estaduais.",
-          "D) Transferência exclusiva para a iniciativa privada."
-        ],
-        answer: "B",
-        explanation: "A descentralização visa aproximar a gestão do cidadão através da municipalização dos serviços de saúde."
-      }
-    ],
-    flashcards: [
-      {
-        front: "Quais são os 3 princípios doutrinários do SUS?",
-        back: "Universalidade, Equidade e Integralidade."
-      },
-      {
-        front: "A iniciativa privada pode participar do SUS de qual forma?",
-        back: "Em caráter COMPLEMENTAR, tendo preferência entidades filantrópicas e sem fins lucrativos."
-      }
-    ]
-  };
-
   const [studyData, setStudyData] = useState<GeneratedStudy | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -235,14 +159,14 @@ A Lei nº 8.080/1990 regula, em todo o território nacional, as ações e servi�
   const loadingMessages = language === "pt" ? [
     "Lendo o arquivo enviado...",
     "Extraindo conceitos centrais de estudo...",
-    "O Gemini está estruturando o resumo didático...",
+    "A IA está estruturando o resumo didático...",
     "Sintetizando diretrizes e legislações aplicáveis...",
     "Elaborando questões personalizadas no padrão ENARE...",
     "Revisando fundamentações e condutas de enfermagem..."
   ] : [
     "Reading uploaded file...",
     "Extracting core learning concepts...",
-    "Gemini is building your custom study summary...",
+    "The AI is building your custom study summary...",
     "Synthesizing nursing board guidelines...",
     "Creating mock exam questions...",
     "Formulating detailed clinical rationale..."
@@ -288,8 +212,8 @@ A Lei nº 8.080/1990 regula, em todo o território nacional, as ações e servi�
             const data = JSON.parse(text);
             if (data.error) {
               errorMessage = data.error;
-              if (data.error.includes("GEMINI_API_KEY")) {
-                errorMessage = "A chave da API Gemini não está configurada. Por favor, adicione sua GEMINI_API_KEY no painel de Segredos.";
+              if (data.error.includes("OPENROUTER_API_KEY") || data.error.includes("GEMINI_API_KEY")) {
+                errorMessage = "O serviço de IA não está configurado no servidor. Verifique as variáveis de ambiente.";
               }
             }
           } catch (e) {
@@ -434,6 +358,23 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
     setFlashcardSessionFinished(false);
   };
 
+  const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+
+  const acceptStudyFile = (candidate: File) => {
+    const ext = candidate.name.split(".").pop()?.toLowerCase();
+    if (ext !== "pdf" && ext !== "txt") {
+      setErrorMsg(language === "pt" ? "Por favor, anexe apenas arquivos PDF ou TXT." : "Please attach only PDF or TXT files.");
+      return false;
+    }
+    if (candidate.size > MAX_FILE_SIZE_BYTES) {
+      setErrorMsg(language === "pt" ? "O arquivo excede o limite de 5 MB. Divida o PDF em partes menores." : "The file exceeds the 5 MB limit. Split the PDF into smaller parts.");
+      return false;
+    }
+    setFile(candidate);
+    setErrorMsg(null);
+    return true;
+  };
+
   // Drag and drop handlers
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -452,30 +393,14 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
     
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const droppedFile = e.dataTransfer.files[0];
-      const ext = droppedFile.name.split(".").pop()?.toLowerCase();
-      if (ext === "pdf" || ext === "txt") {
-        setFile(droppedFile);
-        setErrorMsg(null);
-      } else {
-        setErrorMsg(language === "pt" 
-          ? "Por favor, anexe apenas arquivos PDF ou TXT." 
-          : "Please attach only PDF or TXT files.");
-      }
+      acceptStudyFile(droppedFile);
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
-      const ext = selectedFile.name.split(".").pop()?.toLowerCase();
-      if (ext === "pdf" || ext === "txt") {
-        setFile(selectedFile);
-        setErrorMsg(null);
-      } else {
-        setErrorMsg(language === "pt" 
-          ? "Por favor, anexe apenas arquivos PDF ou TXT." 
-          : "Please attach only PDF or TXT files.");
-      }
+      acceptStudyFile(selectedFile);
     }
   };
 
@@ -511,37 +436,15 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
       let payload: any = {};
       
       if (file) {
-        let extractedText = "";
-        try {
-          extractedText = await extractPdfTextWithPdfJs(file);
-        } catch (e) {
-          console.warn("Client-side text extraction failed, falling back to base64:", e);
-        }
-
-        if (extractedText && extractedText.trim().length > 30) {
-          let textToSend = extractedText;
-          if (textToSend.length > 40000) {
-            textToSend = textToSend.substring(0, 40000) + "\n\n[Nota: Texto do PDF resumido nos primeiros 40.000 caracteres para garantir processamento rápido.]";
-          }
-          payload = {
-            text: `[DOCUMENTO FONTE: ${file.name}]\n\n` + textToSend
-          };
-        } else {
-          // Fallback to base64 for scanned image PDFs
-          const base64 = await fileToBase64(file);
-          payload = {
-            fileData: base64,
-            fileName: file.name,
-            mimeType: file.type || (file.name.endsWith(".txt") ? "text/plain" : "application/pdf")
-          };
-        }
-      } else {
-        let textToSend = pastedText;
-        if (textToSend.length > 40000) {
-          textToSend = textToSend.substring(0, 40000) + "\n\n[Nota: Texto resumido nos primeiros 40.000 caracteres para garantir processamento rápido.]";
-        }
+        const base64 = await fileToBase64(file);
         payload = {
-          text: textToSend
+          fileData: base64,
+          fileName: file.name,
+          mimeType: file.type || (file.name.endsWith(".txt") ? "text/plain" : "application/pdf")
+        };
+      } else {
+        payload = {
+          text: pastedText
         };
       }
 
@@ -552,14 +455,6 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
       });
 
       if (!res.ok) {
-        if (res.status === 504 || res.status === 502) {
-          console.warn("[Vercel Timeout 504] Carregando material estruturado de alta velocidade.");
-          setStudyData(DEMO_SAMPLE_STUDY);
-          setLoading(false);
-          setErrorMsg("⚡ A resposta da nuvem excedeu o tempo. Carregamos o material didático estruturado para você não interromper seus estudos!");
-          return;
-        }
-
         let errorMessage = "HTTP error " + res.status;
         if (res.status === 401) {
           errorMessage = "Sua sessão expirou. Faça login novamente para gerar o material.";
@@ -1239,7 +1134,7 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
                     <div className="flex items-center gap-2">
                       <button
                         id="btn-print-pdf-sheet"
-                        onClick={() => exportToPrintablePdf(studyData.title || "Resumo Didático ENARE", studyData.summary)}
+                        onClick={() => exportToPrintablePdf(file?.name || "Resumo Didático ENARE", studyData.summary)}
                         className="bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs px-3.5 py-1.5 rounded-xl shadow-xs transition-all flex items-center space-x-1.5 cursor-pointer"
                         title="Gerar Ficha de Estudos Imprimível"
                       >
@@ -1985,7 +1880,7 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
                   <h5 className="font-bold text-xs text-white uppercase tracking-wider">{language === "pt" ? "Estudo Espaçado" : "Spaced Repetition"}</h5>
                   <p className="text-[10px] leading-relaxed text-slate-400 font-semibold mt-1">
                     {language === "pt"
-                      ? "O Gemini gerou esse material baseado na conduta do COFEN e provas R1. Revise este resumo em 24h e depois em 7 dias para garantir máxima retenção de longo prazo."
+                      ? "A IA gerou este material com base no conteúdo enviado. Confirme condutas e normas na fonte oficial e use os intervalos de revisão como sugestão de estudo."
                       : "Spaced repetition locks in learning. Re-read this generated study block in 24 hours, and then again in 7 days to transfer it to permanent memory."}
                   </p>
                 </div>

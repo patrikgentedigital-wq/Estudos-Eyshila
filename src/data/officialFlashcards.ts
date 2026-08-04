@@ -75,9 +75,9 @@ export const OFFICIAL_FLASHCARDS: Flashcard[] = [
   },
   {
     id: "off-fc-10",
-    question: "Qual o peso de participação da Formação Geral no ENADE?",
-    answer: "25% da nota total da prova (composta por 5 questões, sendo 1 discursiva e 4 de múltipla escolha sobre Ética, Direitos Humanos e Sociedade). Os 75% restantes referem-se aos Conhecimentos Específicos de Enfermagem.",
-    category: "ENADE - Formação Geral",
+    question: "Como a prova objetiva do ENARE é dividida entre competências gerais e específicas?",
+    answer: "A referência do edital vigente é 20% para competências gerais e 80% para competências específicas, em 100 questões objetivas.",
+    category: "ENARE - Estrutura da prova",
     difficulty: "Medium",
     isOfficial: true,
   }

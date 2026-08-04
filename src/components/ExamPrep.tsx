@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import html2canvas from "html2canvas";
 import { 
   Award, 
   Clock, 
@@ -15,7 +14,6 @@ import {
   TrendingUp,
   RotateCcw,
   AlertCircle,
-  Share2,
   X
 } from "lucide-react";
 import { Language, ExamQuestion, ExamAttempt, translations, CadernoErroItem } from "../types";
@@ -40,9 +38,6 @@ export default function ExamPrep({
   setCadernoErros
 }: ExamPrepProps) {
   const [lobbyTab, setLobbyTab] = useState<"mocks" | "past_exams" | "errors" | "discursive">("mocks");
-  const [discursiveText, setDiscursiveText] = useState<string>("");
-  const [discursiveEvaluated, setDiscursiveEvaluated] = useState<boolean>(false);
-  const [evaluating, setEvaluating] = useState<boolean>(false);
   const [activeExamType, setActiveExamType] = useState<string>("all");
   const [questions, setQuestions] = useState<ExamQuestion[]>(MOCK_QUESTIONS);
   
@@ -83,33 +78,20 @@ export default function ExamPrep({
     } else if (type === "womens_child") {
       list = shuffleArray(MOCK_QUESTIONS.filter(q => q.category === "Ciclos de Vida" || q.category === "Prática Clínica"));
     } else if (type === "errors_notebook") {
-      // Create Mock ExamQuestions from CadernoErroItems
-      list = cadernoErros.map((item, idx) => ({
-        id: `err-${item.id}-${idx}`,
-        question: item.questionText,
-        options: item.correctAnswer && item.userAnswer 
-          ? [item.correctAnswer, item.userAnswer, "Opção Aleatória A", "Opção Aleatória B"] // This is a rough fallback if we don't store full options
-          : ["A", "B", "C", "D"], // In a real app we'd store the original options in the CadernoErroItem
-        correctIndex: 0, 
-        explanation: item.explanation,
-        category: item.category
-      }));
-      // For this mock, we just ensure the correct answer is always index 0, then we shuffle options per question later, or just keep it simple.
-      // Wait, we can't shuffle options easily if correctIndex is static. Let's build proper questions if we have them.
-      // Since it's a prototype, let's just use the original question data if we can find it by questionText in MOCK_QUESTIONS and REAL_EXAMS.
       const allQs = [...MOCK_QUESTIONS, ...REAL_EXAMS.flatMap(e => e.questions)];
       list = cadernoErros.map(erro => {
         const found = allQs.find(q => q.question === erro.questionText);
         if (found) return found;
+        if (!erro.options || erro.options.length < 2 || erro.correctIndex === undefined) return null;
         return {
           id: erro.id,
           question: erro.questionText,
-          options: [erro.correctAnswer || "Correta", erro.userAnswer || "Errada", "Outra", "Mais uma"],
-          correctIndex: 0,
+          options: erro.options,
+          correctIndex: erro.correctIndex,
           explanation: erro.explanation,
           category: erro.category
         };
-      });
+      }).filter((question): question is ExamQuestion => Boolean(question));
       list = shuffleArray(list);
     } else if (type.startsWith("real_")) {
       const id = type.replace("real_", "");
@@ -122,7 +104,13 @@ export default function ExamPrep({
       list = shuffleArray(MOCK_QUESTIONS);
     }
     
-    let finalQuestionsList = list.slice(0, Math.min(list.length, countToDraw));
+    const finalQuestionsList = list.slice(0, Math.min(list.length, countToDraw));
+    if (finalQuestionsList.length === 0) {
+      alert(type === "errors_notebook"
+        ? "Ainda não há questões do caderno com alternativas originais salvas. Sinalize um erro depois de responder uma questão para habilitar esta revisão."
+        : "Não há questões disponíveis para este treino.");
+      return;
+    }
     
     setQuestions(finalQuestionsList);
     setActiveExamType(type);
@@ -167,7 +155,30 @@ export default function ExamPrep({
     setSelectedAnswers(prev => ({ ...prev, [qIdx]: optIndex }));
   };
 
+  const flagCurrentError = () => {
+    const question = questions[currentIndex];
+    const selectedIndex = selectedAnswers[currentIndex];
+    if (!question || selectedIndex === undefined || !setCadernoErros) return;
+
+    setCadernoErros(previous => {
+      if (previous.some(item => item.questionText === question.question)) return previous;
+      return [...previous, {
+        id: `error-${question.id}-${Date.now()}`,
+        questionId: question.id,
+        questionText: question.question,
+        options: [...question.options],
+        correctIndex: question.correctIndex,
+        userAnswer: question.options[selectedIndex],
+        correctAnswer: question.options[question.correctIndex],
+        explanation: question.explanation,
+        category: question.category,
+        dateAdded: new Date().toISOString(),
+      }];
+    });
+  };
+
   const finishQuiz = () => {
+    if (questions.length === 0) return;
     setQuizFinished(true);
     let correctCount = 0;
     questions.forEach((q, idx) => {
@@ -227,7 +238,7 @@ export default function ExamPrep({
                  {[
                    { label: "5m", sec: 300, unlimited: false },
                    { label: "15m", sec: 900, unlimited: false },
-                   { label: "4h (Pressão ENARE)", sec: 14400, unlimited: false },
+                   { label: "5h (ENARE)", sec: 18000, unlimited: false },
                    { label: "Livre", sec: 0, unlimited: true }
                  ].map((mode, idx) => (
                    <button
@@ -243,10 +254,10 @@ export default function ExamPrep({
 
             <div className="space-y-4">
               <div className="flex space-x-2 bg-slate-50 dark:bg-slate-950 p-1.5 rounded-2xl border border-slate-100">
-                <button onClick={() => setLobbyTab("mocks")} className={`flex-1 py-3 rounded-xl text-xs font-black transition-all cursor-pointer ${lobbyTab === "mocks" ? "bg-white dark:bg-slate-900 text-indigo-600 shadow-sm" : "text-slate-500"}`}>Simulados IA</button>
+                <button onClick={() => setLobbyTab("mocks")} className={`flex-1 py-3 rounded-xl text-xs font-black transition-all cursor-pointer ${lobbyTab === "mocks" ? "bg-white dark:bg-slate-900 text-indigo-600 shadow-sm" : "text-slate-500"}`}>Treinos por tema</button>
                 <button onClick={() => setLobbyTab("past_exams")} className={`flex-1 py-3 rounded-xl text-xs font-black transition-all cursor-pointer ${lobbyTab === "past_exams" ? "bg-white dark:bg-slate-900 text-indigo-600 shadow-sm" : "text-slate-500"}`}>Provas Reais</button>
                 <button onClick={() => setLobbyTab("errors")} className={`flex-1 py-3 rounded-xl text-xs font-black transition-all cursor-pointer ${lobbyTab === "errors" ? "bg-white dark:bg-slate-900 text-rose-500 shadow-sm" : "text-slate-500"}`}>Caderno de Erros</button>
-                <button onClick={() => setLobbyTab("discursive")} className={`flex-1 py-3 rounded-xl text-xs font-black transition-all cursor-pointer ${lobbyTab === "discursive" ? "bg-white dark:bg-slate-900 text-purple-600 shadow-sm" : "text-slate-500"}`}>📝 Discursivas IA</button>
+                <button onClick={() => setLobbyTab("discursive")} className={`flex-1 py-3 rounded-xl text-xs font-black transition-all cursor-pointer ${lobbyTab === "discursive" ? "bg-white dark:bg-slate-900 text-purple-600 shadow-sm" : "text-slate-500"}`}>Formato da prova</button>
               </div>
 
               {lobbyTab === "mocks" ? (
@@ -281,70 +292,29 @@ export default function ExamPrep({
                   </div>
                   <h4 className="text-lg font-bold text-slate-800 dark:text-slate-100">Simulado do Caderno de Erros</h4>
                   <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
-                    A IA criará um simulado focado apenas nas questões que você errou nos treinos anteriores.
-                    Você tem <strong>{cadernoErros.length}</strong> questão(ões) no caderno.
+                    O treino usa apenas questões que têm as alternativas originais salvas. Questões antigas sem alternativas não serão inventadas.
+                    Você tem <strong>{cadernoErros.length}</strong> questão(ões) no caderno e <strong>{cadernoErros.filter(item => item.options && item.options.length >= 2 && item.correctIndex !== undefined).length}</strong> prontas para revisão.
                   </p>
                   <button
                     onClick={() => startExam("errors_notebook")}
-                    disabled={cadernoErros.length === 0}
+                    disabled={cadernoErros.filter(item => item.options && item.options.length >= 2 && item.correctIndex !== undefined).length === 0}
                     className="px-6 py-3 bg-rose-500 hover:bg-rose-600 disabled:opacity-50 text-white font-bold rounded-xl shadow-lg shadow-rose-500/30 transition-all cursor-pointer"
                   >
-                    Gerar Simulado de Erros
+                    Revisar questões salvas
                   </button>
                 </div>
               ) : (
-                <div className="p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4 text-left">
-                   <div className="flex items-center space-x-2 text-purple-600 dark:text-purple-400 font-extrabold text-xs uppercase font-mono">
-                     <span>📝 ESTUDO DE CASO DISCURSIVO (PADRÃO ENARE)</span>
+                <div className="p-6 rounded-2xl border border-amber-200 dark:border-amber-900/50 bg-amber-50/70 dark:bg-amber-950/20 space-y-4 text-left">
+                   <div className="flex items-center space-x-2 text-amber-700 dark:text-amber-400 font-extrabold text-xs uppercase font-mono">
+                     <AlertCircle className="h-4 w-4" />
+                     <span>Formato da prova: objetiva</span>
                    </div>
-                   <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2">
-                     <h5 className="text-xs font-black text-slate-900 dark:text-slate-100">Cenário Clínico:</h5>
-                     <p className="text-xs text-slate-700 dark:text-slate-300 font-medium leading-relaxed">
-                       "Gestante de 28 semanas de idade gestacional dá entrada no Pronto Atendimento com pico pressórico de 160x110 mmHg, queixa de cefaleia holocraniana e escotomas cintilantes. Descreva a conduta imediata da enfermagem com base nas diretrizes do COFEN/MS e identifique os sinais de gravidade de Pré-Eclâmpsia Severa."
-                     </p>
-                   </div>
-
-                   <textarea
-                     rows={5}
-                     value={discursiveText}
-                     onChange={(e) => setDiscursiveText(e.target.value)}
-                     placeholder="Digite sua resposta discursiva detalhada aqui..."
-                     className="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-medium text-slate-900 dark:text-slate-100 outline-none focus:border-purple-500 transition-all"
-                   />
-
-                   <div className="flex justify-between items-center">
-                     <span className="text-[10px] text-slate-400 font-bold">A IA avaliará com base nos critérios oficiais de banca</span>
-                     <button
-                       onClick={() => {
-                         setEvaluating(true);
-                         setTimeout(() => {
-                           setEvaluating(false);
-                           setDiscursiveEvaluated(true);
-                         }, 1500);
-                       }}
-                       disabled={!discursiveText.trim() || evaluating}
-                       className="bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-extrabold text-xs py-2.5 px-6 rounded-xl transition-all shadow-md cursor-pointer"
-                     >
-                       {evaluating ? "Avaliando com IA..." : "Avaliar Resposta com IA ✨"}
-                     </button>
-                   </div>
-
-                   {discursiveEvaluated && (
-                     <div className="p-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 space-y-3 animate-fade-in">
-                       <div className="flex items-center justify-between">
-                         <span className="text-xs font-black uppercase text-emerald-600 dark:text-emerald-400 font-mono">
-                           🎉 AVALIAÇÃO DA IA: NOTA 9.2 / 10
-                         </span>
-                         <span className="text-[10px] bg-emerald-500/20 text-emerald-600 font-bold px-2.5 py-1 rounded-full">
-                           Excelente Domínio Técnico
-                         </span>
-                       </div>
-                       <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-medium">
-                         <strong>Pontos Fortes:</strong> Excelente identificação da pré-eclâmpsia severa, citação correta da monitorização de proteinúria e repouso em decúbito lateral esquerdo.<br/>
-                         <strong>Dica para Nota Máxima (10.0):</strong> Lembre-se de citar explicitamente a administração de Sulfato de Magnésio conforme protocolo de Zupan para prevenção de eclampsia.
-                       </p>
-                     </div>
-                   )}
+                   <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                     O ENARE vigente é composto por questões objetivas. A avaliação discursiva automática foi desativada porque este aplicativo ainda não possui um corretor validado nem critérios oficiais para atribuir nota com segurança.
+                   </p>
+                   <p className="text-xs text-slate-500 dark:text-slate-400">
+                     Use os treinos por tema, o caderno de erros e os flashcards para praticar recuperação ativa. Nenhuma nota será inventada para uma resposta aberta.
+                   </p>
                 </div>
               )}
             </div>
@@ -396,11 +366,11 @@ export default function ExamPrep({
                         {selectedAnswers[currentIndex] === questions[currentIndex].correctIndex ? "✅ Resposta Correta!" : "❌ Resposta Incorreta"} • Fundamentação Técnica COFEN / MS
                       </span>
                       <button 
-                        onClick={() => alert("Questão sinalizada com sucesso! Adicionada ao seu Caderno de Erros.")}
+                        onClick={flagCurrentError}
                         className="text-[10px] font-bold text-rose-500 hover:text-rose-600 dark:hover:text-rose-400 flex items-center space-x-1 cursor-pointer"
                       >
                         <AlertCircle className="h-3 w-3" />
-                        <span>Sinalizar Erro</span>
+                        <span>{cadernoErros.some(item => item.questionText === questions[currentIndex].question) ? "Salva no caderno" : "Salvar no caderno"}</span>
                       </button>
                     </div>
                     <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-medium">{questions[currentIndex].explanation}</p>

@@ -27,13 +27,13 @@ interface FlashcardsProps {
   t: TranslationDict;
   onAddFlashcard?: (newCard: Flashcard) => void;
   onDeleteFlashcard?: (id: string) => void;
+  onReviewFlashcard?: (card: Flashcard, rating: "again" | "hard" | "easy") => void;
 }
 
-const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, language, t, onAddFlashcard, onDeleteFlashcard }) => {
+const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, language, t, onAddFlashcard, onDeleteFlashcard, onReviewFlashcard }) => {
   const [filter, setFilter] = useState<"all" | "official" | "my_cards">("all");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
-  const [masteredIds, setMasteredIds] = useState<Set<string>>(new Set());
   const [direction, setDirection] = useState(0);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newQuestion, setNewQuestion] = useState("");
@@ -53,7 +53,12 @@ const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, language, t, onAddF
     return true;
   });
 
-  const currentCard = activeDeck[currentIndex] || activeDeck[0];
+  const today = new Date().toISOString().slice(0, 10);
+  const dueDeck = activeDeck.filter(card => !card.nextReview || card.nextReview <= today);
+  const reviewDeck = dueDeck.length > 0 ? dueDeck : activeDeck;
+  const reviewedCount = activeDeck.filter(card => Boolean(card.nextReview && card.nextReview > today)).length;
+
+  const currentCard = reviewDeck[currentIndex] || reviewDeck[0];
   
   // reset index on filter change
   React.useEffect(() => {
@@ -75,7 +80,7 @@ const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, language, t, onAddF
   }
   
   const handleNext = () => {
-    if (currentIndex < activeDeck.length - 1) {
+    if (currentIndex < reviewDeck.length - 1) {
       setDirection(1);
       setIsFlipped(false);
       setTimeout(() => {
@@ -94,17 +99,7 @@ const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, language, t, onAddF
     }
   };
 
-  const toggleMastered = (id: string) => {
-    const newMastered = new Set(masteredIds);
-    if (newMastered.has(id)) {
-      newMastered.delete(id);
-    } else {
-      newMastered.add(id);
-    }
-    setMasteredIds(newMastered);
-  };
-
-  const progress = ((masteredIds.size) / (activeDeck.length || 1)) * 100;
+  const progress = (reviewedCount / (activeDeck.length || 1)) * 100;
 
   if (activeDeck.length === 0) {
     return (
@@ -156,10 +151,10 @@ const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, language, t, onAddF
           </div>
           <div className="flex items-center space-x-4 font-bold text-sm text-slate-500 dark:text-slate-400">
             <div className="bg-slate-50 dark:bg-slate-800 px-4 py-2 rounded-xl">
-              <span className="text-slate-900 dark:text-white">{masteredIds.size}</span> dominados
+              <span className="text-slate-900 dark:text-white">{reviewedCount}</span> revisados
             </div>
             <div className="bg-slate-50 dark:bg-slate-800 px-4 py-2 rounded-xl">
-              <span className="text-slate-900 dark:text-white">{activeDeck.length - masteredIds.size}</span> a revisar
+              <span className="text-slate-900 dark:text-white">{dueDeck.length}</span> para revisar
             </div>
           </div>
         </div>
@@ -187,7 +182,7 @@ const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, language, t, onAddF
         <div className="relative h-[400px] w-full perspective-1000">
           <AnimatePresence mode="wait" custom={direction}>
             <motion.div
-              key={currentIndex}
+              key={currentCard.id}
               custom={direction}
               initial={{ opacity: 0, x: direction * 50 }}
               animate={{ opacity: 1, x: 0 }}
@@ -200,6 +195,15 @@ const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, language, t, onAddF
                 animate={{ rotateY: isFlipped ? 180 : 0 }}
                 transition={{ duration: 0.6, type: "spring", stiffness: 260, damping: 20 }}
                 onClick={() => setIsFlipped(!isFlipped)}
+                role="button"
+                tabIndex={0}
+                aria-label={isFlipped ? "Mostrar pergunta do flashcard" : "Mostrar resposta do flashcard"}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    setIsFlipped(prev => !prev);
+                  }
+                }}
               >
                 <div 
                   className={`absolute inset-0 backface-hidden bg-white dark:bg-slate-900 rounded-3xl border-2 border-slate-100 dark:border-slate-800 shadow-xl p-8 flex flex-col items-center justify-center text-center space-y-6 ${isFlipped ? "pointer-events-none" : ""}`}
@@ -278,15 +282,14 @@ const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, language, t, onAddF
           </button>
 
           <div className="flex-1 flex flex-col items-center justify-center gap-3">
-            <span className="text-sm font-bold text-slate-400">
-              {currentIndex + 1} / {activeDeck.length}
+              <span className="text-sm font-bold text-slate-400">
+              {currentIndex + 1} / {reviewDeck.length}
             </span>
             {isFlipped ? (
               <div className="flex w-full items-center justify-center gap-2 animate-fade-in">
                 <button
                   onClick={() => {
-                    masteredIds.delete(currentCard.id);
-                    setMasteredIds(new Set(masteredIds));
+                    onReviewFlashcard?.(currentCard, "again");
                     handleNext();
                   }}
                   className="flex-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30 py-3 rounded-2xl font-bold text-xs transition-all active:scale-95 flex flex-col items-center"
@@ -296,6 +299,7 @@ const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, language, t, onAddF
                 </button>
                 <button
                   onClick={() => {
+                    onReviewFlashcard?.(currentCard, "hard");
                     handleNext();
                   }}
                   className="flex-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 py-3 rounded-2xl font-bold text-xs transition-all active:scale-95 flex flex-col items-center"
@@ -305,9 +309,7 @@ const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, language, t, onAddF
                 </button>
                 <button
                   onClick={() => {
-                    const newMastered = new Set(masteredIds);
-                    newMastered.add(currentCard.id);
-                    setMasteredIds(newMastered);
+                    onReviewFlashcard?.(currentCard, "easy");
                     handleNext();
                   }}
                   className="flex-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 py-3 rounded-2xl font-bold text-xs transition-all active:scale-95 flex flex-col items-center"
@@ -319,24 +321,11 @@ const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, language, t, onAddF
             ) : (
               <div className="flex w-full items-center justify-center gap-3">
                 <button
-                  onClick={() => toggleMastered(currentCard.id)}
-                  className={`flex-1 max-w-[200px] flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-sm transition-all active:scale-95 ${
-                    masteredIds.has(currentCard.id)
-                      ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/25"
-                      : "bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-emerald-500/50 hover:text-emerald-600"
-                  }`}
+                  onClick={() => onReviewFlashcard?.(currentCard, "easy")}
+                  className="flex-1 max-w-[200px] flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-sm transition-all active:scale-95 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-emerald-500/50 hover:text-emerald-600"
                 >
-                  {masteredIds.has(currentCard.id) ? (
-                    <>
-                      <CheckCircle2 className="h-4 w-4" />
-                      {t.markMasteredBtn}
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="h-4 w-4" />
-                      {t.markMasteredBtn}
-                    </>
-                  )}
+                  <Sparkles className="h-4 w-4" />
+                  {t.markMasteredBtn}
                 </button>
                 
                 <button
@@ -351,7 +340,7 @@ const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, language, t, onAddF
 
           <button
             onClick={handleNext}
-            disabled={currentIndex === activeDeck.length - 1}
+            disabled={currentIndex === reviewDeck.length - 1}
             className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-400 disabled:opacity-30 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all active:scale-95"
           >
             <ChevronRight className="h-6 w-6" />
@@ -359,14 +348,14 @@ const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, language, t, onAddF
         </div>
 
         <div className="mt-8 flex justify-center gap-1.5 flex-wrap px-4">
-          {activeDeck.map((card, idx) => (
+          {reviewDeck.map((card, idx) => (
             <button
               key={card.id}
               onClick={() => setCurrentIndex(idx)}
               className={`h-1.5 rounded-full transition-all duration-300 ${
                 idx === currentIndex
                   ? "w-8 bg-sky-500"
-                  : masteredIds.has(card.id)
+                  : card.nextReview && card.nextReview > today
                   ? "w-2 bg-emerald-500/60"
                   : "w-2 bg-slate-200 dark:bg-slate-800"
               }`}
@@ -383,7 +372,7 @@ const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, language, t, onAddF
               Repetição Espaçada
             </h4>
             <p className="text-xs text-amber-700 dark:text-amber-500/80 mt-1">
-              Estudos mostram que revisar conceitos em intervalos crescentes aumenta a retenção a longo prazo em até 80%.
+              Revise em intervalos crescentes e tente recuperar a resposta antes de virar o cartão; o aplicativo agenda as próximas revisões em 1, 3 ou 7 dias.
             </p>
           </div>
         </div>

@@ -24,13 +24,15 @@ export default function Performance({ language, attempts = [] }: PerformanceProp
   const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
   const t = translations[language];
 
-  // 6-Month Data points for our interactive SVG line chart
-  const monthsPt = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun"];
-  
-  // Use attempts data for the chart if available, otherwise show empty/placeholder
-  const scores = attempts && attempts.length > 0 
-    ? attempts.slice(-6).map(a => a.score) 
-    : [0, 0, 0, 0, 0, 0]; 
+  // The chart reflects the six most recent simulations, not calendar months.
+  const recentAttempts = attempts.slice(-6);
+  const monthsPt = recentAttempts.map(attempt => {
+    const parsed = new Date(`${attempt.date}T00:00:00`);
+    return Number.isNaN(parsed.getTime()) ? "—" : parsed.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }).replace(".", "");
+  });
+  while (monthsPt.length < 6) monthsPt.unshift("—");
+  const scores = [...recentAttempts.map(a => a.score)];
+  while (scores.length < 6) scores.unshift(0);
 
   // SVG Chart Dimensions
   const chartWidth = 500;
@@ -72,6 +74,12 @@ export default function Performance({ language, attempts = [] }: PerformanceProp
     ? Math.round(attempts.reduce((acc, curr) => acc + curr.score, 0) / attempts.length)
     : 0;
 
+  const totalSimulationSeconds = attempts.reduce((total, attempt) => {
+    const [minutes, seconds] = (attempt.timeSpent || "0:0").split(":").map(Number);
+    return total + (Number.isFinite(minutes) ? minutes * 60 : 0) + (Number.isFinite(seconds) ? seconds : 0);
+  }, 0);
+  const totalSimulationHours = totalSimulationSeconds > 0 ? `${(totalSimulationSeconds / 3600).toFixed(1)}h` : "0h";
+
   return (
     <div className="space-y-8 animate-fade-in">
       
@@ -81,7 +89,7 @@ export default function Performance({ language, attempts = [] }: PerformanceProp
           {t.academicPerformance}
         </h2>
         <p className="text-sm text-slate-400 dark:text-slate-500 mt-1 font-medium">
-          Métricas agregadas sobre seus simulados, horas de estudo semanais e proficiência.
+          Métricas calculadas a partir dos seus simulados e das respostas salvas.
         </p>
       </div>
 
@@ -111,7 +119,7 @@ export default function Performance({ language, attempts = [] }: PerformanceProp
               {t.totalStudyHours}
             </span>
             <span className="text-3xl font-black text-slate-900 dark:text-slate-100">
-              {attempts && attempts.length > 0 ? "342h" : "0h"}
+              {totalSimulationHours}
             </span>
           </div>
         </div>

@@ -9,13 +9,16 @@ interface StudyHeatmapProps {
 export default function StudyHeatmap({ attempts = [] }: StudyHeatmapProps) {
   // Compute real study activity by day of the month
   const today = new Date();
-  const daysInMonth = Array.from({ length: 30 }, (_, i) => {
+  const year = today.getFullYear();
+  const month = today.getMonth();
+  const daysInCurrentMonth = new Date(year, month + 1, 0).getDate();
+  const daysInMonth = Array.from({ length: daysInCurrentMonth }, (_, i) => {
     const dayNum = i + 1;
     // Count attempts made on this day or calculate activity intensity
     const attemptsOnDay = attempts.filter(a => {
       if (!a.date) return false;
-      const d = new Date(a.date);
-      return d.getDate() === dayNum;
+      const d = new Date(`${a.date}T00:00:00`);
+      return d.getFullYear() === year && d.getMonth() === month && d.getDate() === dayNum;
     }).length;
 
     // Intensity level: 0 = none, 1 = low, 2 = medium, 3 = high
@@ -78,7 +81,7 @@ export default function StudyHeatmap({ attempts = [] }: StudyHeatmapProps) {
             className={`h-7 rounded-lg border transition-all duration-300 flex items-center justify-center text-[10px] font-bold font-mono ${getCellColor(
               d.intensity
             )} ${d.intensity > 0 ? "text-white" : "text-slate-400 dark:text-slate-600"}`}
-            title={`Dia ${d.day}: ${d.intensity > 0 ? `${d.intensity * 2}h de estudo` : "Sem registro"}`}
+            title={`Dia ${d.day}: ${d.count > 0 ? `${d.count} simulado(s)` : "Sem registro"}`}
           >
             {d.day}
           </div>
@@ -87,10 +90,10 @@ export default function StudyHeatmap({ attempts = [] }: StudyHeatmapProps) {
 
       <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100 dark:border-slate-800">
         <span className="text-slate-500 dark:text-slate-400 font-medium">
-          🔥 <strong>{activeDaysCount} dias estudados</strong> este mês ({Math.round((activeDaysCount / 30) * 100)}% de assiduidade)
+          🔥 <strong>{activeDaysCount} dias com atividade</strong> este mês ({Math.round((activeDaysCount / daysInCurrentMonth) * 100)}% de assiduidade)
         </span>
         <span className="text-emerald-500 font-extrabold font-mono text-[11px] bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
-          Ofensiva Ativa
+          {activeDaysCount > 0 ? "Atividade registrada" : "Sem atividade registrada"}
         </span>
       </div>
     </div>

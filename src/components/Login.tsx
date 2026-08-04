@@ -68,7 +68,7 @@ export default function Login({
         });
 
         if (signUpErr) throw signUpErr;
-        if (data.user) {
+        if (data.user && data.session) {
           onLoginSuccess(data.user.email || email, data.user.id);
         } else {
           setError("Cadastro realizado! Verifique seu e-mail para confirmar a conta.");
@@ -80,8 +80,10 @@ export default function Login({
         });
 
         if (signInErr) throw signInErr;
-        if (data.user) {
+        if (data.user && data.session) {
           onLoginSuccess(data.user.email || email, data.user.id);
+        } else {
+          setError("A sessão não foi criada. Confirme seu e-mail ou tente entrar novamente.");
         }
       }
     } catch (err: any) {
@@ -99,6 +101,30 @@ export default function Login({
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleForgotPassword = async (event: React.MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
+    setError("");
+    if (!email.trim()) {
+      setError("Digite seu e-mail para receber o link de recuperação.");
+      return;
+    }
+    if (!isSupabaseConfigured || !supabase) {
+      setError("A recuperação de senha exige a conexão com o Supabase.");
+      return;
+    }
+
+    setLoading(true);
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${window.location.origin}/`,
+    });
+    setLoading(false);
+    if (resetError) {
+      setError("Não foi possível enviar o link de recuperação. Tente novamente.");
+      return;
+    }
+    setError("Se este e-mail estiver cadastrado, o link de recuperação foi enviado.");
   };
 
   return (
@@ -283,10 +309,7 @@ export default function Login({
                     <a 
                       id="link-forgot-pw"
                       href="#forgot" 
-                      onClick={(e) => {
-                        e.preventDefault();
-                        alert("Instruções de recuperação enviadas para o seu e-mail.");
-                      }}
+                      onClick={handleForgotPassword}
                       className="text-[11px] font-bold text-indigo-400 hover:text-indigo-300 transition-colors"
                     >
                       {t.forgotPassword}

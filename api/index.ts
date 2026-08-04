@@ -100,7 +100,7 @@ try {
   });
 
   // Parse request bodies only after auth and rate limiting have run.
-  const jsonParser = express.json({ limit: "20mb" });
+  const jsonParser = express.json({ limit: "8mb" });
 
   async function callOpenRouter(messages: any[], isJsonMode: boolean = false) {
     const apiKey = process.env.OPENROUTER_API_KEY || process.env.GEMINI_API_KEY;
@@ -174,7 +174,7 @@ try {
     fileData: z.string().optional(),
     fileName: z.string().max(255).optional(),
     mimeType: z.enum(["application/pdf", "text/plain", "text/markdown"]).optional(),
-    text: z.string().max(500000).optional(),
+    text: z.string().max(45000, "O texto excede 45.000 caracteres. Divida o material em partes menores.").optional(),
   }).refine((data) => data.fileData || data.text, {
     message: "Envie um arquivo PDF/texto ou digite um conteúdo de estudo.",
   });
@@ -197,7 +197,63 @@ try {
     })),
   });
 
+  const ExtractPdfSchema = z.object({
+    fileData: z.string().min(1),
+    fileName: z.string().max(255).optional(),
+    mimeType: z.enum(["application/pdf", "text/plain", "text/markdown"]).optional(),
+  });
+
+  const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+
+  async function extractUploadedText(fileData: string, mimeType?: string): Promise<string> {
+    const decodedSizeBytes = Buffer.byteLength(fileData, "base64");
+    if (decodedSizeBytes > MAX_UPLOAD_BYTES) {
+      throw new Error("O arquivo excede o limite de 5 MB. Divida o PDF em partes menores.");
+    }
+
+    if (mimeType !== "application/pdf") {
+      return Buffer.from(fileData, "base64").toString("utf-8").trim();
+    }
+
+    try {
+      const buffer = Buffer.from(fileData, "base64");
+      // @ts-ignore pdf-parse exposes a default function in the installed CJS build.
+      const pdfParse = (await import("pdf-parse/lib/pdf-parse.js")).default;
+      const pdfData = await pdfParse(buffer);
+      const parsedText = (pdfData.text || "").trim();
+      if (parsedText.length >= 20) return parsedText;
+    } catch (pdfErr: any) {
+      console.warn("pdf-parse falhou, tentando fallback por regex de streams PDF:", pdfErr.message);
+    }
+
+    try {
+      const rawStr = Buffer.from(fileData, "base64").toString("binary");
+      const matches = rawStr.match(/\(([^()]{3,})\)\s*T[jJ]/g);
+      const fallbackText = matches
+        ? matches.map(m => m.replace(/^\(/, "").replace(/\)\s*T[jJ]$/, "")).join(" ").trim()
+        : "";
+      if (fallbackText.length >= 20) return fallbackText;
+    } catch {
+      // Return a clear user-facing error below.
+    }
+
+    throw new Error("O PDF não possui camada de texto legível. Ele pode estar escaneado, protegido por senha ou corrompido.");
+  }
+
   // API endpoints
+  app.post("/api/extract-pdf-text", requireAuthenticatedUser, aiLimiter, jsonParser, async (req, res) => {
+    try {
+      const validation = ExtractPdfSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: validation.error.issues[0].message });
+      }
+      const text = await extractUploadedText(validation.data.fileData, validation.data.mimeType);
+      return res.json({ text });
+    } catch (error: any) {
+      return res.status(400).json({ error: error.message || "Não foi possível extrair o texto do PDF." });
+    }
+  });
+
   app.post("/api/generate-study", requireAuthenticatedUser, aiLimiter, jsonParser, async (req, res) => {
     try {
       const validation = GenerateStudySchema.safeParse(req.body);
@@ -210,40 +266,10 @@ try {
 
       // Parse PDF if provided
       if (fileData) {
-        const decodedSizeBytes = Buffer.byteLength(fileData, "base64");
-        if (decodedSizeBytes > 15 * 1024 * 1024) {
-          return res.status(400).json({ error: "O arquivo excede o tamanho máximo permitido (15MB)." });
-        }
-
-        if (mimeType === "application/pdf") {
-          try {
-            const buffer = Buffer.from(fileData, "base64");
-            // @ts-ignore
-            const pdfParse = (await import("pdf-parse/lib/pdf-parse.js")).default;
-            const pdfData = await pdfParse(buffer);
-            extractedText = pdfData.text || "";
-          } catch (pdfErr: any) {
-            console.warn("pdf-parse falhou, tentando fallback por regex de streams PDF:", pdfErr.message);
-            // Fallback: tentar extrair textos de streams do PDF caso o XRef esteja corrompido
-            try {
-              const rawStr = Buffer.from(fileData, "base64").toString("binary");
-              const matches = rawStr.match(/\(([^()]{3,})\)\s*T[jJ]/g);
-              if (matches && matches.length > 5) {
-                extractedText = matches.map(m => m.replace(/^\(/, "").replace(/\)\s*T[jJ]$/, "")).join(" ");
-              }
-            } catch (e) {
-              // ignore fallback error
-            }
-
-            if (!extractedText || extractedText.trim().length < 20) {
-              return res.status(400).json({
-                error: "O arquivo PDF enviado parece estar corrompido, protegido por senha ou em formato de imagem/escaneado. Por favor, cole o texto de estudo diretamente no campo de texto ou utilize outro arquivo PDF."
-              });
-            }
-          }
-        } else {
-          // Plain text base64
-          extractedText = Buffer.from(fileData, "base64").toString("utf-8");
+        try {
+          extractedText = await extractUploadedText(fileData, mimeType);
+        } catch (error: any) {
+          return res.status(400).json({ error: error.message || "Não foi possível extrair o conteúdo do arquivo." });
         }
       }
 
@@ -253,12 +279,11 @@ try {
         });
       }
 
-      // Auto-truncate very large documents to avoid exceeding LLM context & timeouts
       if (extractedText.length > 45000) {
-        extractedText = extractedText.substring(0, 45000) + "\n\n[Nota: O documento original excede 45.000 caracteres e foi resumido para otimizar a geração do material didático.]";
+        return res.status(413).json({ error: "O texto excede 45.000 caracteres para este fluxo. Divida o material em partes menores para não perder conteúdo." });
       }
 
-      const systemPrompt = `Você é o Preceptor e Mentor Especialista do 'Você Aprovado', referência em preparação científica para o ENADE e ENARE de Enfermagem.
+      const systemPrompt = `Você é o Preceptor e Mentor Especialista do 'Estudos Eyshila', referência em preparação científica para o ENARE de Enfermagem.
 TODAS AS SUAS RESPOSTAS E QUESTÕES DEVEM SER RIGOROSAMENTE BASEADAS EM PROTOCOLOS VIGENTES:
 1. Resolução COFEN nº 736/2024 (Processo de Enfermagem em 5 etapas: Avaliação, Diagnóstico, Planejamento, Implementação e Evolução).
 2. Código de Ética dos Profissionais de Enfermagem (Resolução COFEN nº 564/2017).

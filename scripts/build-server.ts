@@ -1,0 +1,24 @@
+import { build } from "esbuild";
+import path from "node:path";
+
+const projectRoot = new URL("../", import.meta.url);
+
+await build({
+  absWorkingDir: projectRoot.pathname.replace(/^\//, "").replace(/\//g, path.sep),
+  entryPoints: ["./server.ts"],
+  resolveExtensions: [".ts", ".tsx", ".js"],
+  tsconfigRaw: {
+    compilerOptions: {
+      target: "ES2022",
+      module: "ESNext",
+      moduleResolution: "Bundler",
+      skipLibCheck: true,
+    },
+  },
+  bundle: true,
+  platform: "node",
+  format: "cjs",
+  packages: "external",
+  sourcemap: true,
+  outfile: "dist/server.cjs",
+});

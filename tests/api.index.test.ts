@@ -27,4 +27,12 @@ describe("API Regression Tests", () => {
     expect(res.status).toBe(400);
     expect(res.body.error).toBe("Mensagem vazia.");
   });
+
+  it("POST /api/extract-pdf-text - should reject an empty upload", async () => {
+    const res = await request(app)
+      .post("/api/extract-pdf-text")
+      .send({});
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBeDefined();
+  });
 });

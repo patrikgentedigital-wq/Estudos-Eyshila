@@ -17,11 +17,11 @@ const AVAILABLE_FOCUS = [
 ];
 
 const INSTITUTIONS = [
-  { id: "ENARE", name: "ENARE - Exame Nacional de Residência", cutoff: 78 },
-  { id: "USP", name: "USP - Universidade de São Paulo", cutoff: 82 },
-  { id: "UFRJ", name: "UFRJ - Universidade Federal do Rio de Janeiro", cutoff: 76 },
-  { id: "UNICAMP", name: "UNICAMP - Universidade Estadual de Campinas", cutoff: 80 },
-  { id: "Outras", name: "Outras Instituições Nacionais", cutoff: 75 }
+  { id: "ENARE", name: "ENARE - Exame Nacional de Residência" },
+  { id: "USP", name: "USP - Universidade de São Paulo" },
+  { id: "UFRJ", name: "UFRJ - Universidade Federal do Rio de Janeiro" },
+  { id: "UNICAMP", name: "UNICAMP - Universidade Estadual de Campinas" },
+  { id: "Outras", name: "Outras Instituições Nacionais" }
 ];
 
 export const OnboardingModal: React.FC<OnboardingModalProps> = ({ language, onComplete }) => {
@@ -97,7 +97,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ language, onCo
                 <span>Passo 1 de 3: Escolha sua Instituição / Alvo Principal</span>
               </div>
               <p className="text-xs text-slate-400">
-                Defina onde você quer conquistar a sua vaga para ajustarmos as metas de corte:
+                Defina onde você quer conquistar a sua vaga para ajustarmos seu foco. A nota de corte varia por edital, modalidade e chamada.
               </p>
               
               <div className="grid grid-cols-1 gap-3 pt-2">
@@ -115,7 +115,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ language, onCo
                     >
                       <span className="text-sm font-medium">{inst.name}</span>
                       <span className={`text-xs px-2.5 py-1 rounded-full font-bold ${isSelected ? "bg-purple-500/30 text-purple-200 border border-purple-400/40" : "bg-slate-700/50 text-slate-400"}`}>
-                        Corte ~{inst.cutoff}%
+                        Objetivo de estudo
                       </span>
                     </button>
                   );

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { 
   Award, 
   BookOpen, 
@@ -23,10 +23,11 @@ import {
   AlertCircle
 } from "lucide-react";
 import { Language, translations, StudyModule, Flashcard, ExamAttempt, UserProfile } from "../types";
-import { IMAGES, MOCK_SCHEDULE, MOCK_QUESTIONS } from "../data";
+import { IMAGES, MOCK_QUESTIONS } from "../data";
 import { getStudyRecommendation } from "../utils/performance";
 import { ENARE_INSTITUTIONS } from "../data/enareCutoffs";
 import { downloadEicsCalendar } from "../utils/calendarExport";
+import { safeGetItem, safeSetItem } from "../utils/storage";
 import StudyHeatmap from "./StudyHeatmap";
 
 interface DashboardProps {
@@ -71,13 +72,35 @@ export default function Dashboard({
     ? Math.round(attempts.reduce((a, b) => a + b.score, 0) / attempts.length) 
     : 0;
 
-  const cutoffGap = selectedInstitution.cutoffPercentage - currentAvgScore;
-  const isAboveCutoff = hasAttempts && currentAvgScore >= selectedInstitution.cutoffPercentage;
+  const cutoffGap = selectedInstitution.cutoffPercentage === null ? null : selectedInstitution.cutoffPercentage - currentAvgScore;
+  const isAboveCutoff = hasAttempts && selectedInstitution.cutoffPercentage !== null && currentAvgScore >= selectedInstitution.cutoffPercentage;
 
   // Daily 3-Question Challenge State
-  const dailyQuestions = MOCK_QUESTIONS.slice(0, 3);
-  const [dailyAnswers, setDailyAnswers] = useState<{ [key: number]: number }>({});
-  const [dailySubmitted, setDailySubmitted] = useState<boolean>(false);
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const dailySeed = todayKey.split("-").reduce((sum, part) => sum + Number(part), 0);
+  const dailyQuestions = Array.from({ length: Math.min(3, MOCK_QUESTIONS.length) }, (_, index) => MOCK_QUESTIONS[(dailySeed + index) % MOCK_QUESTIONS.length]);
+  const dailyStorageKey = `residency_daily_${profile.email || "local"}_${todayKey}`;
+  const dailyState = safeGetItem(dailyStorageKey);
+  let parsedDailyState: { answers?: { [key: number]: number }; submitted?: boolean } | null = null;
+  try {
+    parsedDailyState = dailyState ? JSON.parse(dailyState) : null;
+  } catch {
+    parsedDailyState = null;
+  }
+  const [dailyAnswers, setDailyAnswers] = useState<{ [key: number]: number }>(parsedDailyState?.answers || {});
+  const [dailySubmitted, setDailySubmitted] = useState<boolean>(Boolean(parsedDailyState?.submitted));
+
+  useEffect(() => {
+    safeSetItem(dailyStorageKey, JSON.stringify({ answers: dailyAnswers, submitted: dailySubmitted }));
+  }, [dailyStorageKey, dailyAnswers, dailySubmitted]);
+
+  const studyDateKeys = new Set(attempts.map(attempt => attempt.date).filter(Boolean));
+  let streak = 0;
+  const streakDate = new Date();
+  while (studyDateKeys.has(streakDate.toISOString().slice(0, 10))) {
+    streak += 1;
+    streakDate.setDate(streakDate.getDate() - 1);
+  }
 
   const toggleChecklistItem = (id: string) => {
     const updated = checklist.map(item => item.id === id ? { ...item, completed: !item.completed } : item);
@@ -95,16 +118,16 @@ export default function Dashboard({
       topic: newError.topic,
       concept: newError.concept,
       correction: newError.correction,
-      date: new Date().toISOString().split("T")[0]
+      questionText: newError.concept,
+      explanation: newError.correction,
+      category: newError.topic,
+      date: new Date().toISOString().split("T")[0],
+      dateAdded: new Date().toISOString(),
     };
     setCadernoErros([item, ...cadernoErros]);
     setNewError({ topic: "Legislação do SUS", concept: "", correction: "" });
     setShowAddError(false);
   };
-
-  const weeklyQuestionsTarget = 300;
-  const weeklyQuestionsDone = questionsCount;
-  const weeklyQuestionsPercent = Math.min(Math.round((weeklyQuestionsDone / weeklyQuestionsTarget) * 100), 100);
 
   const totalLessons = modules.reduce((acc, m) => acc + m.lessons.length, 0);
   const completedLessons = modules.reduce((acc, m) => acc + m.lessons.filter((l) => l.completed).length, 0);
@@ -152,7 +175,7 @@ export default function Dashboard({
               </div>
               <div>
                 <span className="text-[10px] font-extrabold text-amber-300 uppercase tracking-widest block font-mono">Ofensiva Viva</span>
-                <p className="text-lg font-black text-white font-mono">7 Dias 🔥</p>
+                <p className="text-lg font-black text-white font-mono">{streak} {streak === 1 ? "dia" : "dias"} {streak > 0 ? "🔥" : ""}</p>
               </div>
             </div>
 
@@ -201,15 +224,13 @@ export default function Dashboard({
         <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 shadow-xs border border-slate-100 dark:border-slate-800 flex flex-col justify-between hover-glow">
           <div className="flex justify-between items-start">
             <div className="bg-purple-500/10 p-3 rounded-2xl text-purple-500"><Target className="h-6 w-6" /></div>
-            <span className="text-xs font-bold text-purple-600 dark:text-purple-400 bg-purple-500/10 px-3 py-1 rounded-full border border-purple-500/20">{weeklyQuestionsPercent}% Meta</span>
+            <span className="text-xs font-bold text-purple-600 dark:text-purple-400 bg-purple-500/10 px-3 py-1 rounded-full border border-purple-500/20">Acumulado</span>
           </div>
           <div className="mt-5">
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono">Meta Semanal de Questões</p>
-            <p className="text-3xl font-black text-slate-900 dark:text-white mt-1 font-mono">{weeklyQuestionsDone} <span className="text-base font-medium text-slate-400">/ 300 Q</span></p>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono">Questões respondidas</p>
+            <p className="text-3xl font-black text-slate-900 dark:text-white mt-1 font-mono">{questionsCount}</p>
           </div>
-          <div className="mt-4 w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2.5 overflow-hidden">
-            <div className="bg-gradient-to-r from-purple-500 to-indigo-500 h-full rounded-full transition-all duration-500" style={{ width: `${weeklyQuestionsPercent}%` }} />
-          </div>
+          <p className="text-[10px] text-slate-400 mt-4">Contagem acumulada desde o primeiro acesso.</p>
         </div>
 
         {/* Card Desempenho Simulados */}
@@ -227,7 +248,7 @@ export default function Dashboard({
           {attempts.length > 0 ? (
             <p className="text-[10px] text-emerald-500 font-bold mt-4 uppercase font-mono flex items-center space-x-1">
               <ArrowUpRight className="h-3.5 w-3.5" />
-              <span>Desempenho acima da média nacional</span>
+              <span>Baseado nos seus simulados, sem comparação nacional</span>
             </p>
           ) : (
             <p className="text-[10px] text-slate-400 font-bold mt-4 uppercase font-mono flex items-center space-x-1">
@@ -250,7 +271,7 @@ export default function Dashboard({
               Simulador de Nota de Corte ENARE
             </h3>
             <p className="text-slate-300 text-xs sm:text-sm max-w-xl font-medium">
-              Escolha a instituição onde deseja conquistar sua vaga de residência e acompanhe a distância exata até a nota de corte histórica.
+              Selecione uma instituição para manter seu objetivo visível. Notas de corte e vagas só serão exibidas quando houver fonte oficial vinculada ao edital vigente.
             </p>
           </div>
 
@@ -266,7 +287,7 @@ export default function Dashboard({
             >
               {ENARE_INSTITUTIONS.map(inst => (
                 <option key={inst.id} value={inst.id}>
-                  {inst.name} ({inst.cutoffPercentage}%)
+                  {inst.name} {inst.cutoffPercentage === null ? "(corte não informado)" : `(${inst.cutoffPercentage}%)`}
                 </option>
               ))}
             </select>
@@ -282,7 +303,7 @@ export default function Dashboard({
             <div>
               <span className="text-[10px] text-slate-400 font-mono font-bold uppercase block">Instituição Alvo</span>
               <p className="text-sm font-black text-white">{selectedInstitution.name}</p>
-              <span className="text-[10px] text-indigo-400 font-bold">{selectedInstitution.badge} • {selectedInstitution.vacancies} Vagas</span>
+              <span className="text-[10px] text-indigo-400 font-bold">{selectedInstitution.badge} • {selectedInstitution.vacancies === null ? "vagas não informadas" : `${selectedInstitution.vacancies} vagas`}</span>
             </div>
           </div>
 
@@ -291,9 +312,9 @@ export default function Dashboard({
               <Target className="h-5 w-5" />
             </div>
             <div>
-              <span className="text-[10px] text-slate-400 font-mono font-bold uppercase block">Nota de Corte Histórica</span>
-              <p className="text-2xl font-black text-white font-mono">{selectedInstitution.cutoffPercentage}%</p>
-              <span className="text-[10px] text-slate-400 font-medium">Média mínima estimada</span>
+              <span className="text-[10px] text-slate-400 font-mono font-bold uppercase block">Nota de corte oficial</span>
+              <p className="text-2xl font-black text-white font-mono">{selectedInstitution.cutoffPercentage === null ? "—" : `${selectedInstitution.cutoffPercentage}%`}</p>
+              <span className="text-[10px] text-slate-400 font-medium">Consulte o edital e a chamada vigente</span>
             </div>
           </div>
 
@@ -307,9 +328,11 @@ export default function Dashboard({
                 {currentAvgScore}%
               </p>
               <span className="text-[10px] font-bold">
-                {isAboveCutoff 
+                {selectedInstitution.cutoffPercentage === null
+                  ? "Corte oficial ainda não informado"
+                  : isAboveCutoff
                   ? "🎉 Você está ACIMA da nota de corte!" 
-                  : `Faltam ${cutoffGap.toFixed(1)}% para a nota de corte!`}
+                  : `Faltam ${cutoffGap?.toFixed(1)}% para a referência!`}
               </span>
             </div>
           </div>
@@ -445,14 +468,14 @@ export default function Dashboard({
                   <Activity className="h-4 w-4 text-rose-500" />
                   <span>Caderno de Erros</span>
                 </h4>
-                <button onClick={() => setShowAddError(!showAddError)} className="text-[10px] font-bold bg-slate-100 p-1.5 rounded-lg text-slate-600"><Plus className="h-3.5 w-3.5" /></button>
+                <button onClick={() => setShowAddError(!showAddError)} aria-label="Adicionar erro ao caderno" className="text-[10px] font-bold bg-slate-100 p-1.5 rounded-lg text-slate-600"><Plus className="h-3.5 w-3.5" /></button>
               </div>
               <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
                 {cadernoErros.length === 0 ? <p className="text-[10px] text-slate-400 text-center py-4">Nenhum erro registrado ainda.</p> : cadernoErros.map(err => (
                   <div key={err.id} className="p-2.5 bg-slate-50 dark:bg-slate-950/50 rounded-xl border border-slate-100 relative group">
-                    <button onClick={() => setCadernoErros(cadernoErros.filter(e => e.id !== err.id))} className="absolute top-2 right-2 opacity-0 group-hover:opacity-100"><Trash2 className="h-3 w-3 text-slate-400" /></button>
-                    <span className="text-[9px] font-bold text-sky-500 uppercase">{err.topic}</span>
-                    <h5 className="text-[11px] font-bold text-slate-800 dark:text-slate-200 mt-1">{err.concept}</h5>
+                    <button onClick={() => setCadernoErros(cadernoErros.filter(e => e.id !== err.id))} aria-label="Excluir erro do caderno" className="absolute top-2 right-2 opacity-70 group-hover:opacity-100"><Trash2 className="h-3 w-3 text-slate-400" /></button>
+                    <span className="text-[9px] font-bold text-sky-500 uppercase">{err.topic || err.category}</span>
+                    <h5 className="text-[11px] font-bold text-slate-800 dark:text-slate-200 mt-1">{err.concept || err.questionText}</h5>
                   </div>
                 ))}
               </div>
@@ -460,24 +483,11 @@ export default function Dashboard({
           </div>
         </div>
 
-        <div className="space-y-6">
-          <div className="flex items-center space-x-2 text-slate-900 dark:text-white">
-            <Calendar className="h-5 w-5 text-sky-500" />
-            <h3 className="font-bold text-lg">Agenda Semanal</h3>
-          </div>
-          <div className="space-y-3">
-            {MOCK_SCHEDULE.map(event => (
-              <div key={event.id} className="p-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl flex items-center space-x-4">
-                <div className="text-center border-r pr-3 min-w-[50px]">
-                  <span className="block text-[10px] font-bold text-sky-500 uppercase">{event.date.split(" ")[0]}</span>
-                  <span className="block text-[10px] font-bold text-slate-400">{event.date.split(" ")[1]}</span>
-                </div>
-                <div>
-                  <span className="text-[9px] font-bold text-slate-400 uppercase">{event.time}</span>
-                  <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">{event.title}</h4>
-                </div>
-              </div>
-            ))}
+        <div className="space-y-4">
+          <div className="p-5 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-xs">
+            <h3 className="font-bold text-lg text-slate-900 dark:text-white">Próximo passo</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">Use o roteiro personalizado para marcar tarefas reais. A agenda fixa foi removida para não apresentar datas vencidas como compromissos atuais.</p>
+            <button onClick={() => setActiveTab("roadmap")} className="mt-4 text-xs font-bold text-sky-600 hover:text-sky-500 flex items-center gap-1">Abrir roteiro <ChevronRight className="h-3.5 w-3.5" /></button>
           </div>
         </div>
       </div>

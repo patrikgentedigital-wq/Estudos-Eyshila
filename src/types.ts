@@ -27,6 +27,9 @@ export interface CadernoErroItem {
   questionText: string;
   userAnswer?: string;
   correctAnswer?: string;
+  options?: string[];
+  correctIndex?: number;
+  questionId?: string;
   explanation: string;
   category: string;
   dateAdded: string;
@@ -39,6 +42,8 @@ export interface UserProfile {
   institution: string;
   residencyYear: string;
   focusAreas: string[];
+  hoursPerWeek?: number;
+  onboarded: boolean;
   avatar: string;
   notifications: {
     reminders: boolean;
@@ -104,10 +109,15 @@ export interface Flashcard {
   answer: string;
   answerEn?: string;
   category: string;
+  categoryEn?: string;
   difficulty: "Easy" | "Medium" | "Hard";
   isOfficial?: boolean;
   isCustom?: boolean;
   authorId?: string;
+  nextReview?: string;
+  intervalDays?: number;
+  repetitions?: number;
+  easeFactor?: number;
 }
 
 export interface TranslationDict {

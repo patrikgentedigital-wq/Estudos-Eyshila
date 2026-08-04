@@ -12,6 +12,8 @@ export const INITIAL_PROFILE = {
   institution: "Portal de Estudos",
   residencyYear: "Foco: Enfermagem",
   focusAreas: ["Legislação do SUS", "Código de Ética COFEN", "Urgência e UTI", "Saúde da Mulher e da Criança"],
+  hoursPerWeek: 15,
+  onboarded: false,
   avatar: "https://images.unsplash.com/photo-1551076805-e1869033e561?w=150&h=150&fit=crop",
   notifications: {
     reminders: true,

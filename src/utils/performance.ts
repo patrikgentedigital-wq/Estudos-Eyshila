@@ -137,7 +137,7 @@ export interface Recommendation {
 }
 
 export function getStudyRecommendation(attempts: ExamAttempt[] = [], modules: StudyModule[] = []): Recommendation | null {
-  if (modules.length === 0) return null;
+  if (modules.length === 0 || attempts.length === 0) return null;
 
   const subjects = getSubjectScores(attempts);
   

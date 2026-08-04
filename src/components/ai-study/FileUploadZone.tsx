@@ -45,7 +45,7 @@ export default function FileUploadZone({
             Gerador de Estudos Inteligente
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            Envie um documento (PDF, TXT) ou cole o texto para que o Gemini elabore resumos, simulados e flashcards.
+            Envie um documento (PDF, TXT) ou cole o texto para que a IA elabore resumos, simulados e flashcards.
           </p>
         </div>
       </div>

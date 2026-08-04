@@ -136,8 +136,6 @@ export default function StudyModules({
     if (!matchesSearch) return false;
 
     if (filter === "official") return (m as any).isOfficial;
-    if (filter === "my_modules") return !(m as any).isOfficial;
-
     const total = m.lessons.length;
     const completed = m.lessons.filter((l) => l.completed).length;
 

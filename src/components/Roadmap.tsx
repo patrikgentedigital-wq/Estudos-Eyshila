@@ -21,9 +21,10 @@ interface RoadmapProps {
   roadmap: RoadmapWeek[];
   onToggleTask: (weekIdx: number, taskIdx: number) => void;
   setActiveTab: (tab: Tab) => void;
+  hoursPerWeek?: number;
 }
 
-const Roadmap: React.FC<RoadmapProps> = ({ roadmap, onToggleTask, setActiveTab }) => {
+const Roadmap: React.FC<RoadmapProps> = ({ roadmap, onToggleTask, setActiveTab, hoursPerWeek = 15 }) => {
   // Target Exam Date State (Default: 2026-09-13, official ENARE 2026/2027 exam date)
   const [examDate, setExamDate] = useState<string>("2026-09-13");
 
@@ -141,7 +142,7 @@ const Roadmap: React.FC<RoadmapProps> = ({ roadmap, onToggleTask, setActiveTab }
           </div>
           <div>
             <h4 className="text-[10px] font-bold text-sky-600 uppercase">Seg-Sex</h4>
-            <p className="text-xs font-bold text-slate-700 dark:text-slate-200">50m Temas + 10m Flashcards</p>
+            <p className="text-xs font-bold text-slate-700 dark:text-slate-200">{Math.max(20, Math.round((hoursPerWeek * 60) / 5))}m por dia em média</p>
           </div>
         </div>
         <div className="bg-indigo-500/5 border border-indigo-500/10 p-4 rounded-2xl flex items-center space-x-3">
@@ -150,7 +151,7 @@ const Roadmap: React.FC<RoadmapProps> = ({ roadmap, onToggleTask, setActiveTab }
           </div>
           <div>
             <h4 className="text-[10px] font-bold text-indigo-600 uppercase">Fim de Semana</h4>
-            <p className="text-xs font-bold text-slate-700 dark:text-slate-200">1 Simulado (80Q) - 3h30min</p>
+            <p className="text-xs font-bold text-slate-700 dark:text-slate-200">1 simulado objetivo (100Q) - até 5h</p>
           </div>
         </div>
         <div className="bg-amber-500/5 border border-amber-500/10 p-4 rounded-2xl flex items-center space-x-3">
