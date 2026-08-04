@@ -1890,11 +1890,11 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
                           }}
                           className="bg-white/20 text-white font-bold text-xs py-2 px-2.5 rounded-xl outline-none border border-white/30 cursor-pointer"
                         >
-                          <option value="0.75" className="text-slate-900">0.75x</option>
-                          <option value="1.0" className="text-slate-900">1.0x (Normal)</option>
-                          <option value="1.25" className="text-slate-900">1.25x</option>
-                          <option value="1.5" className="text-slate-900">1.5x</option>
-                          <option value="2.0" className="text-slate-900">2.0x (Rápido)</option>
+                          <option value={0.75} className="text-slate-900">0.75x</option>
+                          <option value={1.0} className="text-slate-900">1.0x (Normal)</option>
+                          <option value={1.25} className="text-slate-900">1.25x</option>
+                          <option value={1.5} className="text-slate-900">1.5x</option>
+                          <option value={2.0} className="text-slate-900">2.0x (Rápido)</option>
                         </select>
                       </div>
 
