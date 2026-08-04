@@ -1,15 +1,15 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import request from "supertest";
-import app from "./index.js";
+import app from "../api/index.js";
 
-// Mock the openrouter fetch globally if needed or just test the health endpoint
 describe("API Regression Tests", () => {
-  it("GET /api/health - should return status ok", async () => {
+  it("GET /api/health - should return status ok without process details", async () => {
     const res = await request(app).get("/api/health");
     expect(res.status).toBe(200);
     expect(res.body.status).toBe("ok");
-    expect(res.body.uptime).toBeDefined();
-    expect(res.body.memory).toBeDefined();
+    expect(res.body.timestamp).toBeDefined();
+    expect(res.body.uptime).toBeUndefined();
+    expect(res.body.memory).toBeUndefined();
   });
 
   it("POST /api/generate-study - should return 400 for empty body", async () => {

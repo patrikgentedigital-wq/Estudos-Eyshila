@@ -848,8 +848,8 @@ export const MOCK_QUESTIONS: ExamQuestion[] = [
   },
   {
     id: "enare-2023-q1",
-    question: "(ENARE 2023) A Resolução COFEN nº 736/2023 atualizou as diretrizes para a Sistematização da Assistência de Enfermagem (SAE) e o Processo de Enfermagem (PE). Com base nessa resolução, o Processo de Enfermagem é composto por quantas etapas integradas e qual delas se refere ao julgamento clínico das respostas da pessoa?",
-    questionEn: "(ENARE 2023) COFEN Resolution No. 736/2023 updated the guidelines for the Systematization of Nursing Care (SAE) and the Nursing Process (PE). Based on this resolution, the Nursing Process is comprised of how many integrated stages, and which stage represents the clinical judgment regarding the patient's health responses?",
+    question: "(Revisão atualizada) A Resolução COFEN nº 736/2024 atualizou as diretrizes para a Sistematização da Assistência de Enfermagem (SAE) e o Processo de Enfermagem (PE). Com base nessa resolução, o Processo de Enfermagem é composto por quantas etapas integradas e qual delas se refere ao julgamento clínico das respostas da pessoa?",
+    questionEn: "(Updated review) COFEN Resolution No. 736/2024 updated the guidelines for the Systematization of Nursing Care (SAE) and the Nursing Process (PE). Based on this resolution, the Nursing Process is comprised of how many integrated stages, and which stage represents the clinical judgment regarding the patient's health responses?",
     options: [
       "3 etapas interdependentes; Diagnóstico de Enfermagem.",
       "5 etapas interdependentes; Diagnóstico de Enfermagem.",
@@ -863,8 +863,8 @@ export const MOCK_QUESTIONS: ExamQuestion[] = [
       "5 stages; Implementation."
     ],
     correctIndex: 1,
-    explanation: "A Resolução COFEN nº 736/2023 reafirma que o Processo de Enfermagem é composto por 5 etapas interdependentes: 1. Avaliação de Enfermagem (Histórico), 2. Diagnóstico de Enfermagem (julgamento clínico sobre as respostas de saúde), 3. Planejamento de Enfermagem, 4. Implementação de Enfermagem, e 5. Evolução de Enfermagem.",
-    explanationEn: "COFEN Resolution No. 736/2023 reaffirms that the Nursing Process consists of 5 interdependent stages: 1. Nursing Assessment (History), 2. Nursing Diagnosis (clinical judgment of health responses), 3. Nursing Planning, 4. Nursing Implementation, and 5. Nursing Evaluation.",
+    explanation: "A Resolução COFEN nº 736/2024 reafirma que o Processo de Enfermagem é composto por 5 etapas interdependentes: 1. Avaliação de Enfermagem (Histórico), 2. Diagnóstico de Enfermagem (julgamento clínico sobre as respostas de saúde), 3. Planejamento de Enfermagem, 4. Implementação de Enfermagem, e 5. Evolução de Enfermagem.",
+    explanationEn: "COFEN Resolution No. 736/2024 reaffirms that the Nursing Process consists of 5 interdependent stages: 1. Nursing Assessment (History), 2. Nursing Diagnosis (clinical judgment of health responses), 3. Nursing Planning, 4. Nursing Implementation, and 5. Nursing Evaluation.",
     category: "Ética e Gestão",
     categoryEn: "Ethics & Management",
     examSource: "ENARE 2023",

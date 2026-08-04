@@ -59,7 +59,7 @@ export const OFFICIAL_FLASHCARDS: Flashcard[] = [
   },
   {
     id: "off-fc-8",
-    question: "No atendimento à parada cardiorrespiratória (PCR) no adulto (AHA 2020), qual a frequência e profundidade ideais de compressão torácica?",
+    question: "No atendimento à parada cardiorrespiratória (PCR) no adulto (AHA 2025), qual a frequência e profundidade ideais de compressão torácica?",
     answer: "Frequência de 100 a 120 compressões/minuto e profundidade de 5 a 6 cm (permitindo o retorno total do tórax).",
     category: "Urgência e UTI",
     difficulty: "Hard",

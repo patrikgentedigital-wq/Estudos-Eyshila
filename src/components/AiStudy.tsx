@@ -30,6 +30,7 @@ import { jsPDF } from "jspdf";
 import { Language } from "../types";
 import { useTTS } from "../hooks/useTTS";
 import { exportToPrintablePdf } from "../utils/pdfExport";
+import { supabase } from "../supabase";
 
 interface AiStudyProps {
   language: Language;
@@ -51,6 +52,17 @@ interface GeneratedStudy {
   summary: string;
   questions: Question[];
   flashcards: Flashcard[];
+}
+
+async function getApiHeaders(): Promise<Record<string, string>> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (supabase) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      headers.Authorization = `Bearer ${session.access_token}`;
+    }
+  }
+  return headers;
 }
 
 export default function AiStudy({ language }: AiStudyProps) {
@@ -261,12 +273,15 @@ A Lei nº 8.080/1990 regula, em todo o território nacional, as ações e servi�
     try {
       const res = await fetch("/api/chat-study", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: await getApiHeaders(),
         body: JSON.stringify({ message: userMsg })
       });
 
       if (!res.ok) {
         let errorMessage = `Erro ${res.status}`;
+        if (res.status === 401) {
+          errorMessage = "Sua sessão expirou. Faça login novamente para usar o mentor.";
+        }
         try {
           const text = await res.text();
           try {
@@ -532,9 +547,7 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
 
       const res = await fetch("/api/generate-study", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers: await getApiHeaders(),
         body: JSON.stringify(payload)
       });
 
@@ -548,6 +561,9 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
         }
 
         let errorMessage = "HTTP error " + res.status;
+        if (res.status === 401) {
+          errorMessage = "Sua sessão expirou. Faça login novamente para gerar o material.";
+        }
         try {
           const text = await res.text();
           try {

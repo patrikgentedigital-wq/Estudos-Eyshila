@@ -1,20 +1,45 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Portal de Estudos Eyshila Caxias
 
-# Run and deploy your AI Studio app
+Aplicação React/Vite para preparação de Enfermagem para ENADE e ENARE, com autenticação Supabase, persistência de dados e geração de material didático por IA via OpenRouter.
 
-This contains everything you need to run your app locally.
+## Requisitos
 
-View your app in AI Studio: https://ai.studio/apps/81535c31-6992-4dcd-bd37-f8ec5a40e09a
+- Node.js 20 ou superior
+- Uma instância Supabase configurada para autenticação e persistência
+- Uma chave OpenRouter para os endpoints de IA
 
-## Run Locally
+## Executar localmente
 
-**Prerequisites:**  Node.js
+1. Instale as dependências:
 
+   ```bash
+   npm install
+   ```
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+2. Configure as variáveis em `.env.local`:
+
+   ```env
+   VITE_SUPABASE_URL=https://seu-projeto.supabase.co
+   VITE_SUPABASE_ANON_KEY=sua-chave-publica
+   OPENROUTER_API_KEY=sua-chave-do-servidor
+   OPENROUTER_MODEL=google/gemini-2.5-flash
+   APP_URL=http://localhost:3000
+   ```
+
+3. Inicie o ambiente de desenvolvimento:
+
+   ```bash
+   npm run dev
+   ```
+
+Em produção, as rotas `/api/generate-study` e `/api/chat-study` exigem uma sessão autenticada do Supabase. A chave `service_role` nunca deve ser colocada no frontend.
+
+## Validação
+
+```bash
+npm run lint
+npm test
+npm run build
+```
+
+O deploy de produção é feito pela Vercel.

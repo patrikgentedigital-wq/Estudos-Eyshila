@@ -11,6 +11,7 @@ import {
   BellRing
 } from "lucide-react";
 import { Language, UserProfile, translations } from "../types";
+import { isSupabaseConfigured, supabase } from "../supabase";
 
 interface ProfileSettingsProps {
   language: Language;
@@ -35,6 +36,7 @@ export default function ProfileSettings({
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
   // Feedback notifications
   const [toastMessage, setToastMessage] = useState("");
@@ -71,8 +73,23 @@ export default function ProfileSettings({
     }
   };
 
-  const handleSaveChanges = (e: React.FormEvent) => {
+  const handleSaveChanges = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (isSupabaseConfigured && supabase && email.trim() !== profile.email.trim()) {
+      try {
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError || !user) throw new Error("Não foi possível identificar a conta atual.");
+
+        const { error: emailError } = await supabase.auth.updateUser({ email: email.trim() });
+        if (emailError) throw emailError;
+        triggerToast("Perfil salvo. Confirme o novo e-mail para concluir a alteração.", "success");
+      } catch (error: any) {
+        console.error("Erro ao atualizar o e-mail:", error);
+        triggerToast(error?.message || "Não foi possível atualizar o e-mail agora.", "error");
+        return;
+      }
+    }
     
     const updated: UserProfile = {
       ...profile,
@@ -90,7 +107,7 @@ export default function ProfileSettings({
     triggerToast("Alterações salvas com sucesso! ✓", "success");
   };
 
-  const handleUpdatePassword = (e: React.FormEvent) => {
+  const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!oldPassword || !newPassword || !confirmPassword) {
       triggerToast("Por favor, preencha todos os campos de senha.", "error");
@@ -101,11 +118,45 @@ export default function ProfileSettings({
       return;
     }
 
-    // Success
-    setOldPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
-    triggerToast("Sua senha foi atualizada com sucesso! ✓", "success");
+    if (newPassword.length < 8) {
+      triggerToast("A nova senha deve ter pelo menos 8 caracteres.", "error");
+      return;
+    }
+
+    if (!isSupabaseConfigured || !supabase) {
+      triggerToast("A troca de senha exige uma conta Supabase configurada.", "error");
+      return;
+    }
+
+    setIsUpdatingPassword(true);
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user?.email) {
+        throw new Error("Não foi possível identificar a conta atual.");
+      }
+
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: oldPassword,
+      });
+      if (signInError) {
+        throw new Error("A senha atual está incorreta.");
+      }
+
+      const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+      if (updateError) throw updateError;
+
+      setOldPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      triggerToast("Sua senha foi atualizada com sucesso!", "success");
+    } catch (error: any) {
+      console.error("Erro ao atualizar a senha:", error);
+      triggerToast(error?.message || "Não foi possível atualizar a senha agora.", "error");
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+    return;
   };
 
   const triggerToast = (msg: string, type: "success" | "error") => {
@@ -343,9 +394,10 @@ export default function ProfileSettings({
               <button
                 id="btn-update-password"
                 type="submit"
+                disabled={isUpdatingPassword}
                 className="w-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs py-3 rounded-xl border border-slate-200 dark:border-slate-700 transition-all"
               >
-                Atualizar Senha
+                {isUpdatingPassword ? "Atualizando..." : "Atualizar Senha"}
               </button>
             </form>
           </div>

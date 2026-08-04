@@ -63,7 +63,7 @@ const DEFAULT_ROADMAP: RoadmapWeek[] = [
   {
     week: 4,
     label: "Dias 22-28: Urgência, Emergência e UTI",
-    topics: ["Protocolo XABCDE", "PCR AHA 2020", "Protocolo Manchester", "Drogas Vasoativas"],
+    topics: ["Protocolo XABCDE", "PCR AHA 2025", "Protocolo Manchester", "Drogas Vasoativas"],
     status: "locked",
     tasks: [
       { id: "w4-t1", title: "Memorizar Ritmos Chocáveis x Não Chocáveis na PCR", completed: false },
@@ -772,4 +772,4 @@ export default function App() {
 
     </div>
   );
-}
+}

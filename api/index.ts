@@ -5,6 +5,7 @@ import rateLimit from "express-rate-limit";
 import { z } from "zod";
 import dotenv from "dotenv";
 import crypto from "crypto";
+import { createClient } from "@supabase/supabase-js";
 import { Logger } from "./utils/logger.js";
 import { metricsMiddleware, aiCache } from "./utils/metrics.js";
 import { Request, Response, NextFunction } from "express";
@@ -12,6 +13,47 @@ import { Request, Response, NextFunction } from "express";
 dotenv.config();
 
 const app = express();
+const isProduction = process.env.NODE_ENV === "production" || process.env.VERCEL_ENV === "production";
+const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || "";
+const supabaseAuthClient = supabaseUrl && supabaseAnonKey
+  ? createClient(supabaseUrl, supabaseAnonKey, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    })
+  : null;
+
+type AuthenticatedRequest = Request & { authUserId?: string };
+
+const requireAuthenticatedUser = async (req: Request, res: Response, next: NextFunction) => {
+  // Unit tests and local development without Supabase keep the existing local workflow.
+  // Production never falls back to unauthenticated AI access.
+  if (process.env.NODE_ENV === "test" || (!isProduction && !supabaseAuthClient)) {
+    return next();
+  }
+
+  if (!supabaseAuthClient) {
+    return res.status(503).json({ error: "Autenticação indisponível no servidor." });
+  }
+
+  const authorization = req.get("authorization") || "";
+  const token = authorization.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
+  if (!token) {
+    return res.status(401).json({ error: "Faça login para usar os recursos de IA." });
+  }
+
+  try {
+    const { data, error } = await supabaseAuthClient.auth.getUser(token);
+    if (error || !data.user) {
+      return res.status(401).json({ error: "Sua sessão expirou. Faça login novamente." });
+    }
+
+    (req as AuthenticatedRequest).authUserId = data.user.id;
+    return next();
+  } catch (error) {
+    Logger.error("Falha ao validar a sessão do usuário.", error, req);
+    return res.status(503).json({ error: "Não foi possível validar sua sessão agora." });
+  }
+};
 
 try {
   // Apply metrics & tracing first
@@ -53,15 +95,12 @@ try {
   app.get("/api/health", (req, res) => {
     res.json({
       status: "ok",
-      uptime: process.uptime(),
-      memory: process.memoryUsage(),
       timestamp: new Date().toISOString()
     });
   });
 
-  // Body parser setup
-  app.use(express.json({ limit: "20mb" }));
-  app.use(express.urlencoded({ limit: "20mb", extended: true }));
+  // Parse request bodies only after auth and rate limiting have run.
+  const jsonParser = express.json({ limit: "20mb" });
 
   async function callOpenRouter(messages: any[], isJsonMode: boolean = false) {
     const apiKey = process.env.OPENROUTER_API_KEY || process.env.GEMINI_API_KEY;
@@ -144,8 +183,22 @@ try {
     message: z.string().min(1, "Mensagem vazia.").max(4000, "Mensagem muito longa."),
   });
 
+  const GeneratedStudySchema = z.object({
+    summary: z.string(),
+    questions: z.array(z.object({
+      question: z.string(),
+      options: z.array(z.string()),
+      answer: z.string(),
+      explanation: z.string(),
+    })),
+    flashcards: z.array(z.object({
+      front: z.string(),
+      back: z.string(),
+    })),
+  });
+
   // API endpoints
-  app.post("/api/generate-study", aiLimiter, async (req, res) => {
+  app.post("/api/generate-study", requireAuthenticatedUser, aiLimiter, jsonParser, async (req, res) => {
     try {
       const validation = GenerateStudySchema.safeParse(req.body);
       if (!validation.success) {
@@ -210,7 +263,7 @@ TODAS AS SUAS RESPOSTAS E QUESTÕES DEVEM SER RIGOROSAMENTE BASEADAS EM PROTOCOL
 1. Resolução COFEN nº 736/2024 (Processo de Enfermagem em 5 etapas: Avaliação, Diagnóstico, Planejamento, Implementação e Evolução).
 2. Código de Ética dos Profissionais de Enfermagem (Resolução COFEN nº 564/2017).
 3. Leis Orgânicas da Saúde (Lei 8.080/90, Lei 8.142/90, Decreto 7.508/11) e Diretrizes do PNI/Ministério da Saúde.
-4. Protocolos de Suporte de Vida (AHA 2020) e Diretrizes Clínicas de Enfermagem baseadas em evidências.
+4. Protocolos de Suporte de Vida (AHA 2025) e Diretrizes Clínicas de Enfermagem baseadas em evidências.
 
 SUA EXPLICAÇÃO DE CADA QUESTÃO DEVE INCLUIR A REFERÊNCIA LEGAL/CIENTÍFICA VIGENTE.
 VOCÊ DEVE RESPONDER EXCLUSIVAMENTE NO FORMATO JSON ABAIXO. NÃO INCLUA TEXTO FORA DO JSON.
@@ -235,11 +288,11 @@ Formato exigido:
 }
 CERTIFIQUE-SE QUE EXISTAM EXATAMENTE 3 QUESTÕES DE ALTO RENDIMENTO E 3 FLASHCARDS DIRETO AO PONTO.`;
 
-      const truncatedText = extractedText.length > 3000 ? extractedText.substring(0, 3000) + "..." : extractedText;
-      const userPrompt = `Baseado no seguinte texto de estudos, elabore o resumo científico, questões com fundamentação legal/clínica e flashcards em formato JSON estrito:\n\n${truncatedText}`;
+      const userPrompt = `Baseado no seguinte texto de estudos, elabore o resumo científico, questões com fundamentação legal/clínica e flashcards em formato JSON estrito:\n\n${extractedText}`;
+      const fullUserPrompt = userPrompt + "\n\nPriorize as Diretrizes AHA 2025 e as demais fontes oficiais vigentes. Este é um material educacional; quando houver divergência, oriente a consulta à fonte oficial e ao protocolo institucional vigente.";
 
       // Cache logic via SHA-256
-      const promptHash = crypto.createHash("sha256").update(userPrompt).digest("hex");
+      const promptHash = crypto.createHash("sha256").update(fullUserPrompt).digest("hex");
       const cacheKey = `study_${promptHash}`;
       const cachedResponse = aiCache.get(cacheKey);
       if (cachedResponse) {
@@ -250,7 +303,7 @@ CERTIFIQUE-SE QUE EXISTAM EXATAMENTE 3 QUESTÕES DE ALTO RENDIMENTO E 3 FLASHCAR
 
       const messages = [
         { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt }
+        { role: "user", content: fullUserPrompt }
       ];
 
       const responseText = await callOpenRouter(messages, true);
@@ -261,18 +314,22 @@ CERTIFIQUE-SE QUE EXISTAM EXATAMENTE 3 QUESTÕES DE ALTO RENDIMENTO E 3 FLASHCAR
         ? responseText.substring(firstBrace, lastBrace + 1) 
         : responseText.replace(/```json/g, "").replace(/```/g, "").trim();
       
-      const parsedData = JSON.parse(jsonSub);
+      const parsedResult = GeneratedStudySchema.safeParse(JSON.parse(jsonSub));
+      if (!parsedResult.success) {
+        throw new Error("A resposta da IA não seguiu o formato esperado.");
+      }
+      const parsedData = parsedResult.data;
       
       aiCache.set(cacheKey, parsedData);
       res.json(parsedData);
 
     } catch (error: any) {
       Logger.error("Falha ao gerar o material de estudos via OpenRouter.", error, req);
-      res.status(500).json({ error: `Falha na IA: ${error.message || error}` });
+      res.status(502).json({ error: "O serviço de IA está indisponível no momento. Tente novamente." });
     }
   });
 
-  app.post("/api/chat-study", aiLimiter, async (req, res) => {
+  app.post("/api/chat-study", requireAuthenticatedUser, aiLimiter, jsonParser, async (req, res) => {
     try {
       const validation = ChatStudySchema.safeParse(req.body);
       if (!validation.success) {
@@ -289,7 +346,8 @@ CERTIFIQUE-SE QUE EXISTAM EXATAMENTE 3 QUESTÕES DE ALTO RENDIMENTO E 3 FLASHCAR
         { role: "user", content: message }
       ];
 
-      const cacheKey = `chat_${Buffer.from(message).toString('base64').substring(0, 50)}`;
+      const messageHash = crypto.createHash("sha256").update(message).digest("hex");
+      const cacheKey = `chat_${messageHash}`;
       const cachedResponse = aiCache.get(cacheKey);
       if (cachedResponse) {
         Logger.info("CACHE_HIT: chat-study", req);
@@ -303,7 +361,7 @@ CERTIFIQUE-SE QUE EXISTAM EXATAMENTE 3 QUESTÕES DE ALTO RENDIMENTO E 3 FLASHCAR
 
     } catch (error: any) {
       Logger.error("Falha ao processar mensagem da IA via OpenRouter.", error, req);
-      res.status(500).json({ error: `Falha na IA: ${error.message || error}` });
+      res.status(502).json({ error: "O serviço de IA está indisponível no momento. Tente novamente." });
     }
   });
 
