@@ -1,11 +1,12 @@
 import { build } from "esbuild";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const projectRoot = new URL("../", import.meta.url);
+const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 
 await build({
-  absWorkingDir: projectRoot.pathname.replace(/^\//, "").replace(/\//g, path.sep),
-  entryPoints: ["./server.ts"],
+  absWorkingDir: projectRoot,
+  entryPoints: ["server.ts"],
   resolveExtensions: [".ts", ".tsx", ".js"],
   tsconfigRaw: {
     compilerOptions: {
@@ -20,5 +21,5 @@ await build({
   format: "cjs",
   packages: "external",
   sourcemap: true,
-  outfile: "dist/server.cjs",
+  outfile: path.join("dist", "server.cjs"),
 });
