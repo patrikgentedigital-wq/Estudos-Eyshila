@@ -16,10 +16,11 @@ export default defineConfig(() => {
     build: {
       rollupOptions: {
         output: {
-          manualChunks: {
-            "vendor-react": ["react", "react-dom"],
-            "vendor-ui": ["lucide-react", "motion/react"],
-            "vendor-pdf": ["jspdf"],
+          manualChunks(id) {
+            if (id.includes("/src/data.ts")) return "study-content";
+            if (id.includes("node_modules/react") || id.includes("node_modules/react-dom")) return "vendor-react";
+            if (id.includes("node_modules/lucide-react") || id.includes("node_modules/motion")) return "vendor-ui";
+            if (id.includes("node_modules/jspdf")) return "vendor-pdf";
           },
         },
       },
