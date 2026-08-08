@@ -2,9 +2,10 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Menu, X, GraduationCap, Calendar, Bell, Shield, LayoutDashboard, BookOpen, Award, Sparkles, Compass } from "lucide-react";
 import Toast, { ToastMessage } from "./components/Toast";
 
-import { Tab, Language, UserProfile, StudyModule, Flashcard, ExamAttempt, translations, RoadmapWeek, RoadmapTask, ChecklistItem, CadernoErroItem } from "./types";
+import { Tab, Language, UserProfile, StudyModule, Flashcard, ExamAttempt, translations, RoadmapWeek, RoadmapTask, ChecklistItem, CadernoErroItem, QuestionExposure, ReviewRating } from "./types";
 import { INITIAL_PROFILE, INITIAL_MODULES, INITIAL_FLASHCARDS, INITIAL_ATTEMPTS } from "./data";
 import { safeGetItem, safeSetItem, safeRemoveItem } from "./utils/storage";
+import { scheduleFlashcardReview } from "./utils/studyEngine";
 
 // Supabase Client
 import { supabase, isSupabaseConfigured } from "./supabase";
@@ -31,12 +32,12 @@ const DEFAULT_ROADMAP: RoadmapWeek[] = [
   {
     week: 1,
     label: "Dias 1-7: Competências gerais ENARE (20%)",
-    topics: ["Direitos Humanos", "Ética Global", "Sustentabilidade", "Interpretação de Texto"],
+    topics: ["Inclusão em saúde", "Humanização", "Segurança do paciente", "NR-32"],
     status: "current",
     tasks: [
-      { id: "w1-t1", title: "Estudar 5 questões de Formação Geral (Direitos Humanos e Diversidade)", completed: false },
-      { id: "w1-t2", title: "Treino de Interpretação e Coesão Textual aplicada a Saúde Pública", completed: false },
-      { id: "w1-t3", title: "Prática de 10 min de flashcards de Formação Geral", completed: false }
+      { id: "w1-t1", title: "Estudar inclusão e cuidado de grupos vulnerabilizados", completed: false },
+      { id: "w1-t2", title: "Revisar Humanização, Educação Permanente e trabalho em equipe", completed: false },
+      { id: "w1-t3", title: "Resolver questões de Segurança do Paciente, Vigilância e NR-32", completed: false }
     ]
   },
   {
@@ -75,7 +76,7 @@ const DEFAULT_ROADMAP: RoadmapWeek[] = [
   {
     week: 5,
     label: "Dias 29-35: Saúde da Mulher, Criança e Imunização",
-    topics: ["Pré-Natal", "Calendário PNI 2024", "Puericultura", "Rede Cegonha"],
+    topics: ["Pré-Natal", "Calendário PNI vigente", "Puericultura", "Atenção ao parto e nascimento"],
     status: "locked",
     tasks: [
       { id: "w5-t1", title: "Revisar Esquema Vacinal do Recém-Nascido e Criança (PNI)", completed: false },
@@ -114,6 +115,42 @@ const normalizeProfile = (value: Partial<UserProfile> | null | undefined, fallba
   onboarded: value ? (value.onboarded ?? true) : fallback.onboarded,
 });
 
+const cloneData = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
+
+const normalizeModules = (value: StudyModule[] | null | undefined): StudyModule[] => {
+  const defaults = cloneData(INITIAL_MODULES);
+  if (!Array.isArray(value)) return defaults;
+  const defaultIds = new Set(defaults.map((module) => module.id));
+  const normalizedDefaults = defaults.map((defaultModule) => {
+    const savedModule = value.find((module) => module.id === defaultModule.id);
+    if (!savedModule) return defaultModule;
+    const isLegacyGeneralModule = defaultModule.id === "mod-basicos"
+      && /portugu[eê]s|inform[aá]tica|common basics/i.test(`${savedModule.title} ${savedModule.category}`);
+    return isLegacyGeneralModule ? defaultModule : savedModule;
+  });
+  return [...normalizedDefaults, ...value.filter((module) => !defaultIds.has(module.id))];
+};
+
+const normalizeRoadmap = (value: RoadmapWeek[] | null | undefined): RoadmapWeek[] => {
+  const defaults = cloneData(DEFAULT_ROADMAP);
+  if (!Array.isArray(value)) return defaults;
+  return defaults.map((defaultWeek) => {
+    const savedWeek = value.find((week) => week.week === defaultWeek.week);
+    if (!savedWeek) return defaultWeek;
+    const legacyWeekOne = defaultWeek.week === 1
+      && `${savedWeek.topics.join(" ")} ${savedWeek.tasks.map((task) => task.title).join(" ")}`.match(/interpreta[cç][aã]o|coes[aã]o textual/i);
+    if (legacyWeekOne) return defaultWeek;
+    return {
+      ...defaultWeek,
+      status: savedWeek.status,
+      tasks: defaultWeek.tasks.map((task) => ({
+        ...task,
+        completed: savedWeek.tasks.find((savedTask) => savedTask.id === task.id)?.completed ?? false,
+      })),
+    };
+  });
+};
+
 export default function App() {
   
   // Session & UI States
@@ -150,12 +187,13 @@ export default function App() {
   };
 
   // Business Data States
-  const clone = <T,>(obj: T): T => JSON.parse(JSON.stringify(obj));
+  const clone = cloneData;
   
   const [profile, setProfile] = useState<UserProfile>(() => clone(INITIAL_PROFILE));
   const [modules, setModules] = useState<StudyModule[]>(() => clone(INITIAL_MODULES));
   const [flashcards, setFlashcards] = useState<Flashcard[]>(() => clone(INITIAL_FLASHCARDS));
   const [attempts, setAttempts] = useState<ExamAttempt[]>([]);
+  const [questionExposures, setQuestionExposures] = useState<QuestionExposure[]>([]);
   const [questionsCount, setQuestionsCount] = useState<number>(0);
 
   const INITIAL_CHECKLIST = [
@@ -223,13 +261,14 @@ export default function App() {
 
             if (data) {
               setProfile(normalizeProfile(data.profile, clone(INITIAL_PROFILE)));
-              setModules(data.modules || clone(INITIAL_MODULES));
+              setModules(normalizeModules(data.modules));
               setFlashcards(data.flashcards || clone(INITIAL_FLASHCARDS));
               setAttempts(data.attempts || []);
+              setQuestionExposures(data.question_exposures || []);
               setQuestionsCount(data.questions_count ?? 0);
               setChecklist(data.checklist || INITIAL_CHECKLIST);
               setCadernoErros(data.caderno_erros || []);
-              setRoadmap(data.roadmap || clone(DEFAULT_ROADMAP));
+              setRoadmap(normalizeRoadmap(data.roadmap));
               return;
             }
           }
@@ -239,6 +278,7 @@ export default function App() {
           const savedModules = safeGetItem(`residency_modules_${userId}`);
           const savedFlashcards = safeGetItem(`residency_flashcards_${userId}`);
           const savedAttempts = safeGetItem(`residency_attempts_${userId}`);
+          const savedExposures = safeGetItem(`residency_question_exposures_${userId}`);
           const savedQuestions = safeGetItem(`residency_questions_count_${userId}`);
           const savedChecklist = safeGetItem(`residency_checklist_${userId}`);
           const savedCaderno = safeGetItem(`residency_caderno_${userId}`);
@@ -246,13 +286,14 @@ export default function App() {
 
           const parsedProfile = savedProfile ? JSON.parse(savedProfile) : null;
           setProfile(normalizeProfile(parsedProfile, clone(INITIAL_PROFILE)));
-          setModules(savedModules ? JSON.parse(savedModules) : clone(INITIAL_MODULES));
+          setModules(normalizeModules(savedModules ? JSON.parse(savedModules) : null));
           setFlashcards(savedFlashcards ? JSON.parse(savedFlashcards) : clone(INITIAL_FLASHCARDS));
           setAttempts(savedAttempts ? JSON.parse(savedAttempts) : []);
+          setQuestionExposures(savedExposures ? JSON.parse(savedExposures) : []);
           setQuestionsCount(savedQuestions ? Number(savedQuestions) : 0);
           setChecklist(savedChecklist ? JSON.parse(savedChecklist) : INITIAL_CHECKLIST);
           setCadernoErros(savedCaderno ? JSON.parse(savedCaderno) : []);
-          setRoadmap(savedRoadmap ? JSON.parse(savedRoadmap) : clone(DEFAULT_ROADMAP));
+          setRoadmap(normalizeRoadmap(savedRoadmap ? JSON.parse(savedRoadmap) : null));
         } catch (error) {
           console.error("Erro ao carregar dados do usuário:", error);
           setRemoteLoadFailed(true);
@@ -260,6 +301,7 @@ export default function App() {
           setModules(clone(INITIAL_MODULES));
           setFlashcards(clone(INITIAL_FLASHCARDS));
           setAttempts([]);
+          setQuestionExposures([]);
           setQuestionsCount(0);
           setChecklist(INITIAL_CHECKLIST);
           setCadernoErros([]);
@@ -273,6 +315,7 @@ export default function App() {
         setModules(clone(INITIAL_MODULES));
         setFlashcards(clone(INITIAL_FLASHCARDS));
         setAttempts([]);
+        setQuestionExposures([]);
         setQuestionsCount(0);
         setChecklist(INITIAL_CHECKLIST);
         setCadernoErros([]);
@@ -364,6 +407,14 @@ export default function App() {
 
   useEffect(() => {
     if (isLoggedIn && userId && isUserDataHydrated) {
+      safeSetItem(`residency_question_exposures_${userId}`, JSON.stringify(questionExposures));
+      const timer = setTimeout(() => syncToSupabase({ question_exposures: questionExposures }), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [questionExposures, userId, isLoggedIn, isUserDataHydrated, syncToSupabase]);
+
+  useEffect(() => {
+    if (isLoggedIn && userId && isUserDataHydrated) {
       safeSetItem(`residency_questions_count_${userId}`, String(questionsCount));
       const timer = setTimeout(() => syncToSupabase({ questions_count: questionsCount }), 2000);
       return () => clearTimeout(timer);
@@ -414,6 +465,7 @@ export default function App() {
     setModules(clone(INITIAL_MODULES));
     setFlashcards(clone(INITIAL_FLASHCARDS));
     setAttempts([]);
+    setQuestionExposures([]);
     setQuestionsCount(0);
     setChecklist(INITIAL_CHECKLIST);
     setCadernoErros([]);
@@ -461,6 +513,13 @@ export default function App() {
     setQuestionsCount((prev) => prev + count);
   };
 
+  const handleQuestionExposure = (exposure: QuestionExposure) => {
+    setQuestionExposures((previous) => {
+      if (previous.some((item) => item.id === exposure.id)) return previous;
+      return [exposure, ...previous].slice(0, 5000);
+    });
+  };
+
   const handleToggleLanguage = () => {
     const newLang: Language = language === "pt" ? "en" : "pt";
     setLanguage(newLang);
@@ -475,17 +534,8 @@ export default function App() {
     setFlashcards(prev => prev.filter(f => f.id !== id));
   };
 
-  const handleReviewFlashcard = (card: Flashcard, rating: "again" | "hard" | "easy") => {
-    const intervalDays = rating === "again" ? 1 : rating === "hard" ? 3 : 7;
-    const nextReview = new Date();
-    nextReview.setDate(nextReview.getDate() + intervalDays);
-    const reviewedCard: Flashcard = {
-      ...card,
-      nextReview: nextReview.toISOString().slice(0, 10),
-      intervalDays,
-      repetitions: (card.repetitions || 0) + 1,
-      easeFactor: card.easeFactor || 2.5,
-    };
+  const handleReviewFlashcard = (card: Flashcard, rating: ReviewRating) => {
+    const reviewedCard = scheduleFlashcardReview(card, rating);
 
     setFlashcards(prev => {
       const exists = prev.some(f => f.id === card.id);
@@ -540,6 +590,8 @@ export default function App() {
             onAddAttempt={handleAddExamAttempt}
             cadernoErros={cadernoErros}
             setCadernoErros={setCadernoErros}
+            questionExposures={questionExposures}
+            onQuestionExposure={handleQuestionExposure}
           />
         );
       case "flashcards":

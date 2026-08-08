@@ -60,40 +60,40 @@ export const MOCK_SCHEDULE = [
 export const INITIAL_MODULES: StudyModule[] = [
   {
     id: "mod-basicos",
-    title: "Conhecimentos Básicos - Português e Informática",
-    titleEn: "Basic Knowledge - Portuguese & IT",
-    category: "Básicos Comuns",
-    categoryEn: "Common Basics",
-    description: "Tópicos de Língua Portuguesa (interpretação de texto, gramática e redação) e Informática básica (ferramentas de escritório e internet) exigidos no ENARE.",
-    descriptionEn: "Portuguese Language (text comprehension, grammar) and basic IT topics required for the common ENARE exam.",
+    title: "Competências Gerais - Equidade, Humanização e Segurança",
+    titleEn: "General Competencies - Equity, Humanization & Safety",
+    category: "Competências Gerais",
+    categoryEn: "General Competencies",
+    description: "Conteúdos gerais do Anexo III do Edital nº 04/2026: inclusão, educação permanente, humanização, vigilância, bioética, segurança do paciente, trabalho em equipe e NR-32.",
+    descriptionEn: "General content from Annex III of Notice 04/2026: inclusion, permanent education, humanization, surveillance, bioethics, patient safety, teamwork, and NR-32.",
     iconName: "BookOpen",
     lessons: [
       {
         id: "les-bas-1",
-        title: "Língua Portuguesa: Interpretação de Texto e Coesão Textual",
-        titleEn: "Portuguese: Text Interpretation & Cohesion",
+        title: "Inclusão e cuidado de grupos vulnerabilizados",
+        titleEn: "Inclusion and care for vulnerable groups",
         duration: "30 min",
         completed: false,
-        content: "Estudo direcionado para a banca do ENARE. Técnicas de interpretação e compreensão de textos de saúde, análise de coesão referencial e sequencial, inferência de sentidos e identificação da ideia central do autor. Dicas de redação oficial e concordância.",
-        contentEn: "Targeted study for ENARE. Techniques for interpreting health-related texts, referential and sequential cohesion, inferring meaning, and finding key ideas."
+        content: "Revisão aplicada à assistência de crianças e adolescentes, pessoas idosas, população LGBTQIA+, pessoas com deficiência, pessoas em situação de rua, povos originários, população negra, comunidades quilombolas e demais minorias sociais. Treinar condutas que reduzam barreiras de acesso, discriminação e iatrogenias.",
+        contentEn: "Applied review of inclusive care, access barriers, discrimination prevention, and safer decisions for vulnerable populations."
       },
       {
         id: "les-bas-2",
-        title: "Gramática Aplicada: Ortografia, Regência e Crase",
-        titleEn: "Grammar: Spelling, Verb Regimen & Crase",
+        title: "Educação permanente, humanização e trabalho em equipe",
+        titleEn: "Permanent education, humanization & teamwork",
         duration: "35 min",
         completed: false,
-        content: "Revisão dos pontos mais cobrados nas provas objetivas de enfermagem: emprego da crase, concordância verbal e nominal, regência verbal e nominal, e colocação pronominal. Questões comentadas de concursos recentes.",
-        contentEn: "Review of most tested grammar points in nursing exams: use of 'crase', agreement rules, verb and noun regimen."
+        content: "Política Nacional de Educação Permanente em Saúde, Política Nacional de Humanização e trabalho em equipe multidisciplinar. Praticar situações de acolhimento, comunicação, corresponsabilização, aprendizagem no trabalho e decisão compartilhada.",
+        contentEn: "Permanent Health Education, the National Humanization Policy, multidisciplinary teamwork, communication, shared decisions, and workplace learning."
       },
       {
         id: "les-bas-3",
-        title: "Noções de Informática: Ferramentas de Escritório e Redes",
-        titleEn: "IT Basics: Office Tools & Networking",
+        title: "Vigilância, bioética, segurança do paciente e NR-32",
+        titleEn: "Surveillance, bioethics, patient safety & NR-32",
         duration: "25 min",
         completed: false,
-        content: "Noções básicas de informática cobradas no edital: navegação segura na internet, conceitos de computação em nuvem, segurança da informação (senhas, malwares, antivírus) e principais atalhos e ferramentas de escritório (Word, Excel e correio eletrônico).",
-        contentEn: "Basic IT concepts for exams: secure browsing, cloud concepts, security basics, and essential office suite tools."
+        content: "Política Nacional de Vigilância em Saúde, fundamentos de bioética, Programa Nacional de Segurança do Paciente e NR-32. Relacionar riscos ocupacionais e assistenciais a medidas concretas de prevenção, notificação e cultura de segurança.",
+        contentEn: "Health surveillance, bioethics, the National Patient Safety Program, NR-32, risk prevention, reporting, and safety culture."
       }
     ]
   },

@@ -24,8 +24,12 @@ export default function Performance({ language, attempts = [] }: PerformanceProp
   const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
   const t = translations[language];
 
-  // The chart reflects the six most recent simulations, not calendar months.
-  const recentAttempts = attempts.slice(-6);
+  const validBenchmarkAttempts = attempts.filter((attempt) => attempt.validForBenchmark === true);
+  const timedTrainingAttempts = attempts.filter((attempt) => attempt.mode !== "study" && attempt.validForBenchmark !== true);
+  const trendSource = validBenchmarkAttempts.length > 0 ? validBenchmarkAttempts : timedTrainingAttempts;
+
+  // The chart reflects the six most recent comparable results, not calendar months.
+  const recentAttempts = [...trendSource.slice(0, 6)].reverse();
   const monthsPt = recentAttempts.map(attempt => {
     const parsed = new Date(`${attempt.date}T00:00:00`);
     return Number.isNaN(parsed.getTime()) ? "—" : parsed.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }).replace(".", "");
@@ -69,10 +73,13 @@ export default function Performance({ language, attempts = [] }: PerformanceProp
     BookOpen
   };
 
-  // Compute dynamic average score across mock exam attempts
-  const avgScore = attempts && attempts.length > 0 
+  // General precision may mix learning sessions; the benchmark KPI never does.
+  const avgScore = attempts.length > 0
     ? Math.round(attempts.reduce((acc, curr) => acc + curr.score, 0) / attempts.length)
     : 0;
+  const benchmarkAvg = validBenchmarkAttempts.length > 0
+    ? Math.round(validBenchmarkAttempts.reduce((acc, curr) => acc + curr.score, 0) / validBenchmarkAttempts.length)
+    : null;
 
   const totalSimulationSeconds = attempts.reduce((total, attempt) => {
     const [minutes, seconds] = (attempt.timeSpent || "0:0").split(":").map(Number);
@@ -131,9 +138,10 @@ export default function Performance({ language, attempts = [] }: PerformanceProp
           </div>
           <div>
             <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider block">
-              {t.mockExamAvg}
+              Benchmark ENARE válido
             </span>
-            <span className="text-3xl font-black text-slate-900 dark:text-slate-100">{avgScore}%</span>
+            <span className="text-3xl font-black text-slate-900 dark:text-slate-100">{benchmarkAvg === null ? "—" : `${benchmarkAvg}%`}</span>
+            {benchmarkAvg === null && <span className="mt-1 block text-[10px] text-slate-400">Sem prova inédita completa</span>}
           </div>
         </div>
 
@@ -147,7 +155,9 @@ export default function Performance({ language, attempts = [] }: PerformanceProp
               {t.performanceTrend}
             </h3>
             <p className="text-[11px] text-slate-400 dark:text-slate-500">
-              Média percentual obtida nos simulados mensais para o concurso.
+              {validBenchmarkAttempts.length > 0
+                ? "Somente provas completas, inéditas e compatíveis com o blueprint."
+                : "Treinos cronometrados; ainda não há benchmark válido para comparação."}
             </p>
           </div>
 

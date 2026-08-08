@@ -2,6 +2,52 @@ export type Language = "pt" | "en";
 
 export type Tab = "dashboard" | "modules" | "exams" | "flashcards" | "performance" | "settings" | "ai-study" | "roadmap";
 
+export type ExamMode = "study" | "practice" | "benchmark";
+export type QuestionCognitiveType = "factual" | "protocol" | "clinical_reasoning";
+export type QuestionPool = "study" | "assessment" | "calibration";
+export type QuestionScope = "general" | "specific";
+export type ReviewRating = "again" | "hard" | "good" | "easy";
+
+export interface ClinicalCaseData {
+  setting?: string;
+  ageGroup?: string;
+  presentingProblem?: string;
+  history?: string;
+  physicalExam?: string;
+  vitals?: Record<string, string>;
+  labs?: Record<string, string>;
+  timeline?: string[];
+}
+
+export interface ExamBlueprint {
+  id: string;
+  name: string;
+  board: string;
+  cycle: string;
+  questionCount: number;
+  durationMinutes: number;
+  optionsPerQuestion: number;
+  generalQuestionCount: number;
+  specificQuestionCount: number;
+  minimumPassingPercentage: number;
+  allowBackNavigation: boolean;
+  allowPause: boolean;
+  feedbackPolicy: "immediate" | "after_submission";
+  sourceUrl: string;
+}
+
+export interface QuestionExposure {
+  id: string;
+  questionId: string;
+  shownAt: string;
+  mode: ExamMode | "daily" | "errors";
+  attemptId?: string;
+  correct?: boolean;
+  responseMs?: number;
+  confidence?: 1 | 2 | 3;
+  seenExternally?: boolean;
+}
+
 export interface RoadmapTask {
   id: string;
   title: string;
@@ -33,6 +79,15 @@ export interface CadernoErroItem {
   explanation: string;
   category: string;
   dateAdded: string;
+  nextReview?: string;
+  intervalDays?: number;
+  repetitions?: number;
+  easeFactor?: number;
+  lapses?: number;
+  lastQuality?: number;
+  lastReviewedAt?: string;
+  cognitiveType?: QuestionCognitiveType;
+  criticality?: 1 | 2 | 3;
 }
 
 export interface UserProfile {
@@ -89,6 +144,21 @@ export interface ExamQuestion {
   categoryEn?: string;
   examSource?: string;
   examSourceEn?: string;
+  leadIn?: string;
+  cognitiveType?: QuestionCognitiveType;
+  criticality?: 1 | 2 | 3;
+  competencyId?: string;
+  pool?: QuestionPool;
+  scope?: QuestionScope;
+  authoredDifficulty?: 1 | 2 | 3;
+  familyId?: string;
+  contentVersion?: string;
+  sourceReviewDueAt?: string;
+  clinicalCase?: ClinicalCaseData;
+  reasoningSteps?: string[];
+  pivotalCues?: string[];
+  distractorExplanations?: string[];
+  contentStatus?: "draft" | "reviewed" | "published";
 }
 
 export interface ExamAttempt {
@@ -100,6 +170,13 @@ export interface ExamAttempt {
   timeSpent: string;
   questions?: ExamQuestion[];
   selectedAnswers?: Record<number, number>;
+  responseTimesMs?: Record<number, number>;
+  confidenceByQuestion?: Record<number, 1 | 2 | 3>;
+  mode?: ExamMode;
+  blueprintId?: string;
+  noveltyRate?: number;
+  validForBenchmark?: boolean;
+  feedbackDeferred?: boolean;
 }
 
 export interface Flashcard {
@@ -118,6 +195,11 @@ export interface Flashcard {
   intervalDays?: number;
   repetitions?: number;
   easeFactor?: number;
+  lapses?: number;
+  lastQuality?: number;
+  lastReviewedAt?: string;
+  cognitiveType?: QuestionCognitiveType;
+  criticality?: 1 | 2 | 3;
 }
 
 export interface TranslationDict {

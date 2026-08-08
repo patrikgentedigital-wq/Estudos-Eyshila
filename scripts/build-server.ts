@@ -6,7 +6,7 @@ const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 
 await build({
   absWorkingDir: projectRoot,
-  entryPoints: ["server.ts"],
+  entryPoints: ["./server.ts"],
   resolveExtensions: [".ts", ".tsx", ".js"],
   tsconfigRaw: {
     compilerOptions: {
@@ -21,5 +21,5 @@ await build({
   format: "cjs",
   packages: "external",
   sourcemap: true,
-  outfile: path.join("dist", "server.cjs"),
+  outfile: path.join(projectRoot, "dist", "server.cjs"),
 });

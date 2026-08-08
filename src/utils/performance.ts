@@ -1,184 +1,151 @@
-import { ExamAttempt, StudyModule } from "../types";
+import { MOCK_QUESTIONS } from "../data";
+import { ExamAttempt, ExamQuestion, StudyModule } from "../types";
+import {
+  StudyPlanRecommendation,
+  buildNextStudyPlan,
+  calculateTopicPerformance,
+} from "./studyEngine";
 
 export interface CalculatedSubject {
   id: string;
   name: string;
   percent: number;
+  questionsAnswered: number;
   iconName: string;
   color: string;
   moduleId: string;
 }
 
+interface SubjectDefinition extends Omit<CalculatedSubject, "percent" | "questionsAnswered"> {
+  matcher: RegExp;
+}
+
+const SUBJECTS: SubjectDefinition[] = [
+  {
+    id: "procedimentos",
+    name: "Procedimentos Clínicos / Farmacologia",
+    iconName: "Compass",
+    color: "text-sky-500 bg-sky-500/10",
+    moduleId: "mod-procedimentos",
+    matcher: /procedimento|farmacologia|prática clínica|dose|gotejamento/i,
+  },
+  {
+    id: "etica",
+    name: "Ética e Legislação COFEN",
+    iconName: "ShieldCheck",
+    color: "text-amber-500 bg-amber-500/10",
+    moduleId: "mod-etica",
+    matcher: /ética|cofen|processo de enfermagem/i,
+  },
+  {
+    id: "sus",
+    name: "Legislação do SUS / Saúde Coletiva",
+    iconName: "BookOpen",
+    color: "text-teal-500 bg-teal-500/10",
+    moduleId: "mod-sus",
+    matcher: /sus|legislação|saúde coletiva|política de saúde/i,
+  },
+  {
+    id: "mulher_crianca",
+    name: "Saúde da Mulher e da Criança",
+    iconName: "Baby",
+    color: "text-sky-500 bg-sky-500/10",
+    moduleId: "mod-ciclos",
+    matcher: /mulher|criança|gestante|pediatria|ciclos de vida|imunização/i,
+  },
+  {
+    id: "neuro",
+    name: "Avaliação Neurológica (AVC)",
+    iconName: "Brain",
+    color: "text-purple-500 bg-purple-500/10",
+    moduleId: "mod-urgencia",
+    matcher: /neurol|avc|glasgow/i,
+  },
+  {
+    id: "urgencia",
+    name: "Urgência e UTI / Alta Complexidade",
+    iconName: "Heart",
+    color: "text-rose-500 bg-rose-500/10",
+    moduleId: "mod-urgencia",
+    matcher: /urgência|emergência|uti|trauma|choque|acls|pcr/i,
+  },
+];
+
+function getSubjectDefinition(question: ExamQuestion): SubjectDefinition | undefined {
+  const searchable = `${question.category} ${question.competencyId || ""} ${question.question}`;
+  return SUBJECTS.find((subject) => subject.matcher.test(searchable));
+}
+
 export function getSubjectScores(attempts: ExamAttempt[] = []): CalculatedSubject[] {
-  // Baselines should be 0 for new accounts
-  let urgencia = 0;
-  let mulherCrianca = 0;
-  let etica = 0;
-  let neuro = 0;
-  let procedimentos = 0;
-  let sus = 0;
+  const totals = new Map(SUBJECTS.map((subject) => [subject.id, { correct: 0, total: 0 }]));
 
-  // Track attempts per subject
-  const urgenciaAttempts = attempts.filter(a => 
-    a.examName.toLowerCase().includes("trauma") || 
-    a.examName.toLowerCase().includes("urgência") || 
-    a.examName.toLowerCase().includes("acls") || 
-    a.examName.toLowerCase().includes("choque")
-  );
-  if (urgenciaAttempts.length > 0) {
-    const sum = urgenciaAttempts.reduce((acc, curr) => acc + curr.score, 0);
-    urgencia = Math.round(sum / urgenciaAttempts.length);
-  }
+  attempts.forEach((attempt) => {
+    (attempt.questions || []).forEach((question, index) => {
+      const selectedAnswer = attempt.selectedAnswers?.[index];
+      if (selectedAnswer === undefined) return;
+      const subject = getSubjectDefinition(question);
+      if (!subject) return;
+      const aggregate = totals.get(subject.id);
+      if (!aggregate) return;
+      aggregate.total += 1;
+      if (selectedAnswer === question.correctIndex) aggregate.correct += 1;
+    });
+  });
 
-  const mulherCriancaAttempts = attempts.filter(a => 
-    a.examName.toLowerCase().includes("mulher") || 
-    a.examName.toLowerCase().includes("criança") || 
-    a.examName.toLowerCase().includes("gestante")
-  );
-  if (mulherCriancaAttempts.length > 0) {
-    const sum = mulherCriancaAttempts.reduce((acc, curr) => acc + curr.score, 0);
-    mulherCrianca = Math.round(sum / mulherCriancaAttempts.length);
-  }
-
-  const eticaAttempts = attempts.filter(a => 
-    a.examName.toLowerCase().includes("ética") || 
-    a.examName.toLowerCase().includes("cofen")
-  );
-  if (eticaAttempts.length > 0) {
-    const sum = eticaAttempts.reduce((acc, curr) => acc + curr.score, 0);
-    etica = Math.round(sum / eticaAttempts.length);
-  }
-
-  const neuroAttempts = attempts.filter(a => 
-    a.examName.toLowerCase().includes("neurológica") || 
-    a.examName.toLowerCase().includes("avc") || 
-    a.examName.toLowerCase().includes("glasgow")
-  );
-  if (neuroAttempts.length > 0) {
-    const sum = neuroAttempts.reduce((acc, curr) => acc + curr.score, 0);
-    neuro = Math.round(sum / neuroAttempts.length);
-  }
-
-  const procedimentosAttempts = attempts.filter(a => 
-    a.examName.toLowerCase().includes("procedimentos") || 
-    a.examName.toLowerCase().includes("farmacologia") || 
-    a.examName.toLowerCase().includes("clínica")
-  );
-  if (procedimentosAttempts.length > 0) {
-    const sum = procedimentosAttempts.reduce((acc, curr) => acc + curr.score, 0);
-    procedimentos = Math.round(sum / procedimentosAttempts.length);
-  }
-
-  const susAttempts = attempts.filter(a => 
-    a.examName.toLowerCase().includes("sus") || 
-    a.examName.toLowerCase().includes("legislação")
-  );
-  if (susAttempts.length > 0) {
-    const sum = susAttempts.reduce((acc, curr) => acc + curr.score, 0);
-    sus = Math.round(sum / susAttempts.length);
-  }
-
-  return [
-    { 
-      id: "procedimentos", 
-      name: "Procedimentos Clínicos / Farmacologia", 
-      percent: procedimentos, 
-      iconName: "Compass", 
-      color: "text-sky-500 bg-sky-500/10", 
-      moduleId: "mod-procedimentos" 
-    },
-    { 
-      id: "etica", 
-      name: "Ética e Legislação COFEN", 
-      percent: etica, 
-      iconName: "ShieldCheck", 
-      color: "text-amber-500 bg-amber-500/10", 
-      moduleId: "mod-etica" 
-    },
-    { 
-      id: "sus", 
-      name: "Legislação do SUS / Saúde Coletiva", 
-      percent: sus, 
-      iconName: "BookOpen", 
-      color: "text-teal-500 bg-teal-500/10", 
-      moduleId: "mod-sus" 
-    },
-    { 
-      id: "mulher_crianca", 
-      name: "Saúde da Mulher e da Criança", 
-      percent: mulherCrianca, 
-      iconName: "Baby", 
-      color: "text-sky-500 bg-sky-500/10", 
-      moduleId: "mod-ciclos" 
-    },
-    { 
-      id: "neuro", 
-      name: "Avaliação Neurológica (AVC)", 
-      percent: neuro, 
-      iconName: "Brain", 
-      color: "text-purple-500 bg-purple-500/10", 
-      moduleId: "mod-urgencia" 
-    },
-    { 
-      id: "urgencia", 
-      name: "Urgência e UTI / Alta Complexidade", 
-      percent: urgencia, 
-      iconName: "Heart", 
-      color: "text-rose-500 bg-rose-500/10", 
-      moduleId: "mod-urgencia" 
-    }
-  ];
+  return SUBJECTS.map(({ matcher: _matcher, ...subject }) => {
+    const aggregate = totals.get(subject.id) || { correct: 0, total: 0 };
+    return {
+      ...subject,
+      questionsAnswered: aggregate.total,
+      percent: aggregate.total > 0 ? Math.round((aggregate.correct / aggregate.total) * 100) : 0,
+    };
+  });
 }
 
 export interface Recommendation {
   subject: CalculatedSubject;
   recommendedModule: StudyModule;
   reason: string;
+  studyPlan: StudyPlanRecommendation;
 }
 
-export function getStudyRecommendation(attempts: ExamAttempt[] = [], modules: StudyModule[] = []): Recommendation | null {
-  if (modules.length === 0 || attempts.length === 0) return null;
+function moduleForTopic(topicName: string, modules: StudyModule[]): StudyModule {
+  const subject = SUBJECTS.find((candidate) => candidate.matcher.test(topicName));
+  return modules.find((module) => module.id === subject?.moduleId)
+    || modules.find((module) => new RegExp(module.category, "i").test(topicName))
+    || modules[0];
+}
 
-  const subjects = getSubjectScores(attempts);
-  
-  // Sort subjects by score ascending (lowest score first)
-  const sortedSubjects = [...subjects].sort((a, b) => a.percent - b.percent);
-  
-  // Weakest subject
-  const weakestSubject = sortedSubjects[0];
-  
-  // Find matching module
-  const recommendedModule = modules.find(m => m.id === weakestSubject.moduleId) || modules[0];
+export function getStudyRecommendation(
+  attempts: ExamAttempt[] = [],
+  modules: StudyModule[] = [],
+): Recommendation | null {
+  if (modules.length === 0) return null;
 
-  // Dynamic explanations based on the weakest topic
-  let reason = "";
+  const prioritizedTopics = calculateTopicPerformance(attempts, MOCK_QUESTIONS);
+  const studyPlan = buildNextStudyPlan(prioritizedTopics[0]);
+  if (!studyPlan) return null;
 
-  switch (weakestSubject.id) {
-    case "procedimentos":
-      reason = "Seu desempenho em procedimentos clínicos e farmacologia é a sua área mais vulnerável atualmente. Recomendamos revisar técnicas de exame físico, sondagens e cálculo de dosagem de medicamentos.";
-      break;
-    case "etica":
-      reason = "O Código de Ética (COFEN 564) e as penalidades administrativas têm peso relevante na prova. Recomendamos reforçar seus direitos, deveres e proibições profissionais.";
-      break;
-    case "sus":
-      reason = "As leis orgânicas do SUS (8.080 e 8.142) e a participação social apresentam margem para melhoria. Foque em controle social e competências federativas.";
-      break;
-    case "mulher_crianca":
-      reason = "A saúde materno-infantil e o calendário do PNI são cobrados de forma detalhada no ENARE. Revise a Regra de Naegele e as vacinas do primeiro ano de vida.";
-      break;
-    case "neuro":
-      reason = "Avaliação neurológica e atendimento ao AVC agudo exigem exatidão no tempo de resposta e protocolos. Foque no mnemônico SAMU e Escala de Glasgow-P.";
-      break;
-    case "urgencia":
-      reason = "O suporte avançado à vida (ACLS/PALS) e o atendimento ao trauma (XABCDE) são vitais para a sua aprovação. Revise ritmos chocáveis e controle de hemorragias.";
-      break;
-    default:
-      reason = "Com base no seu histórico de erros, este módulo reforçará os tópicos de maior peso da ementa de residência do ENARE.";
-  }
+  const recommendedModule = moduleForTopic(studyPlan.topic.name, modules);
+  const subject = getSubjectScores(attempts).find((item) => item.moduleId === recommendedModule.id)
+    || {
+      id: studyPlan.topic.id,
+      name: studyPlan.topic.name,
+      percent: studyPlan.topic.accuracy ?? 0,
+      questionsAnswered: studyPlan.topic.attempts,
+      iconName: "BookOpen",
+      color: "text-sky-500 bg-sky-500/10",
+      moduleId: recommendedModule.id,
+    };
+
+  const action = `${studyPlan.questionCount} questões`
+    + (studyPlan.vignetteCount > 0 ? `, ${studyPlan.vignetteCount} caso(s) clínico(s)` : "")
+    + (studyPlan.flashcardCount > 0 ? ` e ${studyPlan.flashcardCount} flashcards` : "");
 
   return {
-    subject: weakestSubject,
+    subject,
     recommendedModule,
-    reason
+    studyPlan,
+    reason: `${studyPlan.reason} Próxima sessão: ${action}, em aproximadamente ${studyPlan.estimatedMinutes} minutos.`,
   };
 }

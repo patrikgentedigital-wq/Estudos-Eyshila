@@ -1,116 +1,159 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from "react";
+
+const clampRate = (value: number) => Math.min(2, Math.max(0.5, Number.isFinite(value) ? value : 1));
 
 export const useTTS = () => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [supported, setSupported] = useState(false);
-  const [rate, setRate] = useState<number>(1.0);
-  const [progressPercent, setProgressPercent] = useState<number>(0);
-  
+  const [rate, setRateState] = useState(1);
+  const [progressPercent, setProgressPercent] = useState(0);
+
   const currentChunksRef = useRef<string[]>([]);
-  const currentChunkIndexRef = useRef<number>(0);
+  const currentChunkIndexRef = useRef(0);
+  const playbackGenerationRef = useRef(0);
+  const rateRef = useRef(1);
+  const activeRef = useRef(false);
+  const pausedRef = useRef(false);
+  const restartOnResumeRef = useRef(false);
 
   useEffect(() => {
-    if ('speechSynthesis' in window) {
-      setSupported(true);
-    }
+    setSupported("speechSynthesis" in window && "SpeechSynthesisUtterance" in window);
   }, []);
 
-  const stop = useCallback(() => {
-    if (!supported) return;
-    window.speechSynthesis.cancel();
-    currentChunksRef.current = [];
-    currentChunkIndexRef.current = 0;
-    setIsSpeaking(false);
-    setIsPaused(false);
-    setProgressPercent(0);
-  }, [supported]);
-
-  const speakNextChunk = useCallback((playbackRate: number = 1.0) => {
+  const speakNextChunk = useCallback((generation: number) => {
+    if (generation !== playbackGenerationRef.current) return;
     const chunks = currentChunksRef.current;
     const index = currentChunkIndexRef.current;
 
     if (index >= chunks.length) {
+      activeRef.current = false;
+      pausedRef.current = false;
       setIsSpeaking(false);
       setIsPaused(false);
       setProgressPercent(100);
       return;
     }
 
-    const chunkText = chunks[index];
-    const utterance = new SpeechSynthesisUtterance(chunkText);
-    utterance.lang = 'pt-BR';
-    utterance.rate = playbackRate;
+    const utterance = new SpeechSynthesisUtterance(chunks[index]);
+    utterance.lang = "pt-BR";
+    utterance.rate = rateRef.current;
 
     utterance.onstart = () => {
+      if (generation !== playbackGenerationRef.current) return;
+      activeRef.current = true;
+      pausedRef.current = false;
       setIsSpeaking(true);
       setIsPaused(false);
-      const prog = Math.round(((index + 1) / chunks.length) * 100);
-      setProgressPercent(prog);
+      setProgressPercent(Math.round((index / chunks.length) * 100));
     };
 
     utterance.onend = () => {
+      if (generation !== playbackGenerationRef.current) return;
       currentChunkIndexRef.current += 1;
-      speakNextChunk(playbackRate);
+      setProgressPercent(Math.round((currentChunkIndexRef.current / chunks.length) * 100));
+      speakNextChunk(generation);
     };
 
-    utterance.onerror = (e) => {
-      console.warn("TTS Chunk Error:", e);
+    utterance.onerror = (event) => {
+      if (generation !== playbackGenerationRef.current) return;
+      if (event.error === "canceled" || event.error === "interrupted") return;
+      console.warn("TTS chunk error:", event.error);
       currentChunkIndexRef.current += 1;
-      speakNextChunk(playbackRate);
+      speakNextChunk(generation);
     };
 
     window.speechSynthesis.speak(utterance);
   }, []);
 
-  const speak = useCallback((text: string, customRate: number = 1.0) => {
-    if (!supported) return;
-
+  const stop = useCallback(() => {
+    if (!("speechSynthesis" in window)) return;
+    playbackGenerationRef.current += 1;
     window.speechSynthesis.cancel();
-    
-    // Clean text from Markdown formatting
-    const cleanText = text
-      .replace(/[#*`_]/g, '')
-      .replace(/\[.*?\]\(.*?\)/g, '')
-      .trim();
+    currentChunksRef.current = [];
+    currentChunkIndexRef.current = 0;
+    activeRef.current = false;
+    pausedRef.current = false;
+    restartOnResumeRef.current = false;
+    setIsSpeaking(false);
+    setIsPaused(false);
+    setProgressPercent(0);
+  }, []);
 
+  const speak = useCallback((text: string, customRate: number = rateRef.current) => {
+    if (!("speechSynthesis" in window)) return;
+
+    const cleanText = text
+      .replace(/[#*`_]/g, "")
+      .replace(/\[.*?\]\(.*?\)/g, "")
+      .trim();
     if (!cleanText) return;
 
-    // Split text into chunks by punctuation to prevent Chrome cutoff on long PDFs
     const sentenceChunks = cleanText
       .split(/(?<=[.!?;\n])\s+/)
-      .map(s => s.trim())
-      .filter(s => s.length > 0);
+      .flatMap((sentence) => sentence.match(/.{1,240}(?:\s|$)/g) || [sentence])
+      .map((sentence) => sentence.trim())
+      .filter(Boolean);
 
+    const normalizedRate = clampRate(customRate);
+    rateRef.current = normalizedRate;
+    setRateState(normalizedRate);
     currentChunksRef.current = sentenceChunks;
     currentChunkIndexRef.current = 0;
-    setRate(customRate);
+    activeRef.current = true;
+    pausedRef.current = false;
+    restartOnResumeRef.current = false;
+    setProgressPercent(0);
 
-    speakNextChunk(customRate);
-  }, [supported, speakNextChunk]);
+    const generation = playbackGenerationRef.current + 1;
+    playbackGenerationRef.current = generation;
+    window.speechSynthesis.cancel();
+    window.setTimeout(() => speakNextChunk(generation), 0);
+  }, [speakNextChunk]);
+
+  const setRate = useCallback((nextRate: number) => {
+    const normalizedRate = clampRate(nextRate);
+    rateRef.current = normalizedRate;
+    setRateState(normalizedRate);
+
+    if (!activeRef.current || !("speechSynthesis" in window)) return;
+    const generation = playbackGenerationRef.current + 1;
+    playbackGenerationRef.current = generation;
+    window.speechSynthesis.cancel();
+
+    if (pausedRef.current) {
+      restartOnResumeRef.current = true;
+      return;
+    }
+    window.setTimeout(() => speakNextChunk(generation), 0);
+  }, [speakNextChunk]);
 
   const pause = useCallback(() => {
-    if (!supported) return;
+    if (!activeRef.current || !("speechSynthesis" in window)) return;
     window.speechSynthesis.pause();
+    pausedRef.current = true;
     setIsPaused(true);
     setIsSpeaking(false);
-  }, [supported]);
+  }, []);
 
   const resume = useCallback(() => {
-    if (!supported) return;
-    window.speechSynthesis.resume();
+    if (!activeRef.current || !("speechSynthesis" in window)) return;
+    pausedRef.current = false;
     setIsPaused(false);
     setIsSpeaking(true);
-  }, [supported]);
+    if (restartOnResumeRef.current) {
+      restartOnResumeRef.current = false;
+      const generation = playbackGenerationRef.current;
+      window.setTimeout(() => speakNextChunk(generation), 0);
+      return;
+    }
+    window.speechSynthesis.resume();
+  }, [speakNextChunk]);
 
-  // Clean up on unmount
-  useEffect(() => {
-    return () => {
-      if (supported) {
-        window.speechSynthesis.cancel();
-      }
-    };
-  }, [supported]);
+  useEffect(() => () => {
+    playbackGenerationRef.current += 1;
+    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+  }, []);
 
   return {
     speak,
@@ -122,6 +165,6 @@ export const useTTS = () => {
     supported,
     rate,
     setRate,
-    progressPercent
+    progressPercent,
   };
 };

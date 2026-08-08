@@ -17,7 +17,7 @@ import {
   Trash2,
   X
 } from "lucide-react";
-import { Flashcard, Language, TranslationDict } from "../types";
+import { Flashcard, Language, ReviewRating, TranslationDict } from "../types";
 import { OFFICIAL_FLASHCARDS } from "../data/officialFlashcards";
 import { useTTS } from "../hooks/useTTS";
 
@@ -27,7 +27,7 @@ interface FlashcardsProps {
   t: TranslationDict;
   onAddFlashcard?: (newCard: Flashcard) => void;
   onDeleteFlashcard?: (id: string) => void;
-  onReviewFlashcard?: (card: Flashcard, rating: "again" | "hard" | "easy") => void;
+  onReviewFlashcard?: (card: Flashcard, rating: ReviewRating) => void;
 }
 
 const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, language, t, onAddFlashcard, onDeleteFlashcard, onReviewFlashcard }) => {
@@ -71,8 +71,8 @@ const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, language, t, onAddF
       <div className="space-y-6">
         <div className="flex border-b border-slate-100 dark:border-slate-800 pb-px space-x-6 text-sm font-semibold">
           <button onClick={() => setFilter("all")} className={`pb-3 transition-all border-b-2 ${filter === "all" ? "border-sky-500 text-sky-600 dark:text-sky-400" : "border-transparent text-slate-400 hover:text-slate-600"}`}>Todos os Flashcards</button>
-          <button onClick={() => setFilter("official")} className={`pb-3 transition-all border-b-2 ${filter === "official" ? "border-sky-500 text-sky-600 dark:text-sky-400" : "border-transparent text-slate-400 hover:text-slate-600"}`}>Oficiais ENARE</button>
-          <button onClick={() => setFilter("my_cards")} className={`pb-3 transition-all border-b-2 ${filter === "my_cards" ? "border-sky-500 text-sky-600 dark:text-sky-400" : "border-transparent text-slate-400 hover:text-slate-600"}`}>Meus Flashcards (IA)</button>
+          <button onClick={() => setFilter("official")} className={`pb-3 transition-all border-b-2 ${filter === "official" ? "border-sky-500 text-sky-600 dark:text-sky-400" : "border-transparent text-slate-400 hover:text-slate-600"}`}>Banco de referência</button>
+          <button onClick={() => setFilter("my_cards")} className={`pb-3 transition-all border-b-2 ${filter === "my_cards" ? "border-sky-500 text-sky-600 dark:text-sky-400" : "border-transparent text-slate-400 hover:text-slate-600"}`}>Meus cartões</button>
         </div>
         <div className="text-center py-12 text-slate-400">Nenhum flashcard disponível neste filtro.</div>
       </div>
@@ -116,7 +116,7 @@ const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, language, t, onAddF
         
         <div className="flex border-b border-slate-100 dark:border-slate-800 pb-px space-x-6 text-sm font-semibold mb-6">
           <button onClick={() => setFilter("all")} className={`pb-3 transition-all border-b-2 ${filter === "all" ? "border-sky-500 text-sky-600 dark:text-sky-400" : "border-transparent text-slate-400 hover:text-slate-600"}`}>Meus Flashcards</button>
-          <button onClick={() => setFilter("official")} className={`pb-3 transition-all border-b-2 ${filter === "official" ? "border-sky-500 text-sky-600 dark:text-sky-400" : "border-transparent text-slate-400 hover:text-slate-600"}`}>Flashcards Oficiais (ENARE)</button>
+          <button onClick={() => setFilter("official")} className={`pb-3 transition-all border-b-2 ${filter === "official" ? "border-sky-500 text-sky-600 dark:text-sky-400" : "border-transparent text-slate-400 hover:text-slate-600"}`}>Banco de referência</button>
         </div>
 
         <div className="text-center py-12 text-slate-400">Nenhum flashcard encontrado.</div>
@@ -162,7 +162,7 @@ const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, language, t, onAddF
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-px text-sm font-semibold">
           <div className="flex space-x-6">
             <button onClick={() => setFilter("all")} className={`pb-3 transition-all border-b-2 ${filter === "all" ? "border-sky-500 text-sky-600 dark:text-sky-400" : "border-transparent text-slate-400 hover:text-slate-600"}`}>Todos os Flashcards</button>
-            <button onClick={() => setFilter("official")} className={`pb-3 transition-all border-b-2 ${filter === "official" ? "border-sky-500 text-sky-600 dark:text-sky-400" : "border-transparent text-slate-400 hover:text-slate-600"}`}>Oficiais ENARE</button>
+            <button onClick={() => setFilter("official")} className={`pb-3 transition-all border-b-2 ${filter === "official" ? "border-sky-500 text-sky-600 dark:text-sky-400" : "border-transparent text-slate-400 hover:text-slate-600"}`}>Banco de referência</button>
             <button onClick={() => setFilter("my_cards")} className={`pb-3 transition-all border-b-2 ${filter === "my_cards" ? "border-sky-500 text-sky-600 dark:text-sky-400" : "border-transparent text-slate-400 hover:text-slate-600"}`}>Meus Flashcards</button>
           </div>
 
@@ -286,7 +286,7 @@ const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, language, t, onAddF
               {currentIndex + 1} / {reviewDeck.length}
             </span>
             {isFlipped ? (
-              <div className="flex w-full items-center justify-center gap-2 animate-fade-in">
+              <div className="grid w-full grid-cols-2 sm:grid-cols-4 gap-2 animate-fade-in">
                 <button
                   onClick={() => {
                     onReviewFlashcard?.(currentCard, "again");
@@ -295,7 +295,7 @@ const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, language, t, onAddF
                   className="flex-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30 py-3 rounded-2xl font-bold text-xs transition-all active:scale-95 flex flex-col items-center"
                 >
                   <span>Errei</span>
-                  <span className="text-[9px] opacity-75">Revisar amanhã (1d)</span>
+                  <span className="text-[9px] opacity-75">Reiniciar intervalo</span>
                 </button>
                 <button
                   onClick={() => {
@@ -305,7 +305,17 @@ const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, language, t, onAddF
                   className="flex-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 py-3 rounded-2xl font-bold text-xs transition-all active:scale-95 flex flex-col items-center"
                 >
                   <span>Difícil</span>
-                  <span className="text-[9px] opacity-75">Revisar em 3d</span>
+                  <span className="text-[9px] opacity-75">Lembrei com esforço</span>
+                </button>
+                <button
+                  onClick={() => {
+                    onReviewFlashcard?.(currentCard, "good");
+                    handleNext();
+                  }}
+                  className="flex-1 bg-sky-500/10 hover:bg-sky-500/20 text-sky-600 dark:text-sky-400 border border-sky-500/30 py-3 rounded-2xl font-bold text-xs transition-all active:scale-95 flex flex-col items-center"
+                >
+                  <span>Bom</span>
+                  <span className="text-[9px] opacity-75">Lembrei corretamente</span>
                 </button>
                 <button
                   onClick={() => {
@@ -315,22 +325,14 @@ const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, language, t, onAddF
                   className="flex-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 py-3 rounded-2xl font-bold text-xs transition-all active:scale-95 flex flex-col items-center"
                 >
                   <span>Fácil</span>
-                  <span className="text-[9px] opacity-75">Dominado (7d)</span>
+                  <span className="text-[9px] opacity-75">Resposta imediata</span>
                 </button>
               </div>
             ) : (
               <div className="flex w-full items-center justify-center gap-3">
                 <button
-                  onClick={() => onReviewFlashcard?.(currentCard, "easy")}
-                  className="flex-1 max-w-[200px] flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-sm transition-all active:scale-95 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-emerald-500/50 hover:text-emerald-600"
-                >
-                  <Sparkles className="h-4 w-4" />
-                  {t.markMasteredBtn}
-                </button>
-                
-                <button
                   onClick={() => setIsFlipped(!isFlipped)}
-                  className="flex-1 max-w-[200px] bg-sky-600 hover:bg-sky-700 text-white py-3.5 rounded-2xl font-bold text-sm shadow-lg shadow-sky-600/25 transition-all active:scale-95"
+                  className="flex-1 max-w-[280px] bg-sky-600 hover:bg-sky-700 text-white py-3.5 rounded-2xl font-bold text-sm shadow-lg shadow-sky-600/25 transition-all active:scale-95"
                 >
                   {t.showAnswerBtn}
                 </button>
@@ -372,7 +374,7 @@ const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, language, t, onAddF
               Repetição Espaçada
             </h4>
             <p className="text-xs text-amber-700 dark:text-amber-500/80 mt-1">
-              Revise em intervalos crescentes e tente recuperar a resposta antes de virar o cartão; o aplicativo agenda as próximas revisões em 1, 3 ou 7 dias.
+              O intervalo é recalculado pelo desempenho, tipo de conteúdo e criticidade. Fatos e protocolos de alto risco voltam antes; casos clínicos usam intervalos maiores e variações do mesmo objetivo.
             </p>
           </div>
         </div>

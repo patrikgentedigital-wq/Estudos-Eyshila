@@ -12,8 +12,8 @@ export const REAL_EXAMS: RealExam[] = [
   {
     id: "enare-2023",
     year: 2023,
-    institution: "EBSERH / ENARE",
-    title: "Prova ENARE 2023 - Enfermeiro",
+    institution: "Banco interno - não oficial",
+    title: "Treino temático: Ética, SUS e Clínica",
     questions: [
       {
         id: "e23-q1",
@@ -86,8 +86,8 @@ export const REAL_EXAMS: RealExam[] = [
   {
     id: "enare-2022",
     year: 2022,
-    institution: "EBSERH / ENARE",
-    title: "Prova ENARE 2022 - Enfermeiro",
+    institution: "Banco interno - não oficial",
+    title: "Treino temático: Cálculos e Urgência",
     questions: [
       {
         id: "e22-q1",

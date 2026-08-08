@@ -26,13 +26,27 @@ Aplicação React/Vite para preparação de Enfermagem para ENADE e ENARE, com a
    APP_URL=http://localhost:3000
    ```
 
-3. Inicie o ambiente de desenvolvimento:
+3. Para habilitar os simulados seguros ENARE (`/api/exams/start` e `/api/exams/:id/submit`), adicione no servidor a chave `service_role`:
+
+   ```env
+   SUPABASE_URL=https://seu-projeto.supabase.co
+   SUPABASE_ANON_KEY=sua-chave-publica
+   SUPABASE_SECRET_KEY=sua-chave-service-role-do-servidor
+   ```
+
+4. Aplique a migration de integridade de aprendizagem antes do primeiro uso:
+
+   ```bash
+   supabase db push --db-url "$SUPABASE_DB_URL"
+   ```
+
+5. Inicie o ambiente de desenvolvimento:
 
    ```bash
    npm run dev
    ```
 
-Em produção, as rotas `/api/generate-study` e `/api/chat-study` exigem uma sessão autenticada do Supabase. A chave `service_role` nunca deve ser colocada no frontend.
+Em produção, as rotas `/api/generate-study` e `/api/chat-study` exigem uma sessão autenticada do Supabase. A chave `service_role` nunca deve ser colocada no frontend, e os gabaritos dos simulados ficam fora do bundle do navegador.
 
 ## Validação
 

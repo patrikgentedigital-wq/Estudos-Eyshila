@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { Language, StudyModule, Lesson, translations } from "../types";
 import { OFFICIAL_MODULES } from "../data/officialModules";
+import { ENARE_2026_CONTENT_URL } from "../utils/studyEngine";
 import { useTTS } from "../hooks/useTTS";
 
 interface StudyModulesProps {
@@ -149,7 +150,10 @@ export default function StudyModules({
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100">Módulos de Estudo</h2>
-          <p className="text-sm text-slate-400 dark:text-slate-500 mt-1 font-medium">Grade curricular recomendada para residência em enfermagem.</p>
+          <p className="text-sm text-slate-400 dark:text-slate-500 mt-1 font-medium">
+            Grade alinhada ao Anexo III do edital vigente; confirme normas clínicas na fonte atualizada.{" "}
+            <a href={ENARE_2026_CONTENT_URL} target="_blank" rel="noreferrer" className="font-bold text-sky-600 underline underline-offset-2 dark:text-sky-400">Ver conteúdo oficial</a>
+          </p>
         </div>
         <div className="relative w-full md:w-80">
           <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400">
@@ -188,7 +192,7 @@ export default function StudyModules({
           onClick={() => setFilter("official")}
           className={`pb-3 transition-all border-b-2 ${filter === "official" ? "border-sky-500 text-sky-600 dark:text-sky-400 font-bold" : "border-transparent text-slate-400 hover:text-slate-600"}`}
         >
-          Grade Oficial
+          Conteúdo de referência
         </button>
       </div>
 

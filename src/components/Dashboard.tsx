@@ -29,6 +29,27 @@ import { ENARE_INSTITUTIONS } from "../data/enareCutoffs";
 import { downloadEicsCalendar } from "../utils/calendarExport";
 import { safeGetItem, safeSetItem } from "../utils/storage";
 import StudyHeatmap from "./StudyHeatmap";
+import { enrichQuestion } from "../utils/studyEngine";
+
+const DAILY_QUESTION_POOL = MOCK_QUESTIONS
+  .map(enrichQuestion)
+  .filter((question) => question.pool !== "assessment");
+
+function getLocalDateKey(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function loadDailyState(key: string): { answers?: { [key: number]: number }; submitted?: boolean } {
+  try {
+    const stored = safeGetItem(key);
+    return stored ? JSON.parse(stored) : {};
+  } catch {
+    return {};
+  }
+}
 
 interface DashboardProps {
   language: Language;
@@ -66,29 +87,23 @@ export default function Dashboard({
   const [selectedInstId, setSelectedInstId] = useState<string>("ebserh-nacional");
   const selectedInstitution = ENARE_INSTITUTIONS.find(i => i.id === selectedInstId) || ENARE_INSTITUTIONS[0];
 
-  // Calculate current score average
-  const hasAttempts = attempts.length > 0;
-  const currentAvgScore = hasAttempts 
-    ? Math.round(attempts.reduce((a, b) => a + b.score, 0) / attempts.length) 
+  // Only a complete, unseen form that matches the blueprint can be compared with a cutoff.
+  const benchmarkAttempts = attempts.filter((attempt) => attempt.validForBenchmark === true);
+  const hasBenchmarkAttempts = benchmarkAttempts.length > 0;
+  const currentAvgScore = hasBenchmarkAttempts
+    ? Math.round(benchmarkAttempts.reduce((a, b) => a + b.score, 0) / benchmarkAttempts.length)
     : 0;
 
   const cutoffGap = selectedInstitution.cutoffPercentage === null ? null : selectedInstitution.cutoffPercentage - currentAvgScore;
-  const isAboveCutoff = hasAttempts && selectedInstitution.cutoffPercentage !== null && currentAvgScore >= selectedInstitution.cutoffPercentage;
+  const isAboveCutoff = hasBenchmarkAttempts && selectedInstitution.cutoffPercentage !== null && currentAvgScore >= selectedInstitution.cutoffPercentage;
 
   // Daily 3-Question Challenge State
-  const todayKey = new Date().toISOString().slice(0, 10);
+  const todayKey = getLocalDateKey(new Date());
   const dailySeed = todayKey.split("-").reduce((sum, part) => sum + Number(part), 0);
-  const dailyQuestions = Array.from({ length: Math.min(3, MOCK_QUESTIONS.length) }, (_, index) => MOCK_QUESTIONS[(dailySeed + index) % MOCK_QUESTIONS.length]);
-  const dailyStorageKey = `residency_daily_${profile.email || "local"}_${todayKey}`;
-  const dailyState = safeGetItem(dailyStorageKey);
-  let parsedDailyState: { answers?: { [key: number]: number }; submitted?: boolean } | null = null;
-  try {
-    parsedDailyState = dailyState ? JSON.parse(dailyState) : null;
-  } catch {
-    parsedDailyState = null;
-  }
-  const [dailyAnswers, setDailyAnswers] = useState<{ [key: number]: number }>(parsedDailyState?.answers || {});
-  const [dailySubmitted, setDailySubmitted] = useState<boolean>(Boolean(parsedDailyState?.submitted));
+  const dailyQuestions = Array.from({ length: Math.min(3, DAILY_QUESTION_POOL.length) }, (_, index) => DAILY_QUESTION_POOL[(dailySeed + index) % DAILY_QUESTION_POOL.length]);
+  const dailyStorageKey = `residency_daily:v2:${profile.email || "local"}:${todayKey}`;
+  const [dailyAnswers, setDailyAnswers] = useState<{ [key: number]: number }>(() => loadDailyState(dailyStorageKey).answers || {});
+  const [dailySubmitted, setDailySubmitted] = useState<boolean>(() => Boolean(loadDailyState(dailyStorageKey).submitted));
 
   useEffect(() => {
     safeSetItem(dailyStorageKey, JSON.stringify({ answers: dailyAnswers, submitted: dailySubmitted }));
@@ -319,16 +334,18 @@ export default function Dashboard({
           </div>
 
           <div className="bg-white/5 p-4 rounded-2xl border border-white/10 flex items-center space-x-3.5">
-            <div className={`p-3 rounded-xl ${isAboveCutoff ? "bg-emerald-500/20 text-emerald-400" : "bg-amber-500/20 text-amber-400"}`}>
+            <div className={`p-3 rounded-xl ${!hasBenchmarkAttempts ? "bg-slate-500/20 text-slate-400" : isAboveCutoff ? "bg-emerald-500/20 text-emerald-400" : "bg-amber-500/20 text-amber-400"}`}>
               {isAboveCutoff ? <CheckCircle2 className="h-5 w-5" /> : <AlertCircle className="h-5 w-5" />}
             </div>
             <div>
-              <span className="text-[10px] text-slate-400 font-mono font-bold uppercase block">Status da Sua Média</span>
-              <p className={`text-2xl font-black font-mono ${isAboveCutoff ? "text-emerald-400" : "text-amber-400"}`}>
-                {currentAvgScore}%
+              <span className="text-[10px] text-slate-400 font-mono font-bold uppercase block">Média de benchmark válido</span>
+              <p className={`text-2xl font-black font-mono ${!hasBenchmarkAttempts ? "text-slate-400" : isAboveCutoff ? "text-emerald-400" : "text-amber-400"}`}>
+                {hasBenchmarkAttempts ? `${currentAvgScore}%` : "—"}
               </p>
               <span className="text-[10px] font-bold">
-                {selectedInstitution.cutoffPercentage === null
+                {!hasBenchmarkAttempts
+                  ? "Faça uma prova inédita completa antes de comparar"
+                  : selectedInstitution.cutoffPercentage === null
                   ? "Corte oficial ainda não informado"
                   : isAboveCutoff
                   ? "🎉 Você está ACIMA da nota de corte!" 

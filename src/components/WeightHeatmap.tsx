@@ -1,6 +1,7 @@
 import React from "react";
 import { BookOpen, Info } from "lucide-react";
 import { ExamAttempt } from "../types";
+import { inferQuestionScope } from "../utils/studyEngine";
 
 interface WeightHeatmapProps {
   attempts?: ExamAttempt[];
@@ -14,15 +15,11 @@ interface WeightSubject {
   badge: string;
 }
 
-function isGeneralTopic(category: string): boolean {
-  return /sus|ética|legislação|saúde coletiva|política/i.test(category);
-}
-
 export default function WeightHeatmap({ attempts = [] }: WeightHeatmapProps) {
   const answeredQuestions = attempts.flatMap(attempt =>
     (attempt.questions || []).map((question, index) => ({
       isCorrect: attempt.selectedAnswers?.[index] === question.correctIndex,
-      isGeneral: isGeneralTopic(question.category || ""),
+      isGeneral: inferQuestionScope(question) === "general",
     }))
   );
 

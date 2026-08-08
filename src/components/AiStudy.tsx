@@ -39,8 +39,23 @@ interface AiStudyProps {
 interface Question {
   question: string;
   options: string[];
-  answer: string; // "A", "B", "C", "D"
+  answer: string; // "A", "B", "C", "D", "E"
   explanation: string;
+  leadIn?: string;
+  cognitiveType?: "factual" | "protocol" | "clinical_reasoning";
+  clinicalCase?: {
+    setting?: string;
+    ageGroup?: string;
+    presentingProblem?: string;
+    history?: string;
+    physicalExam?: string;
+    vitals?: Record<string, string>;
+    labs?: Record<string, string>;
+  };
+  pivotalCues?: string[];
+  reasoningSteps?: string[];
+  distractorExplanations?: string[];
+  source?: string;
 }
 
 interface Flashcard {
@@ -487,7 +502,7 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
       const alphabet = ["A", "B", "C", "D", "E"];
 
       const normalizedQuestions = rawQuestions.map((q: any, qIdx: number) => {
-        const rawOptions = Array.isArray(q.options) ? q.options : ["Opção A", "Opção B", "Opção C", "Opção D"];
+        const rawOptions = Array.isArray(q.options) ? q.options : ["Opção A", "Opção B", "Opção C", "Opção D", "Opção E"];
         
         // Standardize options to always start with "A) ", "B) ", etc.
         const cleanedOptions = rawOptions.map((opt: string, optIdx: number) => {
@@ -511,7 +526,14 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
           question: q.question || q.title || `Questão ${qIdx + 1}`,
           options: cleanedOptions,
           answer: cleanAnswer,
-          explanation: q.explanation || q.justification || "Fundamentação didática disponível para esta questão."
+          explanation: q.explanation || q.justification || "Fundamentação didática disponível para esta questão.",
+          leadIn: q.leadIn,
+          cognitiveType: q.cognitiveType,
+          clinicalCase: q.clinicalCase,
+          pivotalCues: Array.isArray(q.pivotalCues) ? q.pivotalCues : [],
+          reasoningSteps: Array.isArray(q.reasoningSteps) ? q.reasoningSteps : [],
+          distractorExplanations: Array.isArray(q.distractorExplanations) ? q.distractorExplanations : [],
+          source: q.source,
         };
       });
 
@@ -525,7 +547,7 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
         questions: normalizedQuestions.length > 0 ? normalizedQuestions : [
           {
             question: "Qual o foco principal do material analisado?",
-            options: ["A) Diretrizes de Enfermagem", "B) Protocolos Clínicos", "C) Legislação do SUS", "D) Prática Assistencial"],
+            options: ["A) Diretrizes de Enfermagem", "B) Protocolos Clínicos", "C) Legislação do SUS", "D) Prática Assistencial", "E) Gestão administrativa"],
             answer: "A",
             explanation: "O material foca no aprimoramento contínuo das rotinas e legislações de enfermagem."
           }
@@ -1198,9 +1220,6 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
                             onChange={(e) => {
                               const newRate = parseFloat(e.target.value);
                               setRate(newRate);
-                              if (isSpeaking) {
-                                speak(studyData.summary, newRate);
-                              }
                             }}
                             className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-[10px] font-bold rounded-lg px-2 py-1 outline-none cursor-pointer"
                             title="Velocidade da Leitura em Áudio"
@@ -1262,6 +1281,9 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
 
               {activeSubTab === "quiz" && (
                 <div className="space-y-6">
+                  <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-xs text-amber-800 dark:text-amber-300">
+                    Questões geradas por IA são material de fixação em rascunho. Confira a fonte indicada antes de transformar qualquer item em referência clínica ou questão de avaliação.
+                  </div>
                   
                   {!quizFinished ? (
                     <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xs">
@@ -1288,9 +1310,23 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
 
                       {/* Question Text */}
                       <div className="space-y-5">
+                        {studyData.questions[currentQuestionIdx].clinicalCase && (
+                          <div className="rounded-2xl border border-sky-500/20 bg-sky-500/5 p-4 space-y-2">
+                            <div className="flex flex-wrap gap-2 text-[10px] font-extrabold uppercase text-sky-700 dark:text-sky-300">
+                              {studyData.questions[currentQuestionIdx].clinicalCase?.setting && <span>{studyData.questions[currentQuestionIdx].clinicalCase?.setting}</span>}
+                              {studyData.questions[currentQuestionIdx].clinicalCase?.ageGroup && <span>• {studyData.questions[currentQuestionIdx].clinicalCase?.ageGroup}</span>}
+                            </div>
+                            {studyData.questions[currentQuestionIdx].clinicalCase?.presentingProblem && <p className="text-sm font-bold text-slate-800 dark:text-slate-100">{studyData.questions[currentQuestionIdx].clinicalCase?.presentingProblem}</p>}
+                            {studyData.questions[currentQuestionIdx].clinicalCase?.history && <p className="text-xs text-slate-600 dark:text-slate-300"><strong>História:</strong> {studyData.questions[currentQuestionIdx].clinicalCase?.history}</p>}
+                            {studyData.questions[currentQuestionIdx].clinicalCase?.physicalExam && <p className="text-xs text-slate-600 dark:text-slate-300"><strong>Exame:</strong> {studyData.questions[currentQuestionIdx].clinicalCase?.physicalExam}</p>}
+                          </div>
+                        )}
                         <div className="text-sm sm:text-base font-bold text-slate-800 dark:text-slate-100 leading-normal">
                           {studyData.questions[currentQuestionIdx].question}
                         </div>
+                        {studyData.questions[currentQuestionIdx].leadIn && (
+                          <p className="text-sm font-extrabold text-indigo-600 dark:text-indigo-400">{studyData.questions[currentQuestionIdx].leadIn}</p>
+                        )}
 
                         {/* Question options */}
                         <div className="space-y-2 pt-2">
@@ -1381,6 +1417,25 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
                             <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed font-normal">
                               {studyData.questions[currentQuestionIdx].explanation}
                             </p>
+                            {studyData.questions[currentQuestionIdx].pivotalCues && studyData.questions[currentQuestionIdx].pivotalCues!.length > 0 && (
+                              <div className="pt-2 border-t border-amber-500/20">
+                                <span className="text-[10px] font-bold uppercase text-amber-700 dark:text-amber-300">Dados decisivos</span>
+                                <ul className="mt-1 list-disc pl-5 text-xs text-slate-700 dark:text-slate-300">
+                                  {studyData.questions[currentQuestionIdx].pivotalCues!.map((cue) => <li key={cue}>{cue}</li>)}
+                                </ul>
+                              </div>
+                            )}
+                            {studyData.questions[currentQuestionIdx].reasoningSteps && studyData.questions[currentQuestionIdx].reasoningSteps!.length > 0 && (
+                              <div className="pt-2 border-t border-amber-500/20">
+                                <span className="text-[10px] font-bold uppercase text-amber-700 dark:text-amber-300">Raciocínio esperado</span>
+                                <ol className="mt-1 list-decimal pl-5 text-xs text-slate-700 dark:text-slate-300">
+                                  {studyData.questions[currentQuestionIdx].reasoningSteps!.map((step) => <li key={step}>{step}</li>)}
+                                </ol>
+                              </div>
+                            )}
+                            {studyData.questions[currentQuestionIdx].source && (
+                              <p className="pt-2 text-[10px] text-slate-500"><strong>Fonte informada:</strong> {studyData.questions[currentQuestionIdx].source}</p>
+                            )}
                           </div>
                         )}
 
@@ -1779,9 +1834,6 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
                           onChange={(e) => {
                             const newRate = parseFloat(e.target.value);
                             setRate(newRate);
-                            if (isSpeaking) {
-                              speak(fullPdfText || studyData.summary, newRate);
-                            }
                           }}
                           className="bg-white/20 text-white font-bold text-xs py-2 px-2.5 rounded-xl outline-none border border-white/30 cursor-pointer"
                         >
