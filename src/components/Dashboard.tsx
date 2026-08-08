@@ -35,12 +35,7 @@ const DAILY_QUESTION_POOL = MOCK_QUESTIONS
   .map(enrichQuestion)
   .filter((question) => question.pool !== "assessment");
 
-function getLocalDateKey(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
+import { getLocalDateKey } from "../utils/dateUtils";
 
 function loadDailyState(key: string): { answers?: { [key: number]: number }; submitted?: boolean } {
   try {
@@ -112,7 +107,7 @@ export default function Dashboard({
   const studyDateKeys = new Set(attempts.map(attempt => attempt.date).filter(Boolean));
   let streak = 0;
   const streakDate = new Date();
-  while (studyDateKeys.has(streakDate.toISOString().slice(0, 10))) {
+  while (studyDateKeys.has(getLocalDateKey(streakDate))) {
     streak += 1;
     streakDate.setDate(streakDate.getDate() - 1);
   }

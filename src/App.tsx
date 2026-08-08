@@ -373,77 +373,50 @@ export default function App() {
     }
   }, [darkMode]);
 
+  // Single debounced sync to Supabase and immediate LocalStorage persistence
   useEffect(() => {
-    if (isLoggedIn && userId && isUserDataHydrated) {
-      safeSetItem(`residency_profile_${userId}`, JSON.stringify(profile));
-      const timer = setTimeout(() => syncToSupabase({ profile }), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [profile, userId, isLoggedIn, isUserDataHydrated, syncToSupabase]);
+    if (!isLoggedIn || !userId || !isUserDataHydrated) return;
 
-  useEffect(() => {
-    if (isLoggedIn && userId && isUserDataHydrated) {
-      safeSetItem(`residency_modules_${userId}`, JSON.stringify(modules));
-      const timer = setTimeout(() => syncToSupabase({ modules }), 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [modules, userId, isLoggedIn, isUserDataHydrated, syncToSupabase]);
+    safeSetItem(`residency_profile_${userId}`, JSON.stringify(profile));
+    safeSetItem(`residency_modules_${userId}`, JSON.stringify(modules));
+    safeSetItem(`residency_flashcards_${userId}`, JSON.stringify(flashcards));
+    safeSetItem(`residency_attempts_${userId}`, JSON.stringify(attempts));
+    safeSetItem(`residency_question_exposures_${userId}`, JSON.stringify(questionExposures));
+    safeSetItem(`residency_questions_count_${userId}`, String(questionsCount));
+    safeSetItem(`residency_checklist_${userId}`, JSON.stringify(checklist));
+    safeSetItem(`residency_caderno_${userId}`, JSON.stringify(cadernoErros));
+    safeSetItem(`residency_roadmap_${userId}`, JSON.stringify(roadmap));
 
-  useEffect(() => {
-    if (isLoggedIn && userId && isUserDataHydrated) {
-      safeSetItem(`residency_flashcards_${userId}`, JSON.stringify(flashcards));
-      const timer = setTimeout(() => syncToSupabase({ flashcards }), 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [flashcards, userId, isLoggedIn, isUserDataHydrated, syncToSupabase]);
+    const timer = setTimeout(() => {
+      syncToSupabase({
+        profile,
+        modules,
+        flashcards,
+        attempts,
+        question_exposures: questionExposures,
+        questions_count: questionsCount,
+        checklist,
+        caderno_erros: cadernoErros,
+        roadmap,
+      });
+    }, 2000);
 
-  useEffect(() => {
-    if (isLoggedIn && userId && isUserDataHydrated) {
-      safeSetItem(`residency_attempts_${userId}`, JSON.stringify(attempts));
-      const timer = setTimeout(() => syncToSupabase({ attempts }), 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [attempts, userId, isLoggedIn, isUserDataHydrated, syncToSupabase]);
-
-  useEffect(() => {
-    if (isLoggedIn && userId && isUserDataHydrated) {
-      safeSetItem(`residency_question_exposures_${userId}`, JSON.stringify(questionExposures));
-      const timer = setTimeout(() => syncToSupabase({ question_exposures: questionExposures }), 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [questionExposures, userId, isLoggedIn, isUserDataHydrated, syncToSupabase]);
-
-  useEffect(() => {
-    if (isLoggedIn && userId && isUserDataHydrated) {
-      safeSetItem(`residency_questions_count_${userId}`, String(questionsCount));
-      const timer = setTimeout(() => syncToSupabase({ questions_count: questionsCount }), 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [questionsCount, userId, isLoggedIn, isUserDataHydrated, syncToSupabase]);
-
-  useEffect(() => {
-    if (isLoggedIn && userId && isUserDataHydrated) {
-      safeSetItem(`residency_checklist_${userId}`, JSON.stringify(checklist));
-      const timer = setTimeout(() => syncToSupabase({ checklist }), 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [checklist, userId, isLoggedIn, isUserDataHydrated, syncToSupabase]);
-
-  useEffect(() => {
-    if (isLoggedIn && userId && isUserDataHydrated) {
-      safeSetItem(`residency_caderno_${userId}`, JSON.stringify(cadernoErros));
-      const timer = setTimeout(() => syncToSupabase({ caderno_erros: cadernoErros }), 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [cadernoErros, userId, isLoggedIn, isUserDataHydrated, syncToSupabase]);
-
-  useEffect(() => {
-    if (isLoggedIn && userId && isUserDataHydrated) {
-      safeSetItem(`residency_roadmap_${userId}`, JSON.stringify(roadmap));
-      const timer = setTimeout(() => syncToSupabase({ roadmap }), 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [roadmap, userId, isLoggedIn, isUserDataHydrated, syncToSupabase]);
+    return () => clearTimeout(timer);
+  }, [
+    profile,
+    modules,
+    flashcards,
+    attempts,
+    questionExposures,
+    questionsCount,
+    checklist,
+    cadernoErros,
+    roadmap,
+    userId,
+    isLoggedIn,
+    isUserDataHydrated,
+    syncToSupabase,
+  ]);
 
   // Auth operations
   const handleLoginSuccess = (email: string, uid: string) => {

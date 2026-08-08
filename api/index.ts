@@ -157,8 +157,8 @@ try {
     for (const model of modelsToTry) {
       try {
         const controller = new AbortController();
-        // 8.5s timeout per model attempt to never exceed Vercel 10s serverless limit
-        const timeoutId = setTimeout(() => controller.abort(), 8500);
+        // 45s timeout per model attempt to fit within Vercel 60s maxDuration limit
+        const timeoutId = setTimeout(() => controller.abort(), 45000);
 
         const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
           method: "POST",

@@ -117,6 +117,9 @@ export default function AiStudy({ language }: AiStudyProps) {
             body: JSON.stringify({ fileData: base64, fileName: file.name, mimeType: "application/pdf" }),
           });
           const data = await res.json().catch(() => ({}));
+          if (res.status === 401 && supabase) {
+            supabase.auth.signOut();
+          }
           if (!res.ok) throw new Error(data.error || "Não foi possível extrair o texto do PDF.");
           extracted = data.text || "";
         }
@@ -219,6 +222,7 @@ export default function AiStudy({ language }: AiStudyProps) {
       if (!res.ok) {
         let errorMessage = `Erro ${res.status}`;
         if (res.status === 401) {
+          if (supabase) supabase.auth.signOut();
           errorMessage = "Sua sessão expirou. Faça login novamente para usar o mentor.";
         }
         try {
@@ -472,6 +476,7 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
       if (!res.ok) {
         let errorMessage = "HTTP error " + res.status;
         if (res.status === 401) {
+          if (supabase) supabase.auth.signOut();
           errorMessage = "Sua sessão expirou. Faça login novamente para gerar o material.";
         }
         try {
