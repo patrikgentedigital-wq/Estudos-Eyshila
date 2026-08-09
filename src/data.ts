@@ -1,4 +1,5 @@
 import { StudyModule, ExamQuestion, ExamAttempt, Flashcard } from "./types";
+import { LegacyExamQuestion, normalizeQuestionBank } from "./data/questionNormalizer";
 
 export const IMAGES = {
   loginBg: "https://lh3.googleusercontent.com/aida-public/AB6AXuCINX4rcIXmcNHmhKDoH61cmlzI09AuPXwRuutnRAEepB7IU_DyoEhml-EFOgb3RXNvd-9vp6EaR7ChdEy5hEZIJbXh1PisP8Cjqd44VbKXEcbsj3wMqut-VeoRMHOsZ4VS4fvnKRpFadRBbLpgcCSTZ0MSF3KorJVnmaJMHtA5Oqm0PPoRrLmd4JeZn3DJb3066arhk9z2QnJ_F4EoSpxdC-n3CHxcevvTC3iJrorMBDSdp-7fz5fkgw",
@@ -471,7 +472,7 @@ export const INITIAL_MODULES: StudyModule[] = [
   }
 ];
 
-export const MOCK_QUESTIONS: ExamQuestion[] = [
+const RAW_MOCK_QUESTIONS: LegacyExamQuestion[] = [
   {
     id: "q-1",
     question: "De acordo com a Lei Orgânica da Saúde nº 8.142/1990 e a Resolução nº 453/2012 do Conselho Nacional de Saúde, que regulamentam o controle social e a participação da comunidade no SUS, qual é a representação recomendada para os Conselhos de Saúde e qual a composição paritária estabelecida?",
@@ -2025,6 +2026,8 @@ export const MOCK_QUESTIONS: ExamQuestion[] = [
     examSourceEn: "ENARE 2020"
   }
 ];
+
+export const MOCK_QUESTIONS: ExamQuestion[] = normalizeQuestionBank(RAW_MOCK_QUESTIONS);
 
 export const INITIAL_FLASHCARDS: Flashcard[] = [
   {

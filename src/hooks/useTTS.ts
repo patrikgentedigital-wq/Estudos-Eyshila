@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const clampRate = (value: number) => Math.min(2, Math.max(0.5, Number.isFinite(value) ? value : 1));
+export const SUPPORTED_TTS_RATES = [1, 1.25, 1.5, 2] as const;
+
+export const normalizeTtsRate = (value: number): number => {
+  const safeValue = Number.isFinite(value) ? value : 1;
+  return SUPPORTED_TTS_RATES.reduce((closest, candidate) => (
+    Math.abs(candidate - safeValue) < Math.abs(closest - safeValue) ? candidate : closest
+  ), SUPPORTED_TTS_RATES[0]);
+};
 
 export const useTTS = () => {
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -95,7 +102,7 @@ export const useTTS = () => {
       .map((sentence) => sentence.trim())
       .filter(Boolean);
 
-    const normalizedRate = clampRate(customRate);
+    const normalizedRate = normalizeTtsRate(customRate);
     rateRef.current = normalizedRate;
     setRateState(normalizedRate);
     currentChunksRef.current = sentenceChunks;
@@ -112,7 +119,7 @@ export const useTTS = () => {
   }, [speakNextChunk]);
 
   const setRate = useCallback((nextRate: number) => {
-    const normalizedRate = clampRate(nextRate);
+    const normalizedRate = normalizeTtsRate(nextRate);
     rateRef.current = normalizedRate;
     setRateState(normalizedRate);
 

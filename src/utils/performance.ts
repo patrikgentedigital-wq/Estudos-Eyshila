@@ -1,9 +1,11 @@
 import { MOCK_QUESTIONS } from "../data";
-import { ExamAttempt, ExamQuestion, StudyModule } from "../types";
+import { REAL_EXAMS } from "../data/realExams";
+import { CadernoErroItem, ExamAttempt, ExamQuestion, StudyModule } from "../types";
 import {
   StudyPlanRecommendation,
   buildNextStudyPlan,
   calculateTopicPerformance,
+  slugify,
 } from "./studyEngine";
 
 export interface CalculatedSubject {
@@ -119,10 +121,23 @@ function moduleForTopic(topicName: string, modules: StudyModule[]): StudyModule 
 export function getStudyRecommendation(
   attempts: ExamAttempt[] = [],
   modules: StudyModule[] = [],
+  cadernoErros: CadernoErroItem[] = [],
 ): Recommendation | null {
   if (modules.length === 0) return null;
 
-  const prioritizedTopics = calculateTopicPerformance(attempts, MOCK_QUESTIONS);
+  const questionBank = [...MOCK_QUESTIONS, ...REAL_EXAMS.flatMap((exam) => exam.questions)];
+  const pendingErrorsByTopic = new Map<string, number>();
+  for (const error of cadernoErros) {
+    const topicId = slugify(error.category || "sem-categoria");
+    pendingErrorsByTopic.set(topicId, (pendingErrorsByTopic.get(topicId) || 0) + 1);
+  }
+
+  const prioritizedTopics = calculateTopicPerformance(attempts, questionBank)
+    .map((topic) => ({
+      ...topic,
+      priorityScore: topic.priorityScore + Math.min((pendingErrorsByTopic.get(topic.id) || 0) * 5, 20),
+    }))
+    .sort((left, right) => right.priorityScore - left.priorityScore);
   const studyPlan = buildNextStudyPlan(prioritizedTopics[0]);
   if (!studyPlan) return null;
 

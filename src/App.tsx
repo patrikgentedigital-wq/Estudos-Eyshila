@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Menu, X, GraduationCap, Calendar, Bell, Shield, LayoutDashboard, BookOpen, Award, Sparkles, Compass } from "lucide-react";
 import Toast, { ToastMessage } from "./components/Toast";
 
-import { Tab, Language, UserProfile, StudyModule, Flashcard, ExamAttempt, translations, RoadmapWeek, RoadmapTask, ChecklistItem, CadernoErroItem, QuestionExposure, ReviewRating } from "./types";
+import { Tab, Language, UserProfile, StudyModule, Flashcard, ExamAttempt, translations, RoadmapWeek, RoadmapTask, ChecklistItem, CadernoErroItem, QuestionExposure, QuestionReviewState, ReviewRating } from "./types";
 import { INITIAL_PROFILE, INITIAL_MODULES, INITIAL_FLASHCARDS, INITIAL_ATTEMPTS } from "./data";
 import { safeGetItem, safeSetItem, safeRemoveItem } from "./utils/storage";
 import { scheduleFlashcardReview } from "./utils/studyEngine";
@@ -194,6 +194,7 @@ export default function App() {
   const [flashcards, setFlashcards] = useState<Flashcard[]>(() => clone(INITIAL_FLASHCARDS));
   const [attempts, setAttempts] = useState<ExamAttempt[]>([]);
   const [questionExposures, setQuestionExposures] = useState<QuestionExposure[]>([]);
+  const [reviewStates, setReviewStates] = useState<QuestionReviewState[]>([]);
   const [questionsCount, setQuestionsCount] = useState<number>(0);
 
   const INITIAL_CHECKLIST = [
@@ -260,6 +261,29 @@ export default function App() {
             }
 
             if (data) {
+              let hydratedReviewStates: QuestionReviewState[] = [];
+              try {
+                const reviewStateResult = await supabase
+                  .from("question_review_states")
+                  .select("question_id,repetitions,interval_days,ease_factor,lapses,last_quality,due_at,competency_due_at,last_reviewed_at")
+                  .eq("user_id", userId);
+                if (!reviewStateResult.error) {
+                  hydratedReviewStates = (reviewStateResult.data || []).map((state) => ({
+                    questionId: state.question_id,
+                    repetitions: state.repetitions,
+                    intervalDays: state.interval_days,
+                    easeFactor: Number(state.ease_factor),
+                    lapses: state.lapses,
+                    lastQuality: state.last_quality ?? undefined,
+                    dueAt: state.due_at ?? undefined,
+                    competencyDueAt: state.competency_due_at ?? undefined,
+                    lastReviewedAt: state.last_reviewed_at ?? undefined,
+                  }));
+                }
+              } catch (reviewStateError) {
+                console.warn("[Supabase Review State Load Error]", reviewStateError);
+              }
+              setReviewStates(hydratedReviewStates);
               setProfile(normalizeProfile(data.profile, clone(INITIAL_PROFILE)));
               setModules(normalizeModules(data.modules));
               setFlashcards(data.flashcards || clone(INITIAL_FLASHCARDS));
@@ -278,7 +302,8 @@ export default function App() {
           const savedModules = safeGetItem(`residency_modules_${userId}`);
           const savedFlashcards = safeGetItem(`residency_flashcards_${userId}`);
           const savedAttempts = safeGetItem(`residency_attempts_${userId}`);
-          const savedExposures = safeGetItem(`residency_question_exposures_${userId}`);
+           const savedExposures = safeGetItem(`residency_question_exposures_${userId}`);
+           const savedReviewStates = safeGetItem(`residency_review_states_${userId}`);
           const savedQuestions = safeGetItem(`residency_questions_count_${userId}`);
           const savedChecklist = safeGetItem(`residency_checklist_${userId}`);
           const savedCaderno = safeGetItem(`residency_caderno_${userId}`);
@@ -289,7 +314,8 @@ export default function App() {
           setModules(normalizeModules(savedModules ? JSON.parse(savedModules) : null));
           setFlashcards(savedFlashcards ? JSON.parse(savedFlashcards) : clone(INITIAL_FLASHCARDS));
           setAttempts(savedAttempts ? JSON.parse(savedAttempts) : []);
-          setQuestionExposures(savedExposures ? JSON.parse(savedExposures) : []);
+           setQuestionExposures(savedExposures ? JSON.parse(savedExposures) : []);
+           setReviewStates(savedReviewStates ? JSON.parse(savedReviewStates) : []);
           setQuestionsCount(savedQuestions ? Number(savedQuestions) : 0);
           setChecklist(savedChecklist ? JSON.parse(savedChecklist) : INITIAL_CHECKLIST);
           setCadernoErros(savedCaderno ? JSON.parse(savedCaderno) : []);
@@ -301,7 +327,8 @@ export default function App() {
           setModules(clone(INITIAL_MODULES));
           setFlashcards(clone(INITIAL_FLASHCARDS));
           setAttempts([]);
-          setQuestionExposures([]);
+           setQuestionExposures([]);
+           setReviewStates([]);
           setQuestionsCount(0);
           setChecklist(INITIAL_CHECKLIST);
           setCadernoErros([]);
@@ -315,7 +342,8 @@ export default function App() {
         setModules(clone(INITIAL_MODULES));
         setFlashcards(clone(INITIAL_FLASHCARDS));
         setAttempts([]);
-        setQuestionExposures([]);
+         setQuestionExposures([]);
+         setReviewStates([]);
         setQuestionsCount(0);
         setChecklist(INITIAL_CHECKLIST);
         setCadernoErros([]);
@@ -412,6 +440,67 @@ export default function App() {
       return () => clearTimeout(timer);
     }
   }, [questionExposures, userId, isLoggedIn, isUserDataHydrated, syncToSupabase]);
+
+  useEffect(() => {
+    if (!userId || !isUserDataHydrated) return;
+    safeSetItem(`residency_review_states_${userId}`, JSON.stringify(reviewStates));
+    if (!isLoggedIn || !isSupabaseConfigured || !supabase || remoteLoadFailed || reviewStates.length === 0) return;
+
+    const timer = setTimeout(async () => {
+      const { error } = await supabase.from("question_review_states").upsert(
+        reviewStates.map((state) => ({
+          user_id: userId,
+          question_id: state.questionId,
+          repetitions: state.repetitions,
+          interval_days: state.intervalDays,
+          ease_factor: state.easeFactor,
+          lapses: state.lapses,
+          last_quality: state.lastQuality ?? null,
+          due_at: state.dueAt ?? null,
+          competency_due_at: state.competencyDueAt ?? null,
+          last_reviewed_at: state.lastReviewedAt ?? null,
+          updated_at: new Date().toISOString(),
+        })),
+        { onConflict: "user_id,question_id" },
+      );
+      if (error) console.warn("[Supabase Review State Sync Warning]", error.message);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [isLoggedIn, isUserDataHydrated, remoteLoadFailed, reviewStates, userId]);
+
+  useEffect(() => {
+    const statesFromErrors = cadernoErros
+      .filter((item) => item.questionId && (
+        item.repetitions !== undefined
+        || item.intervalDays !== undefined
+        || item.easeFactor !== undefined
+        || item.lastReviewedAt !== undefined
+      ))
+      .map((item): QuestionReviewState => ({
+        questionId: item.questionId as string,
+        repetitions: item.repetitions || 0,
+        intervalDays: item.intervalDays || 0,
+        easeFactor: item.easeFactor || 2.5,
+        lapses: item.lapses || 0,
+        lastQuality: item.lastQuality,
+        dueAt: item.nextReview,
+        lastReviewedAt: item.lastReviewedAt,
+      }));
+    if (statesFromErrors.length === 0) return;
+
+    setReviewStates((previous) => {
+      const next = new Map(previous.map((state) => [state.questionId, state]));
+      let changed = false;
+      for (const state of statesFromErrors) {
+        const current = next.get(state.questionId);
+        if (JSON.stringify(current) !== JSON.stringify(state)) {
+          next.set(state.questionId, state);
+          changed = true;
+        }
+      }
+      return changed ? [...next.values()] : previous;
+    });
+  }, [cadernoErros]);
 
   useEffect(() => {
     if (isLoggedIn && userId && isUserDataHydrated) {
@@ -801,7 +890,7 @@ export default function App() {
         </header>
 
         {/* MAIN BODY SCROLL CONTAINER */}
-        <main className="flex-1 p-4 sm:p-8 max-w-7xl mx-auto w-full overflow-y-auto pb-20 lg:pb-8 bg-slate-50 dark:bg-[#0b0f19]">
+        <main className="app-main-scroll flex-1 p-4 sm:p-8 max-w-7xl mx-auto w-full overflow-y-auto pb-20 lg:pb-8 bg-slate-50 dark:bg-[#0b0f19]">
           <ErrorBoundary>
             <React.Suspense fallback={
               <div className="flex flex-col items-center justify-center p-12 space-y-3">
@@ -815,7 +904,7 @@ export default function App() {
         </main>
 
         {/* MOBILE BOTTOM NAVIGATION BAR */}
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg border-t border-slate-200 dark:border-slate-800 px-2 py-1.5 flex justify-around items-center">
+        <div className="mobile-bottom-nav lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg border-t border-slate-200 dark:border-slate-800 px-2 py-1.5 flex justify-around items-center">
           <button
             onClick={() => setActiveTab("dashboard")}
             className={`flex flex-col items-center p-1.5 rounded-xl text-[10px] font-bold transition-all ${

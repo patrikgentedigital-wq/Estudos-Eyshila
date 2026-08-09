@@ -7,6 +7,32 @@ export type QuestionCognitiveType = "factual" | "protocol" | "clinical_reasoning
 export type QuestionPool = "study" | "assessment" | "calibration";
 export type QuestionScope = "general" | "specific";
 export type ReviewRating = "again" | "hard" | "good" | "easy";
+export type QuestionSourceType = "official" | "authorial" | "adapted";
+export type QuestionContentStatus = "draft" | "reviewed" | "published";
+export type QuestionCategoryKey =
+  | "sus"
+  | "saude-coletiva"
+  | "etica-cofen"
+  | "urgencia-uti"
+  | "ciclos-de-vida"
+  | "pratica-clinica"
+  | "farmacologia"
+  | "procedimentos"
+  | "saude-mental"
+  | "gestao";
+
+export const QUESTION_CATEGORY_LABELS: Record<QuestionCategoryKey, string> = {
+  sus: "Legislação SUS",
+  "saude-coletiva": "Saúde Coletiva",
+  "etica-cofen": "Ética e COFEN",
+  "urgencia-uti": "Urgência e UTI",
+  "ciclos-de-vida": "Ciclos de Vida",
+  "pratica-clinica": "Prática Clínica",
+  farmacologia: "Farmacologia",
+  procedimentos: "Procedimentos",
+  "saude-mental": "Saúde Mental",
+  gestao: "Gestão",
+};
 
 export interface ClinicalCaseData {
   setting?: string;
@@ -46,6 +72,18 @@ export interface QuestionExposure {
   responseMs?: number;
   confidence?: 1 | 2 | 3;
   seenExternally?: boolean;
+}
+
+export interface QuestionReviewState {
+  questionId: string;
+  repetitions: number;
+  intervalDays: number;
+  easeFactor: number;
+  lapses: number;
+  lastQuality?: number;
+  dueAt?: string;
+  competencyDueAt?: string;
+  lastReviewedAt?: string;
 }
 
 export interface RoadmapTask {
@@ -141,6 +179,7 @@ export interface ExamQuestion {
   explanation: string;
   explanationEn?: string;
   category: string;
+  categoryKey?: QuestionCategoryKey;
   categoryEn?: string;
   examSource?: string;
   examSourceEn?: string;
@@ -159,6 +198,15 @@ export interface ExamQuestion {
   pivotalCues?: string[];
   distractorExplanations?: string[];
   contentStatus?: "draft" | "reviewed" | "published";
+  sourceType?: QuestionSourceType;
+  sourceUrl?: string;
+  sourcePage?: number;
+  sourceYear?: number;
+  board?: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  generatedOptionIndexes?: number[];
+  requiresReview?: boolean;
 }
 
 export interface ExamAttempt {

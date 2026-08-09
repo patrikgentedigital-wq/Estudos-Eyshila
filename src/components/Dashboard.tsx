@@ -148,7 +148,7 @@ export default function Dashboard({
   const completedLessons = modules.reduce((acc, m) => acc + m.lessons.filter((l) => l.completed).length, 0);
   const percentLessons = Math.round((completedLessons / totalLessons) * 100) || 0;
 
-  const recommendation = getStudyRecommendation(attempts, modules);
+  const recommendation = getStudyRecommendation(attempts, modules, cadernoErros);
   const cardiModule = recommendation?.recommendedModule || modules[0];
   const cardiCompleted = cardiModule.lessons.filter(l => l.completed).length;
   const cardiTotal = cardiModule.lessons.length;

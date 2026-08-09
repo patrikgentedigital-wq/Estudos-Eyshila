@@ -1,5 +1,5 @@
 // Service Worker for Portal de Estudos Eyshila Caxias (PWA)
-const CACHE_NAME = "eyshila-portal-v2";
+const CACHE_NAME = "eyshila-portal-v3";
 const ASSETS_TO_CACHE = [
   "/",
   "/index.html",

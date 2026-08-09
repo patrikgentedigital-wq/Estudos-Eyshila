@@ -16,7 +16,7 @@ import {
   AlertCircle,
   X
 } from "lucide-react";
-import { Language, ExamQuestion, ExamAttempt, translations, CadernoErroItem, ExamMode, QuestionExposure, ReviewRating } from "../types";
+import { Language, ExamQuestion, ExamAttempt, translations, CadernoErroItem, ExamMode, QuestionCategoryKey, QuestionExposure, QUESTION_CATEGORY_LABELS, ReviewRating } from "../types";
 import { MOCK_QUESTIONS } from "../data";
 import { REAL_EXAMS } from "../data/realExams";
 import { supabase } from "../supabase";
@@ -28,6 +28,9 @@ import {
   isValidBenchmarkForm,
   scheduleCadernoErrorReview,
 } from "../utils/studyEngine";
+import { categoryKeyFromLabel } from "../data/questionNormalizer";
+
+const CATEGORY_OPTIONS = Object.entries(QUESTION_CATEGORY_LABELS) as Array<[QuestionCategoryKey, string]>;
 
 function getLocalDateKey(date: Date = new Date()): string {
   const year = date.getFullYear();
@@ -95,6 +98,7 @@ export default function ExamPrep({
   const [activeExamType, setActiveExamType] = useState<string>("all");
   const [questions, setQuestions] = useState<ExamQuestion[]>(MOCK_QUESTIONS);
   const [examMode, setExamMode] = useState<ExamMode>("study");
+  const [selectedCategory, setSelectedCategory] = useState<QuestionCategoryKey | "all">("all");
   
   const [questionsCount, setQuestionsCount] = useState<number>(10);
   const [viewMode, setViewMode] = useState<"single" | "list">("list");
@@ -285,9 +289,9 @@ export default function ExamPrep({
     if (type === "all") {
       list = shuffleArray(MOCK_QUESTIONS);
     } else if (type === "sus_ethics") {
-      list = shuffleArray(MOCK_QUESTIONS.filter(q => q.category === "Legislação SUS" || q.category === "Ética e Gestão"));
+      list = shuffleArray(MOCK_QUESTIONS.filter(q => q.categoryKey === "sus" || q.categoryKey === "etica-cofen"));
     } else if (type === "womens_child") {
-      list = shuffleArray(MOCK_QUESTIONS.filter(q => q.category === "Ciclos de Vida" || q.category === "Prática Clínica"));
+      list = shuffleArray(MOCK_QUESTIONS.filter(q => q.categoryKey === "ciclos-de-vida" || q.categoryKey === "pratica-clinica"));
     } else if (type === "errors_notebook") {
       const allQs = [...MOCK_QUESTIONS, ...REAL_EXAMS.flatMap(e => e.questions)];
       list = reviewableErrors.map(erro => {
@@ -300,7 +304,8 @@ export default function ExamPrep({
           options: erro.options,
           correctIndex: erro.correctIndex,
           explanation: erro.explanation,
-          category: erro.category
+          category: erro.category,
+          categoryKey: categoryKeyFromLabel(erro.category),
         };
       }).filter((question): question is ExamQuestion => Boolean(question));
       list = shuffleArray(list);
@@ -315,6 +320,10 @@ export default function ExamPrep({
       list = shuffleArray(MOCK_QUESTIONS);
     }
 
+    if (selectedCategory !== "all") {
+      list = list.filter((question) => question.categoryKey === selectedCategory);
+    }
+
     const eligible = eligibleQuestionsForMode(list.map(enrichQuestion), effectiveMode, knownExposures);
     const finalQuestionsList = shuffleArray(eligible).slice(0, Math.min(eligible.length, questionsCount));
     const durationForAttempt = examDurationSec;
@@ -322,7 +331,9 @@ export default function ExamPrep({
     if (finalQuestionsList.length === 0) {
       alert(type === "errors_notebook"
         ? "Ainda não há questões do caderno com alternativas originais salvas. Sinalize um erro depois de responder uma questão para habilitar esta revisão."
-        : "Não há questões disponíveis para este treino.");
+        : selectedCategory !== "all"
+          ? `Não há questões disponíveis para ${QUESTION_CATEGORY_LABELS[selectedCategory]}. Escolha outro assunto.`
+          : "Não há questões disponíveis para este treino.");
       return;
     }
     
@@ -637,6 +648,26 @@ export default function ExamPrep({
                 </button>
               ))}
             </div>
+
+            {examMode !== "benchmark" && (
+              <div className="space-y-2">
+                <label htmlFor="exam-category" className="block text-xs font-bold uppercase text-slate-400">Assunto da sessão</label>
+                <select
+                  id="exam-category"
+                  value={selectedCategory}
+                  onChange={(event) => setSelectedCategory(event.target.value as QuestionCategoryKey | "all")}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 outline-none focus:border-indigo-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200"
+                >
+                  <option value="all">Todos os assuntos</option>
+                  {CATEGORY_OPTIONS.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+                </select>
+                {selectedCategory !== "all" && (
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {[...MOCK_QUESTIONS, ...REAL_EXAMS.flatMap((exam) => exam.questions)].filter((question) => question.categoryKey === selectedCategory).length} questão(ões) disponíveis neste assunto.
+                  </p>
+                )}
+              </div>
+            )}
 
             {examMode !== "benchmark" && (
               <div className="flex flex-wrap items-center gap-2">

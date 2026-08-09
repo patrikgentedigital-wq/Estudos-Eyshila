@@ -26,7 +26,6 @@ import {
   Play,
   Printer
 } from "lucide-react";
-import { jsPDF } from "jspdf";
 import { Language } from "../types";
 import { useTTS } from "../hooks/useTTS";
 import { exportToPrintablePdf } from "../utils/pdfExport";
@@ -93,6 +92,21 @@ export default function AiStudy({ language }: AiStudyProps) {
   const [fullPdfText, setFullPdfText] = useState<string>("");
   const [isExtractingPdf, setIsExtractingPdf] = useState(false);
 
+  const extractSourceText = async (sourceFile: File | null, sourceText: string): Promise<string> => {
+    if (!sourceFile) return sourceText.trim();
+    if (sourceFile.name.toLowerCase().endsWith(".txt")) return (await sourceFile.text()).trim();
+
+    const base64 = await fileToBase64(sourceFile);
+    const res = await fetch("/api/extract-pdf-text", {
+      method: "POST",
+      headers: await getApiHeaders(),
+      body: JSON.stringify({ fileData: base64, fileName: sourceFile.name, mimeType: "application/pdf" }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "Não foi possível extrair o texto do PDF.");
+    return String(data.text || "").trim();
+  };
+
   const handleReadFullPdf = async () => {
     setErrorMsg(null);
     if (!file && !pastedText.trim()) {
@@ -106,23 +120,7 @@ export default function AiStudy({ language }: AiStudyProps) {
     setLoadingMessage("Extraindo texto completo do PDF para narração...");
     try {
       let extracted = "";
-      if (file) {
-        if (file.name.toLowerCase().endsWith(".txt")) {
-          extracted = await file.text();
-        } else {
-          const base64 = await fileToBase64(file);
-          const res = await fetch("/api/extract-pdf-text", {
-            method: "POST",
-            headers: await getApiHeaders(),
-            body: JSON.stringify({ fileData: base64, fileName: file.name, mimeType: "application/pdf" }),
-          });
-          const data = await res.json().catch(() => ({}));
-          if (!res.ok) throw new Error(data.error || "Não foi possível extrair o texto do PDF.");
-          extracted = data.text || "";
-        }
-      } else {
-        extracted = pastedText;
-      }
+      extracted = await extractSourceText(file, pastedText);
 
       if (!extracted || extracted.trim().length < 10) {
         throw new Error("Não foi possível extrair texto do PDF enviado. O arquivo pode ser uma imagem digitalizada sem camada de texto.");
@@ -358,6 +356,10 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
       ]
     };
 
+    stop();
+    setFile(null);
+    setPastedText("");
+    setFullPdfText("");
     setStudyData(exampleData);
     setActiveSubTab("summary");
     setErrorMsg(null);
@@ -386,6 +388,9 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
       return false;
     }
     setFile(candidate);
+    setPastedText("");
+    setFullPdfText("");
+    stop();
     setErrorMsg(null);
     return true;
   };
@@ -428,6 +433,10 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
         const base64Str = reader.result as string;
         // Strip the data:application/pdf;base64, metadata prefix
         const base64Data = base64Str.split(",")[1];
+        if (!base64Data) {
+          reject(new Error("Não foi possível ler o arquivo selecionado."));
+          return;
+        }
         resolve(base64Data);
       };
       reader.onerror = (error) => reject(error);
@@ -502,10 +511,11 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
       const alphabet = ["A", "B", "C", "D", "E"];
 
       const normalizedQuestions = rawQuestions.map((q: any, qIdx: number) => {
-        const rawOptions = Array.isArray(q.options) ? q.options : ["Opção A", "Opção B", "Opção C", "Opção D", "Opção E"];
+        const rawOptions = Array.isArray(q.options) ? [...q.options] : ["Opção A", "Opção B", "Opção C", "Opção D", "Opção E"];
+        while (rawOptions.length < 5) rawOptions.push("Nenhuma das alternativas anteriores.");
         
         // Standardize options to always start with "A) ", "B) ", etc.
-        const cleanedOptions = rawOptions.map((opt: string, optIdx: number) => {
+        const cleanedOptions = rawOptions.slice(0, 5).map((opt: string, optIdx: number) => {
           const letter = alphabet[optIdx] || "A";
           const textWithoutPrefix = String(opt).replace(/^[A-E][\)\.\:\-]\s*/i, "").trim();
           return `${letter}) ${textWithoutPrefix}`;
@@ -561,6 +571,11 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
       };
 
       setStudyData(cleanStudyData);
+      if (typeof data.sourceText === "string" && data.sourceText.trim().length >= 10) {
+        setFullPdfText(data.sourceText.trim());
+      } else if (!file && pastedText.trim().length >= 10) {
+        setFullPdfText(pastedText.trim());
+      }
       setIsUploadModalOpen(false);
       setActiveSubTab("summary");
       
@@ -657,10 +672,11 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
     setFlashcardSessionFinished(false);
   };
 
-  const downloadSummaryPDF = () => {
+  const downloadSummaryPDF = async () => {
     if (!studyData || !studyData.summary) return;
 
     try {
+      const { jsPDF } = await import("jspdf");
       const doc = new jsPDF({
         orientation: "portrait",
         unit: "mm",
@@ -1803,8 +1819,9 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
                       <div className="flex items-center space-x-3 bg-white/10 backdrop-blur-xs rounded-2xl p-2.5">
                         {!isSpeaking && !isPaused ? (
                           <button
-                            onClick={() => speak(fullPdfText || studyData.summary, rate)}
-                            className="bg-white text-sky-700 hover:bg-sky-50 font-bold text-xs px-5 py-2.5 rounded-xl transition-all flex items-center space-x-2 shadow-md cursor-pointer"
+                            onClick={() => speak(fullPdfText, rate)}
+                            disabled={!fullPdfText.trim() || !ttsSupported}
+                            className="bg-white text-sky-700 hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-50 font-bold text-xs px-5 py-2.5 rounded-xl transition-all flex items-center space-x-2 shadow-md cursor-pointer"
                           >
                             <Play className="h-4 w-4 fill-current" />
                             <span>Iniciar Narração</span>
@@ -1837,7 +1854,6 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
                           }}
                           className="bg-white/20 text-white font-bold text-xs py-2 px-2.5 rounded-xl outline-none border border-white/30 cursor-pointer"
                         >
-                          <option value={0.75} className="text-slate-900">0.75x</option>
                           <option value={1.0} className="text-slate-900">1.0x (Normal)</option>
                           <option value={1.25} className="text-slate-900">1.25x</option>
                           <option value={1.5} className="text-slate-900">1.5x</option>
@@ -1869,6 +1885,9 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
                     <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 font-mono text-xs text-slate-700 dark:text-slate-300 leading-relaxed max-h-[500px] overflow-y-auto whitespace-pre-wrap">
                       {fullPdfText || "Nenhum PDF lido na íntegra ainda. Clique em '+ Anexar / Trocar PDF' no topo e selecione 'Ouvir PDF Completo (Sem Resumir)'."}
                     </div>
+                    {!ttsSupported && (
+                      <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">Seu navegador não oferece a Web Speech API. Use o Chrome atualizado ou habilite um leitor de tela compatível.</p>
+                    )}
                   </div>
 
                 </div>
@@ -2019,7 +2038,14 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
               <textarea
                 rows={4}
                 value={pastedText}
-                onChange={(e) => setPastedText(e.target.value)}
+                onChange={(e) => {
+                  setPastedText(e.target.value);
+                  if (e.target.value.trim()) {
+                    setFile(null);
+                    setFullPdfText("");
+                    stop();
+                  }
+                }}
                 placeholder="Cole anotações, resoluções COFEN ou diretrizes de enfermagem aqui..."
                 className="w-full bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 text-xs outline-none focus:border-sky-500 focus:ring-4 focus:ring-sky-500/10 transition-all leading-relaxed text-slate-800 dark:text-slate-200 font-medium"
               />

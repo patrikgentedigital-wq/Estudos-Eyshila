@@ -137,6 +137,21 @@ body.dark {
   color: #e3e3e3;
 }
 
+.app-main-scroll {
+  scroll-padding-bottom: calc(6rem + env(safe-area-inset-bottom));
+}
+
+.mobile-bottom-nav {
+  min-height: calc(4rem + env(safe-area-inset-bottom));
+  padding-bottom: calc(0.375rem + env(safe-area-inset-bottom));
+}
+
+@media (max-width: 1023px) {
+  .app-main-scroll {
+    padding-bottom: calc(6.5rem + env(safe-area-inset-bottom)) !important;
+  }
+}
+
 /* Smooth transition for theme toggling */
 html,
 html *,

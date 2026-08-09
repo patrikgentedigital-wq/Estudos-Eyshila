@@ -91,15 +91,18 @@ try {
   );
 
   // CORS restriction
-  const allowedOrigins = [
-    process.env.APP_URL,
-    "http://localhost:3000",
-    "http://localhost:5173",
-  ].filter(Boolean) as string[];
+  const allowedOrigins = (isProduction
+    ? [process.env.APP_URL]
+    : [process.env.APP_URL, "http://localhost:3000", "http://localhost:5173"]
+  ).filter(Boolean) as string[];
+
+  if (isProduction && allowedOrigins.length === 0) {
+    console.error("APP_URL must be configured in production; cross-origin requests will be rejected.");
+  }
 
   app.use(
     cors({
-      origin: allowedOrigins.length > 0 ? allowedOrigins : isProduction ? false : "*",
+      origin: allowedOrigins,
       methods: ["GET", "POST"],
       allowedHeaders: ["Content-Type", "Authorization"],
     })
@@ -150,16 +153,18 @@ try {
       "google/gemini-2.5-flash",
       "qwen/qwen-2.5-72b-instruct:free",
       "meta-llama/llama-3.3-70b-instruct:free"
-    ].filter(Boolean) as string[];
+    ].filter(Boolean).slice(0, 3) as string[];
 
     let lastError: any = null;
+    const deadline = Date.now() + 50_000;
 
     for (const model of modelsToTry) {
+      const remainingMs = deadline - Date.now();
+      if (remainingMs <= 1_000) break;
+      const timeoutMs = Math.min(18_000, remainingMs - 250);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
       try {
-        const controller = new AbortController();
-        // 8.5s timeout per model attempt to never exceed Vercel 10s serverless limit
-        const timeoutId = setTimeout(() => controller.abort(), 8500);
-
         const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
           method: "POST",
           signal: controller.signal,
@@ -178,8 +183,6 @@ try {
           })
         });
 
-        clearTimeout(timeoutId);
-
         if (!response.ok) {
           const errorText = await response.text();
           throw new Error(`[${model}] OpenRouter Error ${response.status}: ${errorText}`);
@@ -193,11 +196,13 @@ try {
         }
       } catch (err: any) {
         if (err.name === "AbortError") {
-          console.warn(`Tentativa com modelo ${model} excedeu limite de tempo (8.5s).`);
+          console.warn(`Tentativa com modelo ${model} excedeu o limite global de 50s.`);
         } else {
           console.warn(`Tentativa com modelo ${model} falhou:`, err.message);
         }
         lastError = err;
+      } finally {
+        clearTimeout(timeoutId);
       }
     }
 
@@ -803,7 +808,7 @@ O MATERIAL GERADO É RASCUNHO EDUCACIONAL E NÃO DEVE SER APRESENTADO COMO QUEST
       const cachedResponse = aiCache.get(cacheKey);
       if (cachedResponse) {
         Logger.info("CACHE_HIT: generate-study", req);
-        return res.json(cachedResponse);
+        return res.json({ ...(cachedResponse as Record<string, unknown>), sourceText: extractedText });
       }
       Logger.info("CACHE_MISS: generate-study", req);
 
@@ -827,7 +832,7 @@ O MATERIAL GERADO É RASCUNHO EDUCACIONAL E NÃO DEVE SER APRESENTADO COMO QUEST
       const parsedData = parsedResult.data;
       
       aiCache.set(cacheKey, parsedData);
-      res.json(parsedData);
+      res.json({ ...parsedData, sourceText: extractedText });
 
     } catch (error: any) {
       Logger.error("Falha ao gerar o material de estudos via OpenRouter.", error, req);

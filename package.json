@@ -9,7 +9,9 @@
     "start": "node dist/server.cjs",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "test": "vitest run"
+    "validate:questions": "tsx scripts/validate-questions.ts",
+    "seed:supabase": "tsx scripts/seed-supabase.ts",
+    "test": "npm run validate:questions && vitest run"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

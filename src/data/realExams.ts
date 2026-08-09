@@ -1,4 +1,5 @@
 import { ExamQuestion } from "../types";
+import { LegacyExamQuestion, normalizeQuestionBank } from "./questionNormalizer";
 
 export interface RealExam {
   id: string;
@@ -8,7 +9,7 @@ export interface RealExam {
   questions: ExamQuestion[];
 }
 
-export const REAL_EXAMS: RealExam[] = [
+const RAW_REAL_EXAMS: Array<Omit<RealExam, "questions"> & { questions: LegacyExamQuestion[] }> = [
   {
     id: "enare-2023",
     year: 2023,
@@ -118,3 +119,8 @@ export const REAL_EXAMS: RealExam[] = [
     ]
   }
 ];
+
+export const REAL_EXAMS: RealExam[] = RAW_REAL_EXAMS.map((exam) => ({
+  ...exam,
+  questions: normalizeQuestionBank(exam.questions),
+}));

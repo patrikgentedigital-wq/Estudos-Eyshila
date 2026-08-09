@@ -10,6 +10,7 @@ import {
   QuestionScope,
   ReviewRating,
 } from "../types";
+import { categoryKeyFromLabel } from "../data/questionNormalizer";
 
 export const ENARE_2026_BLUEPRINT: ExamBlueprint = {
   id: "enare-2026-area-profissional",
@@ -65,6 +66,7 @@ export function enrichQuestion(question: ExamQuestion): ExamQuestion {
     ...question,
     cognitiveType,
     criticality,
+    categoryKey: question.categoryKey || categoryKeyFromLabel(question.category),
     competencyId: question.competencyId || slugify(question.category || "sem-categoria"),
     scope: inferQuestionScope(question),
     pool,
@@ -390,7 +392,13 @@ export function isValidBenchmarkForm(
   blueprint: ExamBlueprint = ENARE_2026_BLUEPRINT,
 ): boolean {
   if (mode !== "benchmark" || noveltyRate < 100 || questions.length !== blueprint.questionCount) return false;
-  if (questions.some((question) => question.options.length !== blueprint.optionsPerQuestion)) return false;
+  if (questions.some((question) => (
+    question.options.length !== blueprint.optionsPerQuestion
+    || question.pool !== "assessment"
+    || question.contentStatus !== "published"
+    || Boolean(question.requiresReview)
+    || Boolean(question.generatedOptionIndexes?.length)
+  ))) return false;
   const general = questions.filter((question) => inferQuestionScope(question) === "general").length;
   return general === blueprint.generalQuestionCount
     && questions.length - general === blueprint.specificQuestionCount;
