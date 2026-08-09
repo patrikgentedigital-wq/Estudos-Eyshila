@@ -480,14 +480,25 @@ export default function Dashboard({
                   <Activity className="h-4 w-4 text-rose-500" />
                   <span>Caderno de Erros</span>
                 </h4>
-                <button onClick={() => setShowAddError(!showAddError)} aria-label="Adicionar erro ao caderno" className="text-[10px] font-bold bg-slate-100 p-1.5 rounded-lg text-slate-600"><Plus className="h-3.5 w-3.5" /></button>
+                <div className="flex items-center space-x-2">
+                  {cadernoErros.length > 0 && (
+                    <button 
+                      onClick={() => setActiveTab("exams")} 
+                      className="text-[10px] font-bold bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 px-2.5 py-1 rounded-lg transition-all"
+                    >
+                      Treinar Erros
+                    </button>
+                  )}
+                  <button onClick={() => setShowAddError(!showAddError)} aria-label="Adicionar erro ao caderno" className="text-[10px] font-bold bg-slate-100 dark:bg-slate-800 p-1.5 rounded-lg text-slate-600 dark:text-slate-300"><Plus className="h-3.5 w-3.5" /></button>
+                </div>
               </div>
               <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
                 {cadernoErros.length === 0 ? <p className="text-[10px] text-slate-400 text-center py-4">Nenhum erro registrado ainda.</p> : cadernoErros.map(err => (
-                  <div key={err.id} className="p-2.5 bg-slate-50 dark:bg-slate-950/50 rounded-xl border border-slate-100 relative group">
+                  <div key={err.id} className="p-2.5 bg-slate-50 dark:bg-slate-950/50 rounded-xl border border-slate-100 dark:border-slate-800 relative group">
                     <button onClick={() => setCadernoErros(cadernoErros.filter(e => e.id !== err.id))} aria-label="Excluir erro do caderno" className="absolute top-2 right-2 opacity-70 group-hover:opacity-100"><Trash2 className="h-3 w-3 text-slate-400" /></button>
                     <span className="text-[9px] font-bold text-sky-500 uppercase">{err.topic || err.category}</span>
                     <h5 className="text-[11px] font-bold text-slate-800 dark:text-slate-200 mt-1">{err.concept || err.questionText}</h5>
+                    {err.explanation && <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">{err.explanation}</p>}
                   </div>
                 ))}
               </div>

@@ -27,13 +27,15 @@ import {
   Printer
 } from "lucide-react";
 import { jsPDF } from "jspdf";
-import { Language } from "../types";
 import { useTTS } from "../hooks/useTTS";
 import { exportToPrintablePdf } from "../utils/pdfExport";
 import { supabase } from "../supabase";
+import { Language, Flashcard as GlobalFlashcard, CadernoErroItem } from "../types";
 
 interface AiStudyProps {
   language: Language;
+  onSaveFlashcards?: (newCards: GlobalFlashcard[]) => void;
+  onSaveCadernoError?: (item: CadernoErroItem) => void;
 }
 
 interface Question {
@@ -80,7 +82,9 @@ async function getApiHeaders(): Promise<Record<string, string>> {
   return headers;
 }
 
-export default function AiStudy({ language }: AiStudyProps) {
+export default function AiStudy({ language, onSaveFlashcards, onSaveCadernoError }: AiStudyProps) {
+  const [flashcardsSaved, setFlashcardsSaved] = useState(false);
+  const [savedQuestions, setSavedQuestions] = useState<Record<number, boolean>>({});
   // TTS Hook
   const { speak, pause, resume, stop, isSpeaking, isPaused, supported: ttsSupported, rate, setRate, progressPercent } = useTTS();
 
@@ -647,6 +651,36 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
     setIsCardFlipped(false);
     setCardFeedback({});
     setFlashcardSessionFinished(false);
+  };
+
+  const handleSaveAllFlashcards = () => {
+    if (!studyData?.flashcards || !onSaveFlashcards || flashcardsSaved) return;
+    const globalCards: GlobalFlashcard[] = studyData.flashcards.map((f, i) => ({
+      id: `ai-fc-${Date.now()}-${i}`,
+      question: f.front,
+      answer: f.back,
+      category: "Estudos com IA",
+      difficulty: "Medium",
+      isCustom: true,
+    }));
+    onSaveFlashcards(globalCards);
+    setFlashcardsSaved(true);
+  };
+
+  const handleSaveCurrentQuestion = () => {
+    if (!studyData?.questions?.[currentQuestionIdx] || !onSaveCadernoError) return;
+    const q = studyData.questions[currentQuestionIdx];
+    const item: CadernoErroItem = {
+      id: `ai-err-${Date.now()}-${currentQuestionIdx}`,
+      questionText: q.question,
+      explanation: q.explanation,
+      category: "Estudos com IA",
+      dateAdded: new Date().toISOString(),
+      correctAnswer: q.answer,
+      options: q.options,
+    };
+    onSaveCadernoError(item);
+    setSavedQuestions(prev => ({ ...prev, [currentQuestionIdx]: true }));
   };
 
   const handleShuffleFlashcards = () => {
@@ -1441,6 +1475,19 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
                             {studyData.questions[currentQuestionIdx].source && (
                               <p className="pt-2 text-[10px] text-slate-500"><strong>Fonte informada:</strong> {studyData.questions[currentQuestionIdx].source}</p>
                             )}
+                            <button
+                              id="btn-quiz-save-error"
+                              onClick={handleSaveCurrentQuestion}
+                              disabled={savedQuestions[currentQuestionIdx]}
+                              className={`mt-3 font-bold text-xs py-2 px-4 rounded-xl border transition-all inline-flex items-center space-x-1.5 ${
+                                savedQuestions[currentQuestionIdx]
+                                  ? "bg-emerald-500 text-white border-emerald-500"
+                                  : "bg-amber-600 hover:bg-amber-500 text-white border-amber-600 shadow-sm"
+                              }`}
+                            >
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                              <span>{savedQuestions[currentQuestionIdx] ? "Salvo no Caderno! ✓" : "💾 Salvar no Caderno de Erros"}</span>
+                            </button>
                           </div>
                         )}
 
@@ -1739,6 +1786,19 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
                           className="bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs py-3 px-6 rounded-xl border border-slate-200 dark:border-slate-700 transition-all flex items-center justify-center space-x-1.5"
                         >
                           <span>🔀 {language === "pt" ? "Misturar e Recomeçar" : "Shuffle & Restart"}</span>
+                        </button>
+                        <button
+                          id="btn-flashcard-save-all"
+                          onClick={handleSaveAllFlashcards}
+                          disabled={flashcardsSaved}
+                          className={`font-bold text-xs py-3 px-6 rounded-xl border transition-all flex items-center justify-center space-x-1.5 ${
+                            flashcardsSaved
+                              ? "bg-emerald-500 text-white border-emerald-500"
+                              : "bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-600 shadow-md shadow-emerald-600/10"
+                          }`}
+                        >
+                          <CheckCircle2 className="h-4 w-4" />
+                          <span>{flashcardsSaved ? "Salvo no Meu Banco! ✓" : "💾 Salvar Flashcards no Meu Banco"}</span>
                         </button>
                       </div>
 

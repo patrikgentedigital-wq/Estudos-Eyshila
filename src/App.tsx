@@ -581,7 +581,19 @@ export default function App() {
       case "performance":
         return <Performance language={language} attempts={attempts} />;
       case "ai-study":
-        return <AiStudy language={language} />;
+        return (
+          <AiStudy 
+            language={language} 
+            onSaveFlashcards={(newCards) => {
+              setFlashcards(prev => [...newCards, ...prev]);
+              setToasts(prev => [...prev, { id: String(Date.now()), text: `Flashcards Salvos! ${newCards.length} cartões foram adicionados ao seu Banco Pessoal.`, type: "success" }]);
+            }}
+            onSaveCadernoError={(item) => {
+              setCadernoErros(prev => [item, ...prev]);
+              setToasts(prev => [...prev, { id: String(Date.now()), text: "Questão Salva! A questão foi adicionada ao seu Caderno de Estudos/Erros.", type: "success" }]);
+            }}
+          />
+        );
       case "roadmap":
         return <Roadmap roadmap={roadmap} onToggleTask={handleToggleRoadmapTask} setActiveTab={setActiveTab} hoursPerWeek={profile.hoursPerWeek} />;
       case "settings":

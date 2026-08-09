@@ -90,6 +90,7 @@ export default function ExamPrep({
   const [activeExamType, setActiveExamType] = useState<string>("all");
   const [questions, setQuestions] = useState<ExamQuestion[]>(MOCK_QUESTIONS);
   const [examMode, setExamMode] = useState<ExamMode>("study");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   
   const [questionsCount, setQuestionsCount] = useState<number>(10);
   const [viewMode, setViewMode] = useState<"single" | "list">("list");
@@ -276,17 +277,11 @@ export default function ExamPrep({
     }
 
     let list: ExamQuestion[] = [];
+    const allBank = [...MOCK_QUESTIONS, ...REAL_EXAMS.flatMap(e => e.questions)];
 
-    if (type === "all") {
-      list = shuffleArray(MOCK_QUESTIONS);
-    } else if (type === "sus_ethics") {
-      list = shuffleArray(MOCK_QUESTIONS.filter(q => q.category === "Legislação SUS" || q.category === "Ética e Gestão"));
-    } else if (type === "womens_child") {
-      list = shuffleArray(MOCK_QUESTIONS.filter(q => q.category === "Ciclos de Vida" || q.category === "Prática Clínica"));
-    } else if (type === "errors_notebook") {
-      const allQs = [...MOCK_QUESTIONS, ...REAL_EXAMS.flatMap(e => e.questions)];
+    if (type === "errors_notebook") {
       list = reviewableErrors.map(erro => {
-        const found = allQs.find(q => q.question === erro.questionText);
+        const found = allBank.find(q => q.question === erro.questionText);
         if (found) return found;
         if (!erro.options || erro.options.length < 2 || erro.correctIndex === undefined) return null;
         return {
@@ -303,11 +298,16 @@ export default function ExamPrep({
       const id = type.replace("real_", "");
       const exam = REAL_EXAMS.find(e => e.id === id);
       list = exam ? [...exam.questions] : [];
-    } else if (type.startsWith("enare_")) {
-      const year = type.split("_")[1];
-      list = shuffleArray(MOCK_QUESTIONS.filter(q => q.examSource === `ENARE ${year}`));
     } else {
-      list = shuffleArray(MOCK_QUESTIONS);
+      let filtered = allBank;
+      if (selectedCategory && selectedCategory !== "all") {
+        filtered = allBank.filter(q => q.category === selectedCategory);
+      } else if (type === "sus_ethics") {
+        filtered = allBank.filter(q => q.category === "Legislação SUS" || q.category === "Políticas de Saúde" || q.category === "Ética e Gestão");
+      } else if (type === "womens_child") {
+        filtered = allBank.filter(q => q.category === "Ciclos de Vida" || q.category === "Prática Clínica" || q.category === "Urgência e UTI");
+      }
+      list = shuffleArray(filtered);
     }
 
     const eligible = eligibleQuestionsForMode(list.map(enrichQuestion), effectiveMode, knownExposures);
@@ -634,21 +634,41 @@ export default function ExamPrep({
             </div>
 
             {examMode !== "benchmark" && (
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="mr-2 text-xs font-bold uppercase text-slate-400">Quantidade</span>
-                {[5, 10, 20, 50].map((count) => (
-                  <button
-                    key={count}
-                    type="button"
-                    onClick={() => {
-                      setQuestionsCount(count);
-                      if (!isUnlimitedMode) setExamDurationSec(count * 180);
-                    }}
-                    className={`rounded-xl border px-4 py-2 text-xs font-bold ${questionsCount === count ? "border-sky-600 bg-sky-600 text-white" : "border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300"}`}
+              <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <span className="text-xs font-bold uppercase text-slate-400 shrink-0">Filtrar por Disciplina</span>
+                  <select
+                    value={selectedCategory}
+                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    className="flex-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-hidden focus:ring-2 focus:ring-sky-500"
                   >
-                    {count}
-                  </button>
-                ))}
+                    <option value="all">Todas as Disciplinas (Geral)</option>
+                    <option value="Legislação SUS">Legislação do SUS</option>
+                    <option value="Políticas de Saúde">Políticas de Saúde</option>
+                    <option value="Ética e Gestão">Ética, Legislação e Exercício Profissional</option>
+                    <option value="Urgência e UTI">Urgência, Emergência e UTI</option>
+                    <option value="Ciclos de Vida">Saúde da Mulher e Criança (Ciclos de Vida)</option>
+                    <option value="Prática Clínica">Prática Clínica, Farmacologia e Procedimentos</option>
+                    <option value="Saúde Coletiva">Saúde Coletiva e Epidemiologia</option>
+                  </select>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="mr-2 text-xs font-bold uppercase text-slate-400">Quantidade</span>
+                  {[5, 10, 20, 50].map((count) => (
+                    <button
+                      key={count}
+                      type="button"
+                      onClick={() => {
+                        setQuestionsCount(count);
+                        if (!isUnlimitedMode) setExamDurationSec(count * 180);
+                      }}
+                      className={`rounded-xl border px-4 py-2 text-xs font-bold ${questionsCount === count ? "border-sky-600 bg-sky-600 text-white" : "border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300"}`}
+                    >
+                      {count}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 
