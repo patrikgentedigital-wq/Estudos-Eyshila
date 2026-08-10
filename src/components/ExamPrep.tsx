@@ -277,6 +277,7 @@ export default function ExamPrep({
     }
 
     let list: ExamQuestion[] = [];
+    // Modo estudo/treino local — uso pessoal estrito, gabarito visível no client intencionalmente (decisão 10/08/2026)
     const allBank = [...MOCK_QUESTIONS, ...REAL_EXAMS.flatMap(e => e.questions)];
 
     if (type === "errors_notebook") {

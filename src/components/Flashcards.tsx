@@ -509,18 +509,6 @@ const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, language, t, onAddF
           </div>
         </div>
       )}
-
-      <style dangerouslySetInnerHTML={{ __html: `
-        .perspective-1000 { perspective: 1000px; }
-        .preserve-3d { transform-style: preserve-3d; }
-        .backface-hidden { backface-visibility: hidden; }
-        .rotate-y-180 { transform: rotateY(180deg); }
-        .animate-spin-slow { animation: spin 3s linear infinite; }
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-      `}} />
     </div>
   );
 };

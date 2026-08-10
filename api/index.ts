@@ -28,7 +28,8 @@ const supabaseAdminClient = supabaseUrl && supabaseSecretKey
     })
   : null;
 
-const ENARE_BLUEPRINT = {
+// SYNC: deve espelhar src/utils/studyEngine.ts ENARE_2026_BLUEPRINT e migration SQL 20260804235049_edtech_learning_integrity.sql
+export const ENARE_BLUEPRINT = {
   id: "enare-2026-area-profissional",
   name: "ENARE 2026/2027 - Enfermagem",
   board: "FGV",
@@ -82,24 +83,37 @@ try {
   // Apply metrics & tracing first
   app.use(metricsMiddleware);
 
-  // Security HTTP Headers with Helmet
+  // Security HTTP Headers with Helmet & CSP
   app.use(
     helmet({
-      contentSecurityPolicy: false,
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "'unsafe-inline'"],
+          styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+          fontSrc: ["'self'", "https://fonts.gstatic.com"],
+          imgSrc: ["'self'", "data:", "https:"],
+          connectSrc: ["'self'", "https://openrouter.ai", "https://*.supabase.co"],
+        },
+      },
       crossOriginEmbedderPolicy: false,
     })
   );
 
-  // CORS restriction
+  // CORS restriction with VERCEL_URL support
+  const vercelOrigin = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null;
   const allowedOrigins = [
     process.env.APP_URL,
+    vercelOrigin,
     "http://localhost:3000",
     "http://localhost:5173",
   ].filter(Boolean) as string[];
 
   app.use(
     cors({
-      origin: allowedOrigins.length > 0 ? allowedOrigins : isProduction ? false : "*",
+      origin: isProduction 
+        ? (allowedOrigins.length > 0 ? allowedOrigins : false)
+        : (allowedOrigins.length > 0 ? allowedOrigins : "*"),
       methods: ["GET", "POST"],
       allowedHeaders: ["Content-Type", "Authorization"],
     })
@@ -313,32 +327,24 @@ try {
       console.warn("pdf-parse falhou, tentando fallback por regex de streams PDF:", pdfErr.message);
     }
 
-    // Comprehensive PDF stream text extractor fallback (BT...ET streams + Tj/TJ operators)
+    // Safe PDF stream text extractor fallback (limited to first 1.5MB to avoid ReDoS)
     try {
-      const rawStr = Buffer.from(fileData, "base64").toString("binary");
+      const sampleStr = Buffer.from(fileData, "base64").toString("binary").slice(0, 1.5 * 1024 * 1024);
       const textChunks: string[] = [];
 
-      // Pattern 1: Tj and TJ text operators
-      const matchesTj = rawStr.match(/\(([^()]{2,})\)\s*T[jJ]/g);
-      if (matchesTj) {
-        matchesTj.forEach(m => {
-          const clean = m.replace(/^\(/, "").replace(/\)\s*T[jJ]$/, "").trim();
-          if (clean.length >= 2) textChunks.push(clean);
-        });
-      }
+      // Safe block splitting for BT...ET without non-greedy regex backtracking
+      const btBlocks = sampleStr.split("BT");
+      for (let i = 1; i < btBlocks.length; i++) {
+        const block = btBlocks[i].split("ET")[0];
+        if (!block || block.length > 5000) continue;
 
-      // Pattern 2: Text inside BT ... ET blocks
-      const btBlocks = rawStr.match(/BT[\s\S]*?ET/g);
-      if (btBlocks) {
-        btBlocks.forEach(block => {
-          const innerMatches = block.match(/\(([^()]{2,})\)/g);
-          if (innerMatches) {
-            innerMatches.forEach(im => {
-              const clean = im.replace(/^\(/, "").replace(/\)$/, "").trim();
-              if (clean.length >= 2) textChunks.push(clean);
-            });
-          }
-        });
+        const innerMatches = block.match(/\(([^()]{2,500})\)/g);
+        if (innerMatches) {
+          innerMatches.forEach(im => {
+            const clean = im.slice(1, -1).trim();
+            if (clean.length >= 2) textChunks.push(clean);
+          });
+        }
       }
 
       const fallbackText = Array.from(new Set(textChunks)).join(" ").trim();

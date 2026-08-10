@@ -471,6 +471,7 @@ export const INITIAL_MODULES: StudyModule[] = [
   }
 ];
 
+// Conteúdo de estudo aberto — uso pessoal único, gabarito visível intencionalmente (decisão 10/08/2026)
 export const MOCK_QUESTIONS: ExamQuestion[] = [
   {
     id: "q-1",

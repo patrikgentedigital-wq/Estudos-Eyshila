@@ -11,6 +11,7 @@ import {
   ReviewRating,
 } from "../types";
 
+// SYNC: deve espelhar api/index.ts ENARE_BLUEPRINT e migration SQL 20260804235049_edtech_learning_integrity.sql
 export const ENARE_2026_BLUEPRINT: ExamBlueprint = {
   id: "enare-2026-area-profissional",
   name: "ENARE 2026/2027 - Enfermagem",
