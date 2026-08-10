@@ -10,3 +10,5 @@ firebase-applet-config.json
 
 .vercel
 tmp/
+
+.vercel

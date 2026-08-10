@@ -337,7 +337,7 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
     setFlashcardSessionFinished(false);
   };
 
-  const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+  const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 
   const acceptStudyFile = (candidate: File) => {
     const ext = candidate.name.split(".").pop()?.toLowerCase();
@@ -346,7 +346,7 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
       return false;
     }
     if (candidate.size > MAX_FILE_SIZE_BYTES) {
-      setErrorMsg(language === "pt" ? "O arquivo excede o limite de 5 MB." : "The file exceeds 5 MB.");
+      setErrorMsg(language === "pt" ? "O arquivo excede o limite de 10 MB." : "The file exceeds 10 MB.");
       return false;
     }
     setFile(candidate);

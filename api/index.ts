@@ -172,7 +172,7 @@ try {
           body: JSON.stringify({
             model: model,
             messages: messages,
-            max_tokens: 1500,
+            max_tokens: 8000,
             temperature: 0.3,
             response_format: isJsonMode ? { type: "json_object" } : undefined
           })
@@ -226,7 +226,7 @@ try {
       options: z.array(z.string()).length(5),
       answer: z.enum(["A", "B", "C", "D", "E"]),
       explanation: z.string(),
-      cognitiveType: z.enum(["factual", "protocol", "clinical_reasoning"]),
+      cognitiveType: z.enum(["factual", "protocol", "clinical_reasoning"]).optional(),
       clinicalCase: z.object({
         setting: z.string().optional(),
         ageGroup: z.string().optional(),
@@ -239,12 +239,12 @@ try {
       pivotalCues: z.array(z.string()).max(5).optional(),
       reasoningSteps: z.array(z.string()).max(5).optional(),
       distractorExplanations: z.array(z.string()).length(5).optional(),
-      source: z.string(),
-    })).length(3),
+      source: z.string().optional(),
+    })).min(3).max(15),
     flashcards: z.array(z.object({
       front: z.string(),
       back: z.string(),
-    })).length(3),
+    })).min(3).max(15),
   });
 
   const ExtractPdfSchema = z.object({
@@ -290,12 +290,12 @@ try {
     return { userId: req.authUserId, admin: supabaseAdminClient };
   }
 
-  const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+  const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 
   async function extractUploadedText(fileData: string, mimeType?: string): Promise<string> {
     const decodedSizeBytes = Buffer.byteLength(fileData, "base64");
     if (decodedSizeBytes > MAX_UPLOAD_BYTES) {
-      throw new Error("O arquivo excede o limite de 5 MB. Divida o PDF em partes menores.");
+      throw new Error("O arquivo excede o limite de 10 MB. Divida o PDF em partes menores.");
     }
 
     if (mimeType !== "application/pdf") {
@@ -313,18 +313,41 @@ try {
       console.warn("pdf-parse falhou, tentando fallback por regex de streams PDF:", pdfErr.message);
     }
 
+    // Comprehensive PDF stream text extractor fallback (BT...ET streams + Tj/TJ operators)
     try {
       const rawStr = Buffer.from(fileData, "base64").toString("binary");
-      const matches = rawStr.match(/\(([^()]{3,})\)\s*T[jJ]/g);
-      const fallbackText = matches
-        ? matches.map(m => m.replace(/^\(/, "").replace(/\)\s*T[jJ]$/, "")).join(" ").trim()
-        : "";
+      const textChunks: string[] = [];
+
+      // Pattern 1: Tj and TJ text operators
+      const matchesTj = rawStr.match(/\(([^()]{2,})\)\s*T[jJ]/g);
+      if (matchesTj) {
+        matchesTj.forEach(m => {
+          const clean = m.replace(/^\(/, "").replace(/\)\s*T[jJ]$/, "").trim();
+          if (clean.length >= 2) textChunks.push(clean);
+        });
+      }
+
+      // Pattern 2: Text inside BT ... ET blocks
+      const btBlocks = rawStr.match(/BT[\s\S]*?ET/g);
+      if (btBlocks) {
+        btBlocks.forEach(block => {
+          const innerMatches = block.match(/\(([^()]{2,})\)/g);
+          if (innerMatches) {
+            innerMatches.forEach(im => {
+              const clean = im.replace(/^\(/, "").replace(/\)$/, "").trim();
+              if (clean.length >= 2) textChunks.push(clean);
+            });
+          }
+        });
+      }
+
+      const fallbackText = Array.from(new Set(textChunks)).join(" ").trim();
       if (fallbackText.length >= 20) return fallbackText;
     } catch {
       // Return a clear user-facing error below.
     }
 
-    throw new Error("O PDF não possui camada de texto legível. Ele pode estar escaneado, protegido por senha ou corrompido.");
+    throw new Error("O PDF não possui camada de texto legível de forma automática. Se for um arquivo escaneado (imagem), copie e cole o texto manualmente na caixa de entrada para gerar seus estudos.");
   }
 
   // API endpoints
@@ -790,8 +813,8 @@ Formato exigido:
     }
   ]
 }
-GERE EXATAMENTE 3 QUESTÕES DE ALTO RENDIMENTO, TODAS COM 5 ALTERNATIVAS, E 3 FLASHCARDS DIRETO AO PONTO.
-PELO MENOS 2 QUESTÕES DEVEM SER VINHETAS CLÍNICAS DIFERENTES, COM DADOS DECISIVOS E PASSOS DE RACIOCÍNIO. A TERCEIRA PODE SER FACTUAL OU DE PROTOCOLO.
+GERE EXATAMENTE 10 QUESTÕES DE ALTO RENDIMENTO, TODAS COM 5 ALTERNATIVAS (A-E), E 6 FLASHCARDS DIRETO AO PONTO.
+PELO MENOS 6 QUESTÕES DEVEM SER VINHETAS CLÍNICAS DIFERENTES, COM DADOS DECISIVOS E PASSOS DE RACIOCÍNIO. AS DEMAIS PODEM SER FACTUAIS OU DE PROTOCOLO.
 O MATERIAL GERADO É RASCUNHO EDUCACIONAL E NÃO DEVE SER APRESENTADO COMO QUESTÃO OFICIAL DA BANCA.`;
 
       const userPrompt = `Baseado no seguinte texto de estudos, elabore o resumo científico, questões com fundamentação legal/clínica e flashcards em formato JSON estrito:\n\n${extractedText}`;
