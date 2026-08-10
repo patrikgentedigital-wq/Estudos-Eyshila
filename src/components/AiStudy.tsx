@@ -3,34 +3,27 @@ import {
   Sparkles, 
   UploadCloud, 
   FileText, 
-  CheckCircle2, 
-  XCircle, 
   BookOpen, 
   Award, 
-  ArrowRight, 
-  ChevronRight, 
-  RefreshCw, 
   Brain, 
-  HelpCircle, 
   Clock, 
   AlertTriangle,
-  ChevronLeft,
-  FileDown,
   Headphones,
-  PlayCircle,
-  PauseCircle,
-  StopCircle,
   GraduationCap,
-  FileUp,
-  X,
-  Play,
-  Printer
+  Play
 } from "lucide-react";
-import { jsPDF } from "jspdf";
 import { useTTS } from "../hooks/useTTS";
 import { exportToPrintablePdf } from "../utils/pdfExport";
 import { supabase } from "../supabase";
 import { Language, Flashcard as GlobalFlashcard, CadernoErroItem } from "../types";
+import { jsPDF } from "jspdf";
+
+// Sub-components
+import AiUploadModal from "./ai-study/AiUploadModal";
+import AiAudioPlayer from "./ai-study/AiAudioPlayer";
+import AiFlashcards from "./ai-study/AiFlashcards";
+import AiQuiz from "./ai-study/AiQuiz";
+import AiSummary from "./ai-study/AiSummary";
 
 interface AiStudyProps {
   language: Language;
@@ -41,7 +34,7 @@ interface AiStudyProps {
 interface Question {
   question: string;
   options: string[];
-  answer: string; // "A", "B", "C", "D", "E"
+  answer: string;
   explanation: string;
   leadIn?: string;
   cognitiveType?: "factual" | "protocol" | "clinical_reasoning";
@@ -85,8 +78,9 @@ async function getApiHeaders(): Promise<Record<string, string>> {
 export default function AiStudy({ language, onSaveFlashcards, onSaveCadernoError }: AiStudyProps) {
   const [flashcardsSaved, setFlashcardsSaved] = useState(false);
   const [savedQuestions, setSavedQuestions] = useState<Record<number, boolean>>({});
+
   // TTS Hook
-  const { speak, pause, resume, stop, isSpeaking, isPaused, supported: ttsSupported, rate, setRate, progressPercent } = useTTS();
+  const { speak, pause, resume, stop, isSpeaking, isPaused, rate, setRate, progressPercent } = useTTS();
 
   const [file, setFile] = useState<File | null>(null);
   const [pastedText, setPastedText] = useState("");
@@ -96,6 +90,74 @@ export default function AiStudy({ language, onSaveFlashcards, onSaveCadernoError
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [fullPdfText, setFullPdfText] = useState<string>("");
   const [isExtractingPdf, setIsExtractingPdf] = useState(false);
+  const [studyData, setStudyData] = useState<GeneratedStudy | null>(null);
+  const [dragActive, setDragActive] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Interactive Quiz States
+  const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
+  const [quizSubmitted, setQuizSubmitted] = useState<Record<number, boolean>>({});
+  const [quizFinished, setQuizFinished] = useState(false);
+
+  // Interactive Flashcards States
+  const [currentCardIdx, setCurrentCardIdx] = useState(0);
+  const [isCardFlipped, setIsCardFlipped] = useState(false);
+  const [cardFeedback, setCardFeedback] = useState<Record<number, "easy" | "hard">>({});
+  const [flashcardSessionFinished, setFlashcardSessionFinished] = useState(false);
+
+  // AI Chat States
+  const [chatInput, setChatInput] = useState("");
+  const [chatMessages, setChatMessages] = useState<{ role: "user" | "ai"; content: string }[]>([]);
+  const [chatLoading, setChatLoading] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages]);
+
+  const loadingMessages = language === "pt" ? [
+    "Lendo o arquivo enviado...",
+    "Extraindo conceitos centrais de estudo...",
+    "A IA está estruturando o resumo didático...",
+    "Sintetizando diretrizes e legislações aplicáveis...",
+    "Elaborando questões personalizadas no padrão ENARE...",
+    "Revisando fundamentações e condutas de enfermagem..."
+  ] : [
+    "Reading uploaded file...",
+    "Extracting core learning concepts...",
+    "The AI is building your custom study summary...",
+    "Synthesizing nursing board guidelines...",
+    "Creating mock exam questions...",
+    "Formulating detailed clinical rationale..."
+  ];
+
+  useEffect(() => {
+    let interval: any = null;
+    if (loading) {
+      let idx = 0;
+      setLoadingMessage(loadingMessages[0]);
+      interval = setInterval(() => {
+        idx = (idx + 1) % loadingMessages.length;
+        setLoadingMessage(loadingMessages[idx]);
+      }, 3500);
+    }
+    return () => clearInterval(interval);
+  }, [loading, language]);
+
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        const base64Str = reader.result as string;
+        resolve(base64Str.split(",")[1]);
+      };
+      reader.onerror = (error) => reject(error);
+    });
+  };
 
   const handleReadFullPdf = async () => {
     setErrorMsg(null);
@@ -139,7 +201,6 @@ export default function AiStudy({ language, onSaveFlashcards, onSaveCadernoError
       setIsUploadModalOpen(false);
       setActiveSubTab("full-audio");
       setIsExtractingPdf(false);
-
       speak(extracted, rate);
     } catch (err: any) {
       console.error(err);
@@ -147,67 +208,7 @@ export default function AiStudy({ language, onSaveFlashcards, onSaveCadernoError
       setErrorMsg(err.message || "Erro ao processar PDF para áudio.");
     }
   };
-  
-  const [studyData, setStudyData] = useState<GeneratedStudy | null>(null);
-  const [dragActive, setDragActive] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  
-  // Interactive Quiz States
-  const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
-  const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({}); // idx -> "A", "B", "C", "D"
-  const [quizSubmitted, setQuizSubmitted] = useState<Record<number, boolean>>({}); // idx -> true/false
-  const [quizFinished, setQuizFinished] = useState(false);
 
-  // Interactive Flashcards States
-  const [currentCardIdx, setCurrentCardIdx] = useState(0);
-  const [isCardFlipped, setIsCardFlipped] = useState(false);
-  const [cardFeedback, setCardFeedback] = useState<Record<number, "easy" | "hard">>({}); // cardIdx -> "easy" (Lembrei) or "hard" (Não lembrei)
-  const [flashcardSessionFinished, setFlashcardSessionFinished] = useState(false);
-  
-  // AI Chat States
-  const [chatInput, setChatInput] = useState("");
-  const [chatMessages, setChatMessages] = useState<{role: "user" | "ai", content: string}[]>([]);
-  const [chatLoading, setChatLoading] = useState(false);
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const chatEndRef = useRef<HTMLDivElement>(null);
-
-  // Auto scroll chat
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chatMessages]);
-
-  // Reassuring messages for loading screen
-  const loadingMessages = language === "pt" ? [
-    "Lendo o arquivo enviado...",
-    "Extraindo conceitos centrais de estudo...",
-    "A IA está estruturando o resumo didático...",
-    "Sintetizando diretrizes e legislações aplicáveis...",
-    "Elaborando questões personalizadas no padrão ENARE...",
-    "Revisando fundamentações e condutas de enfermagem..."
-  ] : [
-    "Reading uploaded file...",
-    "Extracting core learning concepts...",
-    "The AI is building your custom study summary...",
-    "Synthesizing nursing board guidelines...",
-    "Creating mock exam questions...",
-    "Formulating detailed clinical rationale..."
-  ];
-
-  useEffect(() => {
-    let interval: any = null;
-    if (loading) {
-      let idx = 0;
-      setLoadingMessage(loadingMessages[0]);
-      interval = setInterval(() => {
-        idx = (idx + 1) % loadingMessages.length;
-        setLoadingMessage(loadingMessages[idx]);
-      }, 3500);
-    }
-    return () => clearInterval(interval);
-  }, [loading, language]);
-
-  // AI Chat Handler
   const handleChatSearch = async () => {
     if (!chatInput.trim() || chatLoading) return;
 
@@ -225,27 +226,19 @@ export default function AiStudy({ language, onSaveFlashcards, onSaveCadernoError
 
       if (!res.ok) {
         let errorMessage = `Erro ${res.status}`;
-        if (res.status === 401) {
-          if (supabase) supabase.auth.signOut();
+        if (res.status === 401 && supabase) {
+          supabase.auth.signOut();
           errorMessage = "Sua sessão expirou. Faça login novamente para usar o mentor.";
         }
         try {
           const text = await res.text();
           try {
             const data = JSON.parse(text);
-            if (data.error) {
-              errorMessage = data.error;
-              if (data.error.includes("OPENROUTER_API_KEY") || data.error.includes("GEMINI_API_KEY")) {
-                errorMessage = "O serviço de IA não está configurado no servidor. Verifique as variáveis de ambiente.";
-              }
-            }
+            if (data.error) errorMessage = data.error;
           } catch (e) {
-            // Not JSON, probably Vercel Error Page
             errorMessage = `Erro ${res.status}: ${text.substring(0, 150)}...`;
           }
-        } catch (e) {
-          // ignore parsing error
-        }
+        } catch (e) {}
         throw new Error(errorMessage);
       }
       const data = await res.json();
@@ -258,7 +251,6 @@ export default function AiStudy({ language, onSaveFlashcards, onSaveCadernoError
     }
   };
 
-  // Pre-loaded study example so the user can test the app immediately without uploading anything
   const handleLoadExample = () => {
     const exampleData: GeneratedStudy = {
       summary: `### Lei Orgânica da Saúde - Lei 8.080 de 1990
@@ -302,7 +294,7 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
             "D) Controle de qualidade de serviços prestados por clínicas de radiologia privadas."
           ],
           answer: "B",
-          explanation: "O controle de endemias transmissíveis (como o monitoramento de vetores de dengue e malária) é uma ação típica da Vigilância Epidemiológica, não da Vigilância Sanitária. A Vigilância Sanitária foca no controle de produtos, processos e ambientes de consumo."
+          explanation: "O controle de endemias transmissíveis (como o monitoramento de vetores de dengue e malária) é uma ação típica da Vigilância Epidemiológica, não da Vigilância Sanitária."
         },
         {
           question: "A descentralização político-administrativa é um dos princípios organizativos do SUS descritos na Lei nº 8.080/1990. Ela estabelece uma ênfase na:",
@@ -313,55 +305,21 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
             "D) Extinção da atuação do Ministério da Saúde na formulação de políticas públicas."
           ],
           answer: "C",
-          explanation: "A descentralização distribui o poder de gestão do nível federal para os estados e municípios, tendo como diretriz principal a 'municipalização' dos serviços de saúde, já que o município é o ente federativo mais próximo da vida real do cidadão."
-        },
-        {
-          question: "Segundo a Lei nº 8.080/1990, a incorporação de ações de prevenção, promoção, proteção e reabilitação de saúde de forma contínua e articulada constitui qual princípio?",
-          options: [
-            "A) Integralidade da assistência.",
-            "B) Regionalização hierárquica.",
-            "C) Conjugação dos recursos financeiros.",
-            "D) Universalidade do atendimento."
-          ],
-          answer: "A",
-          explanation: "A integralidade garante que a assistência englobe ações preventivas e curativas, individuais e coletivas, exigidas para cada caso em todos os níveis de complexidade do sistema, unindo promoção, prevenção e recuperação de saúde."
-        },
-        {
-          question: "As ações de saúde do trabalhador, incluídas no campo de atuação do SUS pela Lei nº 8.080/1990, abrangem qual das seguintes atividades?",
-          options: [
-            "A) Garantia de estabilidade financeira vitalícia para acidentados de trabalho.",
-            "B) Participação na normatização, fiscalização e controle das condições de trabalho.",
-            "C) Contratação obrigatória de planos de saúde privados pelas empresas locais.",
-            "D) Julgamento de ações criminais por negligência patronal em acidentes industriais."
-          ],
-          answer: "B",
-          explanation: "O SUS atua na proteção da saúde do trabalhador participando ativamente na normatização, fiscalização, controle das condições de produção e trabalho, e promovendo ações de reabilitação e vigilância de riscos ocupacionais."
+          explanation: "A descentralização distribui o poder de gestão do nível federal para os estados e municípios, tendo como diretriz principal a municipalização dos serviços de saúde."
         }
       ],
       flashcards: [
         {
           front: "Qual a diferença principal entre os princípios doutrinários de Universalidade e Equidade no SUS?",
-          back: "Universalidade garante acesso à saúde a TODOS sem distinção. Equidade é tratar de forma desigual os desiguais, oferecendo mais recursos a quem mais precisa para reduzir disparidades."
+          back: "Universalidade garante acesso à saúde a TODOS sem distinção. Equidade é oferecer mais recursos a quem mais precisa para reduzir disparidades."
         },
         {
           front: "A municipalização dos serviços de saúde do SUS é fundamentada em qual princípio organizativo?",
-          back: "Princípio da Descentralização político-administrativa (distribuição de poder e responsabilidade para os municípios, aproximando a gestão do cidadão)."
+          back: "Princípio da Descentralização político-administrativa."
         },
         {
           front: "O monitoramento do vetor da Dengue é competência de qual Vigilância do SUS?",
-          back: "Vigilância Epidemiológica (controle e detecção de doenças transmissíveis e agravos à saúde)."
-        },
-        {
-          front: "O controle sanitário de alimentos e bebidas de consumo humano pertence a qual campo de atuação do SUS?",
-          back: "Vigilância Sanitária (fiscalização e eliminação de riscos em bens, produtos, serviços e ambientes relacionados à saúde)."
-        },
-        {
-          front: "Quais são os 3 princípios doutrinários (ou fundamentais) do SUS regulamentados pela Lei 8.080?",
-          back: "Universalidade, Integralidade e Equidade."
-        },
-        {
-          front: "A assistência terapêutica integral inclui o fornecimento de medicamentos?",
-          back: "Sim, inclui a assistência farmacêutica de forma integral, de acordo com as diretrizes e protocolos clínicos estabelecidos."
+          back: "Vigilância Epidemiológica (controle e detecção de doenças transmissíveis)."
         }
       ]
     };
@@ -369,12 +327,10 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
     setStudyData(exampleData);
     setActiveSubTab("summary");
     setErrorMsg(null);
-    // Reset quiz
     setCurrentQuestionIdx(0);
     setSelectedAnswers({});
     setQuizSubmitted({});
     setQuizFinished(false);
-    // Reset flashcards
     setCurrentCardIdx(0);
     setIsCardFlipped(false);
     setCardFeedback({});
@@ -390,7 +346,7 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
       return false;
     }
     if (candidate.size > MAX_FILE_SIZE_BYTES) {
-      setErrorMsg(language === "pt" ? "O arquivo excede o limite de 5 MB. Divida o PDF em partes menores." : "The file exceeds the 5 MB limit. Split the PDF into smaller parts.");
+      setErrorMsg(language === "pt" ? "O arquivo excede o limite de 5 MB." : "The file exceeds 5 MB.");
       return false;
     }
     setFile(candidate);
@@ -398,51 +354,28 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
     return true;
   };
 
-  // Drag and drop handlers
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
-    }
+    if (e.type === "dragenter" || e.type === "dragover") setDragActive(true);
+    else if (e.type === "dragleave") setDragActive(false);
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const droppedFile = e.dataTransfer.files[0];
-      acceptStudyFile(droppedFile);
+      acceptStudyFile(e.dataTransfer.files[0]);
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const selectedFile = e.target.files[0];
-      acceptStudyFile(selectedFile);
+      acceptStudyFile(e.target.files[0]);
     }
   };
 
-  // Convert File to Base64
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => {
-        const base64Str = reader.result as string;
-        // Strip the data:application/pdf;base64, metadata prefix
-        const base64Data = base64Str.split(",")[1];
-        resolve(base64Data);
-      };
-      reader.onerror = (error) => reject(error);
-    });
-  };
-
-  // Call API to generate summary and questions
   const handleGenerateStudy = async () => {
     setErrorMsg(null);
     if (!file && !pastedText.trim()) {
@@ -457,7 +390,6 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
 
     try {
       let payload: any = {};
-      
       if (file) {
         const base64 = await fileToBase64(file);
         payload = {
@@ -466,9 +398,7 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
           mimeType: file.type || (file.name.endsWith(".txt") ? "text/plain" : "application/pdf")
         };
       } else {
-        payload = {
-          text: pastedText
-        };
+        payload = { text: pastedText };
       }
 
       const res = await fetch("/api/generate-study", {
@@ -479,63 +409,50 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
 
       if (!res.ok) {
         let errorMessage = "HTTP error " + res.status;
-        if (res.status === 401) {
-          if (supabase) supabase.auth.signOut();
+        if (res.status === 401 && supabase) {
+          supabase.auth.signOut();
           errorMessage = "Sua sessão expirou. Faça login novamente para gerar o material.";
         }
         try {
           const text = await res.text();
           try {
             const errorData = JSON.parse(text);
-            if (errorData.error) {
-              errorMessage = errorData.error;
-            }
+            if (errorData.error) errorMessage = errorData.error;
           } catch (e) {
             errorMessage = `HTTP error ${res.status}: ${text.substring(0, 150)}...`;
           }
-        } catch (e) {
-          // ignore parsing error
-        }
+        } catch (e) {}
         throw new Error(errorMessage);
       }
 
       const data = await res.json();
-      if (data.error) {
-        throw new Error(data.error);
-      }
+      if (data.error) throw new Error(data.error);
 
-      // Robust Data Normalization Guard for Quiz & Flashcards
       const rawQuestions = Array.isArray(data.questions) ? data.questions : (Array.isArray(data.quiz) ? data.quiz : []);
       const rawFlashcards = Array.isArray(data.flashcards) ? data.flashcards : (Array.isArray(data.cards) ? data.cards : []);
-
       const alphabet = ["A", "B", "C", "D", "E"];
 
       const normalizedQuestions = rawQuestions.map((q: any, qIdx: number) => {
         const rawOptions = Array.isArray(q.options) ? q.options : ["Opção A", "Opção B", "Opção C", "Opção D", "Opção E"];
-        
-        // Standardize options to always start with "A) ", "B) ", etc.
         const cleanedOptions = rawOptions.map((opt: string, optIdx: number) => {
           const letter = alphabet[optIdx] || "A";
           const textWithoutPrefix = String(opt).replace(/^[A-E][\)\.\:\-]\s*/i, "").trim();
           return `${letter}) ${textWithoutPrefix}`;
         });
 
-        // Standardize answer to single uppercase letter "A", "B", "C", "D"
         let cleanAnswer = "A";
         if (typeof q.answer === "string") {
           const match = q.answer.match(/[A-E]/i);
           if (match) cleanAnswer = match[0].toUpperCase();
         } else if (typeof q.answer === "number" && q.answer >= 0 && q.answer < 5) {
           cleanAnswer = alphabet[q.answer];
-        } else if (typeof q.correctIndex === "number") {
-          cleanAnswer = alphabet[q.correctIndex] || "A";
         }
 
         return {
           question: q.question || q.title || `Questão ${qIdx + 1}`,
           options: cleanedOptions,
           answer: cleanAnswer,
-          explanation: q.explanation || q.justification || "Fundamentação didática disponível para esta questão.",
+          explanation: q.explanation || "Fundamentação didática disponível.",
           leadIn: q.leadIn,
           cognitiveType: q.cognitiveType,
           clinicalCase: q.clinicalCase,
@@ -551,35 +468,17 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
         back: f.back || f.answer || f.definition || "Definição não disponível."
       }));
 
-      const cleanStudyData: GeneratedStudy = {
+      setStudyData({
         summary: data.summary || "Resumo de estudos gerado pela Inteligência Artificial.",
-        questions: normalizedQuestions.length > 0 ? normalizedQuestions : [
-          {
-            question: "Qual o foco principal do material analisado?",
-            options: ["A) Diretrizes de Enfermagem", "B) Protocolos Clínicos", "C) Legislação do SUS", "D) Prática Assistencial", "E) Gestão administrativa"],
-            answer: "A",
-            explanation: "O material foca no aprimoramento contínuo das rotinas e legislações de enfermagem."
-          }
-        ],
-        flashcards: normalizedFlashcards.length > 0 ? normalizedFlashcards : [
-          {
-            front: "Conceito Fundamental de Enfermagem",
-            back: "Assistência prestada de forma integrada, segura e ética."
-          }
-        ]
-      };
-
-      setStudyData(cleanStudyData);
+        questions: normalizedQuestions.length > 0 ? normalizedQuestions : [],
+        flashcards: normalizedFlashcards.length > 0 ? normalizedFlashcards : []
+      });
       setIsUploadModalOpen(false);
       setActiveSubTab("summary");
-      
-      // Reset quiz state
       setCurrentQuestionIdx(0);
       setSelectedAnswers({});
       setQuizSubmitted({});
       setQuizFinished(false);
-
-      // Reset flashcards state
       setCurrentCardIdx(0);
       setIsCardFlipped(false);
       setCardFeedback({});
@@ -595,55 +494,11 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
     }
   };
 
-  // Interactive Quiz Functions
-  const handleOptionSelect = (optionLetter: string) => {
-    if (quizSubmitted[currentQuestionIdx]) return;
-    setSelectedAnswers({
-      ...selectedAnswers,
-      [currentQuestionIdx]: optionLetter
-    });
-  };
-
-  const handleSubmitQuestion = () => {
-    if (!selectedAnswers[currentQuestionIdx]) return;
-    setQuizSubmitted({
-      ...quizSubmitted,
-      [currentQuestionIdx]: true
-    });
-  };
-
-  const handleNextQuestion = () => {
-    if (currentQuestionIdx < (studyData?.questions.length || 0) - 1) {
-      setCurrentQuestionIdx(currentQuestionIdx + 1);
-    } else {
-      setQuizFinished(true);
-    }
-  };
-
   const handleResetQuiz = () => {
     setCurrentQuestionIdx(0);
     setSelectedAnswers({});
     setQuizSubmitted({});
     setQuizFinished(false);
-  };
-
-  // Interactive Flashcards Functions
-  const handleFlashcardFeedback = (feedback: "easy" | "hard") => {
-    setCardFeedback({
-      ...cardFeedback,
-      [currentCardIdx]: feedback
-    });
-    
-    if (currentCardIdx < (studyData?.flashcards?.length || 0) - 1) {
-      setTimeout(() => {
-        setIsCardFlipped(false);
-        setCurrentCardIdx(currentCardIdx + 1);
-      }, 300);
-    } else {
-      setTimeout(() => {
-        setFlashcardSessionFinished(true);
-      }, 300);
-    }
   };
 
   const handleResetFlashcards = () => {
@@ -667,11 +522,11 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
     setFlashcardsSaved(true);
   };
 
-  const handleSaveCurrentQuestion = () => {
-    if (!studyData?.questions?.[currentQuestionIdx] || !onSaveCadernoError) return;
-    const q = studyData.questions[currentQuestionIdx];
+  const handleSaveQuestionToNotebook = (idx: number) => {
+    if (!studyData?.questions?.[idx] || !onSaveCadernoError) return;
+    const q = studyData.questions[idx];
     const item: CadernoErroItem = {
-      id: `ai-err-${Date.now()}-${currentQuestionIdx}`,
+      id: `ai-err-${Date.now()}-${idx}`,
       questionText: q.question,
       explanation: q.explanation,
       category: "Estudos com IA",
@@ -680,16 +535,13 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
       options: q.options,
     };
     onSaveCadernoError(item);
-    setSavedQuestions(prev => ({ ...prev, [currentQuestionIdx]: true }));
+    setSavedQuestions(prev => ({ ...prev, [idx]: true }));
   };
 
   const handleShuffleFlashcards = () => {
     if (!studyData || !studyData.flashcards) return;
     const shuffled = [...studyData.flashcards].sort(() => Math.random() - 0.5);
-    setStudyData({
-      ...studyData,
-      flashcards: shuffled
-    });
+    setStudyData({ ...studyData, flashcards: shuffled });
     setCurrentCardIdx(0);
     setIsCardFlipped(false);
     setCardFeedback({});
@@ -698,193 +550,40 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
 
   const downloadSummaryPDF = () => {
     if (!studyData || !studyData.summary) return;
-
     try {
-      const doc = new jsPDF({
-        orientation: "portrait",
-        unit: "mm",
-        format: "a4"
-      });
-
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
       const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
       const margin = 20;
       const maxWidth = pageWidth - (margin * 2);
       let y = 25;
 
-      // Helper for page break check
-      const checkPageBreak = (neededHeight: number) => {
-        if (y + neededHeight > pageHeight - margin) {
-          doc.addPage();
-          y = margin;
-          // Add a subtle footer / page header or water mark
-          doc.setFont("helvetica", "normal");
-          doc.setFontSize(8);
-          doc.setTextColor(150, 150, 150);
-          doc.text(
-            language === "pt" ? "Resumo de Estudos Gerado por IA" : "AI Generated Study Summary", 
-            margin, 
-            10
-          );
-          doc.text(
-            `${doc.getNumberOfPages()}`, 
-            pageWidth - margin, 
-            10, 
-            { align: "right" }
-          );
-          // Separator line at top of new page
-          doc.setDrawColor(240, 241, 242);
-          doc.line(margin, 12, pageWidth - margin, 12);
-        }
-      };
-
-      // Title header band (Cover effect)
-      doc.setFillColor(14, 165, 233); // Light Blue color
+      doc.setFillColor(14, 165, 233);
       doc.rect(margin, y, maxWidth, 18, "F");
-      
       doc.setFont("helvetica", "bold");
       doc.setFontSize(12);
       doc.setTextColor(255, 255, 255);
-      doc.text(
-        language === "pt" ? "RESUMO DE ESTUDOS INTELIGENTE" : "INTELLIGENT STUDY SUMMARY", 
-        margin + 5, 
-        y + 11
-      );
-      
+      doc.text(language === "pt" ? "RESUMO DE ESTUDOS INTELIGENTE" : "INTELLIGENT STUDY SUMMARY", margin + 5, y + 11);
       y += 28;
 
       const lines = studyData.summary.split("\n");
-
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (!line) {
-          y += 4; // empty line spacing
-          continue;
+      lines.forEach((line) => {
+        const text = line.replace(/\*\*/g, "").replace(/^#+\s*/, "").replace(/^[\*\-]\s*/, "• ");
+        if (!text.trim()) {
+          y += 4;
+          return;
         }
+        doc.setFont("helvetica", line.startsWith("#") ? "bold" : "normal");
+        doc.setFontSize(line.startsWith("#") ? 12 : 9.5);
+        doc.setTextColor(line.startsWith("#") ? 15 : 71, line.startsWith("#") ? 23 : 85, line.startsWith("#") ? 42 : 105);
+        const splitText = doc.splitTextToSize(text, maxWidth);
+        doc.text(splitText, margin, y);
+        y += splitText.length * 5 + 2;
+      });
 
-        // Clean double asterisks for display in PDF
-        const cleanText = (txt: string) => {
-          return txt.replace(/\*\*/g, "");
-        };
-
-        if (line.startsWith("# ")) {
-          const text = cleanText(line.replace("# ", ""));
-          doc.setFont("helvetica", "bold");
-          doc.setFontSize(18);
-          doc.setTextColor(15, 23, 42); // dark slate
-
-          const splitText = doc.splitTextToSize(text, maxWidth);
-          const blockHeight = splitText.length * 8;
-          checkPageBreak(blockHeight + 6);
-
-          doc.text(splitText, margin, y);
-          y += blockHeight + 4;
-
-        } else if (line.startsWith("## ")) {
-          const text = cleanText(line.replace("## ", ""));
-          doc.setFont("helvetica", "bold");
-          doc.setFontSize(14);
-          doc.setTextColor(14, 165, 233); // sky blue
-
-          const splitText = doc.splitTextToSize(text, maxWidth);
-          const blockHeight = splitText.length * 6;
-          checkPageBreak(blockHeight + 5);
-
-          // Subtle underline for H2
-          doc.text(splitText, margin, y);
-          y += blockHeight + 1.5;
-          doc.setDrawColor(224, 242, 254); // light blue line
-          doc.line(margin, y, pageWidth - margin, y);
-          y += 5;
-
-        } else if (line.startsWith("### ")) {
-          const text = cleanText(line.replace("### ", ""));
-          doc.setFont("helvetica", "bold");
-          doc.setFontSize(11);
-          doc.setTextColor(51, 65, 85); // medium slate
-
-          const splitText = doc.splitTextToSize(text, maxWidth);
-          const blockHeight = splitText.length * 5;
-          checkPageBreak(blockHeight + 4);
-
-          doc.text(splitText, margin, y);
-          y += blockHeight + 3;
-
-        } else if (line.startsWith("#### ")) {
-          const text = cleanText(line.replace("#### ", ""));
-          doc.setFont("helvetica", "bold");
-          doc.setFontSize(10);
-          doc.setTextColor(71, 85, 105);
-
-          const splitText = doc.splitTextToSize(text, maxWidth);
-          const blockHeight = splitText.length * 5;
-          checkPageBreak(blockHeight + 4);
-
-          doc.text(splitText, margin, y);
-          y += blockHeight + 3;
-
-        } else if (line.startsWith("* ") || line.startsWith("- ")) {
-          const text = cleanText(line.substring(2));
-          doc.setFont("helvetica", "normal");
-          doc.setFontSize(9.5);
-          doc.setTextColor(71, 85, 105);
-
-          // Render bullet symbol with indentation
-          const bulletIndent = 6;
-          const splitText = doc.splitTextToSize(text, maxWidth - bulletIndent);
-          const blockHeight = splitText.length * 4.8;
-          checkPageBreak(blockHeight + 3);
-
-          doc.text("•", margin, y);
-          doc.text(splitText, margin + bulletIndent, y);
-          y += blockHeight + 2.5;
-
-        } else {
-          // Regular paragraph
-          const text = cleanText(line);
-          doc.setFont("helvetica", "normal");
-          doc.setFontSize(9.5);
-          doc.setTextColor(71, 85, 105);
-
-          const splitText = doc.splitTextToSize(text, maxWidth);
-          const blockHeight = splitText.length * 4.8;
-          checkPageBreak(blockHeight + 3);
-
-          doc.text(splitText, margin, y);
-          y += blockHeight + 3;
-        }
-      }
-
-      // Add simple footer metadata to the final page
-      checkPageBreak(25);
-      doc.setDrawColor(241, 245, 249);
-      doc.line(margin, y, pageWidth - margin, y);
-      y += 8;
-      doc.setFont("helvetica", "oblique");
-      doc.setFontSize(8.5);
-      doc.setTextColor(148, 163, 184);
-      doc.text(
-        language === "pt" 
-          ? "Estude mais inteligente com a nossa plataforma de estudos orientada por IA." 
-          : "Study smarter with our AI-driven learning platform.", 
-        margin, 
-        y
-      );
-
-      // Save PDF
-      doc.save(
-        language === "pt" 
-          ? `resumo-de-estudos-ia-${Date.now()}.pdf` 
-          : `ai-study-summary-${Date.now()}.pdf`
-      );
-
-    } catch (error) {
-      console.error("Failed to generate PDF", error);
-      alert(
-        language === "pt" 
-          ? "Ocorreu um erro ao gerar o PDF." 
-          : "An error occurred while generating the PDF."
-      );
+      doc.save(language === "pt" ? `resumo-estudos-ia-${Date.now()}.pdf` : `ai-study-summary-${Date.now()}.pdf`);
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao exportar PDF.");
     }
   };
 
@@ -892,1059 +591,217 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
     ? studyData.questions.filter((q, idx) => selectedAnswers[idx] === q.answer).length 
     : 0;
 
-  // Render a nice visual parser of markdown sections
-  const renderMarkdownSummary = (markdown: string) => {
-    if (!markdown) return null;
-    
-    const lines = markdown.split("\n");
-    return lines.map((line, idx) => {
-      // Headers
-      if (line.startsWith("### ")) {
-        return (
-          <h3 key={idx} className="text-lg font-extrabold text-slate-800 dark:text-slate-100 mt-6 mb-2 flex items-center space-x-2">
-            <span className="w-1 h-5 bg-sky-500 rounded-full" />
-            <span>{line.replace("### ", "").replace(/\*\*/g, "")}</span>
-          </h3>
-        );
-      }
-      if (line.startsWith("#### ")) {
-        return (
-          <h4 key={idx} className="text-sm font-bold text-slate-700 dark:text-slate-200 mt-4 mb-2 uppercase tracking-wide">
-            {line.replace("#### ", "").replace(/\*\*/g, "")}
-          </h4>
-        );
-      }
-      if (line.startsWith("## ")) {
-        return (
-          <h2 key={idx} className="text-xl font-black text-slate-900 dark:text-white mt-8 mb-3 border-b border-slate-100 dark:border-slate-800 pb-1.5 flex items-center space-x-2">
-            <Sparkles className="h-5 w-5 text-sky-500" />
-            <span>{line.replace("## ", "").replace(/\*\*/g, "")}</span>
-          </h2>
-        );
-      }
-      if (line.startsWith("# ")) {
-        return (
-          <h1 key={idx} className="text-2xl font-black text-sky-600 dark:text-sky-400 mt-4 mb-4">
-            {line.replace("# ", "").replace(/\*\*/g, "")}
-          </h1>
-        );
-      }
-
-      // Lists
-      if (line.startsWith("* ") || line.startsWith("- ")) {
-        const text = line.substring(2);
-        return (
-          <li key={idx} className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 ml-5 list-disc my-1.5 leading-relaxed">
-            {renderBoldText(text)}
-          </li>
-        );
-      }
-
-      // Ordered list numbers
-      const numListMatch = line.match(/^(\d+)\.\s(.*)/);
-      if (numListMatch) {
-        return (
-          <div key={idx} className="flex items-start space-x-2.5 ml-4 my-2 text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-            <span className="font-mono font-bold text-sky-500">{numListMatch[1]}.</span>
-            <span className="flex-1">{renderBoldText(numListMatch[2])}</span>
-          </div>
-        );
-      }
-
-      // Empty line
-      if (!line.trim()) return <div key={idx} className="h-2" />;
-
-      // Normal paragraph
-      return (
-        <p key={idx} className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 my-2 leading-relaxed">
-          {renderBoldText(line)}
-        </p>
-      );
-    });
-  };
-
-  // Helper to replace **bold** with <strong> React element
-  const renderBoldText = (text: string) => {
-    const parts = text.split(/\*\*([\s\S]*?)\*\*/g);
-    return parts.map((part, i) => {
-      if (i % 2 === 1) {
-        return <strong key={i} className="font-bold text-slate-900 dark:text-white">{part}</strong>;
-      }
-      return part;
-    });
-  };
-
   return (
-    <div className="space-y-6 animate-fade-in h-full flex flex-col">
+    <div className="space-y-6">
       
-      {/* Overview Intro */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-black text-slate-800 dark:text-slate-100 tracking-tight flex items-center space-x-2">
-            <Sparkles className="h-5 w-5 text-sky-500" />
-            <span>Estúdio de IA</span>
-          </h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mt-1">
-            Sintetize apostilas, consensos e resoluções em segundos.
+      {/* Header Row */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="space-y-2">
+          <div className="inline-flex items-center space-x-2 bg-sky-500/10 text-sky-500 font-extrabold text-[11px] px-3.5 py-1 rounded-full uppercase tracking-wider">
+            <Sparkles className="h-3.5 w-3.5" />
+            <span>{language === "pt" ? "Co-Piloto de Inteligência Artificial" : "AI Study Co-Pilot"}</span>
+          </div>
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+            {language === "pt" ? "Estudos com IA & Gerador de Simulados" : "AI Study & Exam Generator"}
+          </h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium max-w-xl leading-relaxed">
+            {language === "pt" 
+              ? "Anexe um PDF ou cole o texto de estudo. Nossa IA irá estruturar resumos didáticos, questões no padrão ENARE e cartões de memorização ativa."
+              : "Upload a PDF or paste text. Our AI generates summaries, ENARE mock questions and active recall flashcards."}
           </p>
+        </div>
+
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
+          <button
+            onClick={handleLoadExample}
+            className="bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-extrabold text-xs py-3 px-5 rounded-2xl border border-slate-200 dark:border-slate-700 transition-all flex items-center justify-center space-x-2 cursor-pointer"
+          >
+            <GraduationCap className="h-4 w-4 text-sky-500" />
+            <span>{language === "pt" ? "Testar Exemplo (Lei 8.080)" : "Test Example (Law 8080)"}</span>
+          </button>
+
+          <button
+            onClick={() => setIsUploadModalOpen(true)}
+            className="bg-gradient-to-r from-sky-600 via-indigo-600 to-sky-600 hover:from-sky-500 hover:to-indigo-500 text-white font-extrabold text-xs py-3 px-5 rounded-2xl shadow-lg shadow-sky-600/20 hover:shadow-sky-600/35 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center space-x-2 cursor-pointer"
+          >
+            <UploadCloud className="h-4 w-4" />
+            <span>{studyData ? (language === "pt" ? "+ Anexar / Trocar PDF" : "+ Upload New PDF") : (language === "pt" ? "Anexar PDF / Texto" : "Upload PDF / Text")}</span>
+          </button>
         </div>
       </div>
 
-      {/* Main Container */}
-      {!studyData && !loading && (
-        <div className="flex-1 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-8 shadow-xs flex flex-col items-center justify-center text-center">
-          
-          <div className="w-20 h-20 bg-sky-50 dark:bg-slate-800 rounded-full flex items-center justify-center mb-6">
-            <Brain className="h-10 w-10 text-sky-500" />
-          </div>
-          
-          <h3 className="font-black text-2xl text-slate-800 dark:text-slate-200 mb-3">
-            Nenhuma Fonte de Estudo Ativa
-          </h3>
-          <p className="text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-8 font-medium">
-            Arraste um arquivo PDF, cole seu texto de anotações ou use nosso material de exemplo oficial para iniciar o copiloto.
-          </p>
-
-          {errorMsg && (
-            <div className="mb-6 p-4 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 rounded-2xl text-xs sm:text-sm flex items-start space-x-2.5 animate-fade-in">
-              <AlertTriangle className="h-4.5 w-4.5 shrink-0 mt-0.5" />
-              <div className="flex-1 font-semibold">{errorMsg}</div>
-              <button onClick={() => setErrorMsg(null)} className="font-extrabold text-xs cursor-pointer">✕</button>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-3xl">
-            {/* Drag and Drop Zone */}
-            <div 
-              onDragEnter={handleDrag}
-              onDragOver={handleDrag}
-              onDragLeave={handleDrag}
-              onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
-              className={`border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center cursor-pointer transition-all ${
-                dragActive 
-                  ? "border-sky-500 bg-sky-500/5" 
-                  : "border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-950/80 hover:border-sky-500/50"
-              }`}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".pdf,.txt"
-                onChange={handleFileChange}
-                className="hidden"
-              />
-              <FileUp className={`h-10 w-10 mb-4 transition-colors ${dragActive ? "text-sky-500" : "text-slate-300 dark:text-slate-600"}`} />
-              <h4 className="font-bold text-slate-700 dark:text-slate-300 mb-1">Upload de PDF</h4>
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-500">
-                Arraste ou clique para enviar (Max 5MB)
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-4">
-              <textarea
-                value={pastedText}
-                onChange={(e) => setPastedText(e.target.value)}
-                placeholder="Ou cole seu texto de estudo diretamente aqui..."
-                className="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 text-sm resize-none outline-none focus:border-sky-500 transition-all text-slate-700 dark:text-slate-200"
-              />
-              <div className="flex gap-2">
-                <button
-                  onClick={handleLoadExample}
-                  className="flex-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs py-3 rounded-xl transition-all"
-                >
-                  Carregar Exemplo SUS
-                </button>
-                <button
-                  onClick={handleGenerateStudy}
-                  disabled={!file && !pastedText.trim()}
-                  className="flex-1 bg-sky-600 hover:bg-sky-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-xs py-3 rounded-xl transition-all"
-                >
-                  Gerar Resumo IA
-                </button>
-              </div>
-            </div>
-          </div>
+      {errorMsg && !isUploadModalOpen && (
+        <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 rounded-2xl text-xs sm:text-sm flex items-start space-x-2.5 shadow-xs">
+          <AlertTriangle className="h-4.5 w-4.5 shrink-0 mt-0.5" />
+          <div className="flex-1 font-semibold leading-relaxed">{errorMsg}</div>
+          <button onClick={() => setErrorMsg(null)} className="font-extrabold text-xs cursor-pointer">✕</button>
         </div>
       )}
 
-      {/* Loading Screen */}
       {loading && (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-12 flex flex-col items-center justify-center min-h-[400px] text-center shadow-xs animate-fade-in">
-          <div className="relative flex items-center justify-center">
-            <div className="w-14 h-14 border-4 border-sky-500/20 border-t-sky-600 rounded-full animate-spin" />
-            <div className="absolute">
-              <FileText className="h-6 w-6 text-sky-600 dark:text-sky-400" />
-            </div>
-          </div>
-          <h4 className="font-bold text-base text-slate-900 dark:text-white mt-6">
-            Organizando fontes e construindo o Studio de Estudos...
-          </h4>
-          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mt-1.5 leading-relaxed font-medium">
-            {loadingMessage}
-          </p>
+        <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-12 shadow-xs text-center space-y-4 animate-pulse">
+          <div className="w-12 h-12 border-4 border-sky-500 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{loadingMessage}</p>
+          <p className="text-xs text-slate-400 font-medium">Isso pode levar alguns segundos dependendo do tamanho do texto.</p>
         </div>
       )}
 
-      {/* Study Data Material View (NotebookLM Studio View) */}
+      {!studyData && !loading && (
+        <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-10 shadow-xs text-center space-y-6">
+          <div className="p-4 bg-sky-500/10 text-sky-500 w-fit rounded-full mx-auto">
+            <Brain className="h-10 w-10 animate-bounce" />
+          </div>
+          <div className="space-y-2 max-w-md mx-auto">
+            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">
+              {language === "pt" ? "Nenhum material carregado ainda" : "No study material loaded"}
+            </h3>
+            <p className="text-xs text-slate-400 leading-relaxed font-medium">
+              {language === "pt"
+                ? "Clique no botão 'Anexar PDF / Texto' no topo para enviar seus resumos, leis ou apostilas, ou clique em 'Testar Exemplo' para experimentar."
+                : "Click 'Upload PDF / Text' or 'Test Example' to get started."}
+            </p>
+          </div>
+        </div>
+      )}
+
       {studyData && !loading && (
         <div className="space-y-6">
           
-          {/* NotebookLM Header & Source Chip */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-gradient-to-r from-white via-slate-50/50 to-white dark:from-slate-900 dark:via-slate-900/80 dark:to-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-5 shadow-sm backdrop-blur-md">
-            <div className="flex items-center space-x-3.5">
-              <div className="p-3 bg-gradient-to-br from-sky-500 to-teal-500 text-white rounded-2xl shadow-md shadow-sky-500/20">
-                <FileText className="h-5 w-5" />
-              </div>
-              <div>
-                <div className="flex items-center space-x-2">
-                  <span className="inline-flex items-center space-x-1.5 text-[10px] font-black tracking-wider uppercase bg-sky-500/10 text-sky-600 dark:text-sky-400 px-3 py-0.5 rounded-full border border-sky-500/20">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
-                    <span>{file ? "PDF FONTE CARREGADA" : "FONTE DE TEXTO ATIVA"}</span>
-                  </span>
-                  <span className="text-[10px] font-mono text-slate-400">
-                    • 1 Documento
-                  </span>
-                </div>
-                <h3 className="font-extrabold text-base text-slate-900 dark:text-slate-100 truncate max-w-md mt-1 tracking-tight">
-                  {file ? file.name : "Caderno de Enfermagem / Legislação SUS"}
-                </h3>
-              </div>
-            </div>
-
+          {/* SubTab Navigation Bar */}
+          <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
             <button
-              id="btn-upload-new-material"
-              onClick={() => {
-                setErrorMsg(null);
-                setIsUploadModalOpen(true);
-              }}
-              className="bg-gradient-to-r from-sky-600 to-teal-600 hover:from-sky-500 hover:to-teal-500 text-white font-extrabold text-xs px-5 py-3 rounded-2xl shadow-lg shadow-sky-500/20 hover:shadow-sky-500/35 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center space-x-2 cursor-pointer shrink-0"
-            >
-              <FileUp className="h-4 w-4" />
-              <span>+ Anexar / Trocar PDF</span>
-            </button>
-          </div>
-
-          {/* Sub tabs: Summary VS Quiz VS Flashcards VS Full Audio */}
-          <div className="bg-slate-100/80 dark:bg-slate-900/80 p-1.5 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 shadow-inner flex flex-wrap sm:flex-nowrap gap-1 text-xs font-semibold">
-            <button
-              id="subtab-summary"
               onClick={() => setActiveSubTab("summary")}
-              className={`flex-1 py-2.5 px-4 rounded-xl transition-all flex items-center justify-center space-x-2 cursor-pointer ${
-                activeSubTab === "summary" 
-                  ? "bg-white dark:bg-slate-800 text-sky-600 dark:text-sky-400 font-extrabold shadow-md scale-[1.01]" 
-                  : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-800/50"
+              className={`px-4 py-2.5 rounded-xl font-extrabold text-xs transition-all flex items-center space-x-2 cursor-pointer ${
+                activeSubTab === "summary"
+                  ? "bg-sky-500 text-white shadow-md shadow-sky-500/20"
+                  : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
               }`}
             >
-              <span className="text-base">📝</span>
+              <FileText className="h-4 w-4" />
               <span>{language === "pt" ? "Resumo Didático" : "Study Summary"}</span>
             </button>
 
             <button
-              id="subtab-quiz"
               onClick={() => setActiveSubTab("quiz")}
-              className={`flex-1 py-2.5 px-4 rounded-xl transition-all flex items-center justify-center space-x-2 cursor-pointer ${
-                activeSubTab === "quiz" 
-                  ? "bg-white dark:bg-slate-800 text-sky-600 dark:text-sky-400 font-extrabold shadow-md scale-[1.01]" 
-                  : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-800/50"
+              className={`px-4 py-2.5 rounded-xl font-extrabold text-xs transition-all flex items-center space-x-2 cursor-pointer ${
+                activeSubTab === "quiz"
+                  ? "bg-sky-500 text-white shadow-md shadow-sky-500/20"
+                  : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
               }`}
             >
-              <span className="text-base">🏆</span>
-              <span>{language === "pt" ? "Simulado (Quiz)" : "Practice Quiz"}</span>
+              <Award className="h-4 w-4" />
+              <span>{language === "pt" ? "Simulado Interativo" : "Practice Quiz"} ({studyData.questions.length})</span>
             </button>
 
             <button
-              id="subtab-flashcards"
               onClick={() => setActiveSubTab("flashcards")}
-              className={`flex-1 py-2.5 px-4 rounded-xl transition-all flex items-center justify-center space-x-2 cursor-pointer ${
-                activeSubTab === "flashcards" 
-                  ? "bg-white dark:bg-slate-800 text-sky-600 dark:text-sky-400 font-extrabold shadow-md scale-[1.01]" 
-                  : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-800/50"
+              className={`px-4 py-2.5 rounded-xl font-extrabold text-xs transition-all flex items-center space-x-2 cursor-pointer ${
+                activeSubTab === "flashcards"
+                  ? "bg-sky-500 text-white shadow-md shadow-sky-500/20"
+                  : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
               }`}
             >
-              <span className="text-base">📇</span>
-              <span>{language === "pt" ? "Flashcards" : "Flashcards"}</span>
+              <BookOpen className="h-4 w-4" />
+              <span>{language === "pt" ? "Flashcards" : "Flashcards"} ({studyData.flashcards.length})</span>
             </button>
 
             <button
-              id="subtab-full-audio"
               onClick={() => setActiveSubTab("full-audio")}
-              className={`flex-1 py-2.5 px-4 rounded-xl transition-all flex items-center justify-center space-x-2 cursor-pointer ${
-                activeSubTab === "full-audio" 
-                  ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-extrabold shadow-md scale-[1.01]" 
-                  : "text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
+              className={`px-4 py-2.5 rounded-xl font-extrabold text-xs transition-all flex items-center space-x-2 cursor-pointer ${
+                activeSubTab === "full-audio"
+                  ? "bg-teal-600 text-white shadow-md shadow-teal-600/20"
+                  : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
               }`}
             >
-              <span className="text-base">🎧</span>
-              <span>{language === "pt" ? "Ouvir PDF Completo" : "Full PDF Audio"}</span>
+              <Headphones className="h-4 w-4" />
+              <span>{language === "pt" ? "Audiobook Completo" : "Full Audiobook"}</span>
             </button>
           </div>
 
-          {/* Study Content Rendering */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+          {/* Render Active SubTab */}
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             
-            {/* Left 2 columns: Active Tab Content */}
-            <div className="lg:col-span-2">
+            <div className="lg:col-span-3 space-y-6">
               
               {activeSubTab === "summary" && (
-                <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xs prose dark:prose-invert max-w-none">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-50 dark:border-slate-800 mb-6 gap-3">
-                    <span className="text-xs font-bold text-slate-400 font-mono uppercase">
-                      📖 {language === "pt" ? "LEITURA DIRECIONADA" : "DIRECTED READING"}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <button
-                        id="btn-print-pdf-sheet"
-                        onClick={() => exportToPrintablePdf(file?.name || "Resumo Didático ENARE", studyData.summary)}
-                        className="bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs px-3.5 py-1.5 rounded-xl shadow-xs transition-all flex items-center space-x-1.5 cursor-pointer"
-                        title="Gerar Ficha de Estudos Imprimível"
-                      >
-                        <Printer className="h-4 w-4" />
-                        <span>Imprimir Ficha</span>
-                      </button>
-
-                      <button
-                        id="btn-download-pdf"
-                        onClick={downloadSummaryPDF}
-                        className="bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs px-3.5 py-1.5 rounded-xl shadow-xs transition-all flex items-center space-x-1.5 cursor-pointer"
-                        title={language === "pt" ? "Baixar resumo em PDF" : "Download summary as PDF"}
-                      >
-                        <FileDown className="h-4 w-4" />
-                        <span>{language === "pt" ? "Baixar PDF" : "Download PDF"}</span>
-                      </button>
-
-                      {/* Botões de Áudio TTS com Equalizador Visual e Controle de Velocidade */}
-                      {ttsSupported && (
-                        <div className="flex items-center space-x-2 bg-gradient-to-r from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 rounded-2xl px-3 py-1.5 border border-slate-200/80 dark:border-slate-700/80 shadow-xs">
-                          {isSpeaking && (
-                            <div className="flex items-center space-x-0.5 h-3 text-sky-500 mr-1.5">
-                              <span className="equalizer-bar" />
-                              <span className="equalizer-bar" />
-                              <span className="equalizer-bar" />
-                              <span className="equalizer-bar" />
-                            </div>
-                          )}
-                          
-                          {!isSpeaking && !isPaused ? (
-                            <button
-                              onClick={() => speak(studyData.summary, rate)}
-                              className="bg-gradient-to-r from-sky-600 to-teal-600 hover:from-sky-500 hover:to-teal-500 text-white font-extrabold text-xs px-3.5 py-1.5 rounded-xl shadow-md shadow-sky-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center space-x-1.5 cursor-pointer"
-                              title="Transformar PDF em Áudio / Ouvir Resumo"
-                            >
-                              <Headphones className="h-4 w-4" />
-                              <span>Ouvir PDF em Áudio</span>
-                            </button>
-                          ) : (
-                            <div className="flex items-center space-x-2">
-                              <button
-                                onClick={isPaused ? resume : pause}
-                                className="bg-sky-500 hover:bg-sky-400 text-white p-1.5 rounded-xl transition-all shadow-md cursor-pointer"
-                                title={isPaused ? "Retomar Áudio" : "Pausar Áudio"}
-                              >
-                                {isPaused ? <Play className="h-4 w-4 fill-current" /> : <PauseCircle className="h-4 w-4" />}
-                              </button>
-                              <button
-                                onClick={stop}
-                                className="bg-rose-500 hover:bg-rose-600 text-white p-1.5 rounded-xl transition-all shadow-md cursor-pointer"
-                                title="Parar Áudio do PDF"
-                              >
-                                <StopCircle className="h-4 w-4" />
-                              </button>
-                            </div>
-                          )}
-
-                          {/* Seletor de Velocidade (1x, 1.25x, 1.5x, 2x) */}
-                          <select
-                            value={rate}
-                            onChange={(e) => {
-                              const newRate = parseFloat(e.target.value);
-                              setRate(newRate);
-                            }}
-                            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-[10px] font-bold rounded-lg px-2 py-1 outline-none cursor-pointer"
-                            title="Velocidade da Leitura em Áudio"
-                          >
-                            <option value={1.0}>1.0x</option>
-                            <option value={1.25}>1.25x</option>
-                            <option value={1.5}>1.5x</option>
-                            <option value={2.0}>2.0x</option>
-                          </select>
-                        </div>
-                      )}
-
-                      <span className="text-[10px] notebook-chip px-2.5 py-1 rounded-full font-bold uppercase tracking-wider flex items-center space-x-1">
-                        <CheckCircle2 className="h-3 w-3" />
-                        <span>Pronto para Áudio</span>
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Barra de Progresso do Áudio do PDF quando ativo */}
-                  {isSpeaking && (
-                    <div className="mb-6 p-3 bg-sky-500/10 border border-sky-500/20 rounded-2xl flex items-center space-x-3 animate-fade-in">
-                      <Headphones className="h-4 w-4 text-sky-500 animate-pulse" />
-                      <div className="flex-1">
-                        <div className="flex justify-between text-[10px] font-bold text-sky-600 dark:text-sky-400 mb-1">
-                          <span>Transformando PDF em Narração de Áudio ({rate}x)...</span>
-                          <span>{progressPercent}%</span>
-                        </div>
-                        <div className="w-full bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                          <div className="bg-sky-500 h-full rounded-full transition-all duration-300" style={{ width: `${progressPercent}%` }} />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Summary rendered nicely */}
-                  <div className="space-y-4">
-                    {renderMarkdownSummary(studyData.summary)}
-                  </div>
-
-                  {/* Complete study notice box */}
-                  <div className="mt-8 p-4 bg-sky-500/10 border border-sky-500/20 rounded-2xl flex items-start space-x-3.5">
-                    <div className="p-1.5 bg-sky-500 text-white rounded-lg mt-0.5">
-                      <Award className="h-4.5 w-4.5" />
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-xs text-sky-800 dark:text-sky-300 uppercase tracking-wider">
-                        {language === "pt" ? "Resumo Concluído! Fixe seu Conhecimento" : "Summary Completed! Solidify Learning"}
-                      </h4>
-                      <p className="text-xs text-sky-700/85 dark:text-sky-400/85 mt-1 leading-relaxed font-semibold">
-                        {language === "pt"
-                          ? "Após ler atentamente o resumo de fixação, clique na aba 'Testar Conhecimento (Quiz)' para resolver o mini-simulado gerado e medir sua retenção!"
-                          : "Now that you've reviewed the study summary, switch over to the 'Practice Quiz' tab to answer the generated mock questions!"}
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                <AiSummary
+                  language={language}
+                  summary={studyData.summary}
+                  file={file}
+                  isSpeaking={isSpeaking}
+                  isPaused={isPaused}
+                  rate={rate}
+                  setRate={setRate}
+                  speak={speak}
+                  pause={pause}
+                  resume={resume}
+                  stop={stop}
+                  handleExportPdf={downloadSummaryPDF}
+                  handlePrint={() => exportToPrintablePdf(studyData.summary, file ? file.name : "Resumo de Estudos")}
+                  setActiveSubTab={setActiveSubTab}
+                />
               )}
 
               {activeSubTab === "quiz" && (
-                <div className="space-y-6">
-                  <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-xs text-amber-800 dark:text-amber-300">
-                    Questões geradas por IA são material de fixação em rascunho. Confira a fonte indicada antes de transformar qualquer item em referência clínica ou questão de avaliação.
-                  </div>
-                  
-                  {!quizFinished ? (
-                    <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xs">
-                      
-                      {/* Quiz Header Info */}
-                      <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-6">
-                        <div>
-                          <span className="text-[10px] font-bold text-sky-500 font-mono uppercase tracking-widest">
-                            {language === "pt" ? `Questão ${currentQuestionIdx + 1} de ${studyData.questions.length}` : `Question ${currentQuestionIdx + 1} of ${studyData.questions.length}`}
-                          </span>
-                          <h4 className="font-bold text-xs text-slate-400">
-                            {language === "pt" ? "Simulado de Fixação" : "Active Recall Quiz"}
-                          </h4>
-                        </div>
-
-                        {/* Progress line */}
-                        <div className="w-24 sm:w-32 bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
-                          <div 
-                            className="bg-sky-500 h-full transition-all duration-300"
-                            style={{ width: `${((currentQuestionIdx + 1) / studyData.questions.length) * 100}%` }}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Question Text */}
-                      <div className="space-y-5">
-                        {studyData.questions[currentQuestionIdx].clinicalCase && (
-                          <div className="rounded-2xl border border-sky-500/20 bg-sky-500/5 p-4 space-y-2">
-                            <div className="flex flex-wrap gap-2 text-[10px] font-extrabold uppercase text-sky-700 dark:text-sky-300">
-                              {studyData.questions[currentQuestionIdx].clinicalCase?.setting && <span>{studyData.questions[currentQuestionIdx].clinicalCase?.setting}</span>}
-                              {studyData.questions[currentQuestionIdx].clinicalCase?.ageGroup && <span>• {studyData.questions[currentQuestionIdx].clinicalCase?.ageGroup}</span>}
-                            </div>
-                            {studyData.questions[currentQuestionIdx].clinicalCase?.presentingProblem && <p className="text-sm font-bold text-slate-800 dark:text-slate-100">{studyData.questions[currentQuestionIdx].clinicalCase?.presentingProblem}</p>}
-                            {studyData.questions[currentQuestionIdx].clinicalCase?.history && <p className="text-xs text-slate-600 dark:text-slate-300"><strong>História:</strong> {studyData.questions[currentQuestionIdx].clinicalCase?.history}</p>}
-                            {studyData.questions[currentQuestionIdx].clinicalCase?.physicalExam && <p className="text-xs text-slate-600 dark:text-slate-300"><strong>Exame:</strong> {studyData.questions[currentQuestionIdx].clinicalCase?.physicalExam}</p>}
-                          </div>
-                        )}
-                        <div className="text-sm sm:text-base font-bold text-slate-800 dark:text-slate-100 leading-normal">
-                          {studyData.questions[currentQuestionIdx].question}
-                        </div>
-                        {studyData.questions[currentQuestionIdx].leadIn && (
-                          <p className="text-sm font-extrabold text-indigo-600 dark:text-indigo-400">{studyData.questions[currentQuestionIdx].leadIn}</p>
-                        )}
-
-                        {/* Question options */}
-                        <div className="space-y-2 pt-2">
-                          {studyData.questions[currentQuestionIdx].options.map((option) => {
-                            const optionLetter = option.substring(0, 1); // e.g. "A"
-                            const isSelected = selectedAnswers[currentQuestionIdx] === optionLetter;
-                            const isSubmitted = quizSubmitted[currentQuestionIdx];
-                            const isCorrectAnswer = optionLetter === studyData.questions[currentQuestionIdx].answer;
-
-                            let optionStyles = "border-slate-200 dark:border-slate-800 hover:border-sky-500/30 hover:bg-slate-50 dark:hover:bg-slate-950/30";
-                            
-                            if (isSelected && !isSubmitted) {
-                              optionStyles = "border-sky-500 bg-sky-500/5 text-sky-900 dark:text-sky-100";
-                            } else if (isSubmitted) {
-                              if (isCorrectAnswer) {
-                                optionStyles = "border-sky-500 bg-sky-500/10 text-sky-900 dark:text-sky-100 font-semibold";
-                              } else if (isSelected) {
-                                optionStyles = "border-rose-500 bg-rose-500/10 text-rose-900 dark:text-rose-100";
-                              } else {
-                                optionStyles = "border-slate-100 dark:border-slate-850 opacity-60";
-                              }
-                            }
-
-                            return (
-                              <button
-                                key={option}
-                                id={`quiz-option-${optionLetter}`}
-                                onClick={() => handleOptionSelect(optionLetter)}
-                                disabled={isSubmitted}
-                                className={`w-full text-left p-4 rounded-xl border text-xs sm:text-sm transition-all leading-normal flex items-start space-x-3.5 ${optionStyles}`}
-                              >
-                                <span className={`flex items-center justify-center h-5 w-5 rounded-full shrink-0 border text-xs font-bold font-mono ${
-                                  isSelected 
-                                    ? "bg-sky-500 border-sky-500 text-white" 
-                                    : "bg-slate-50 dark:bg-slate-950 border-slate-200 text-slate-400"
-                                }`}>
-                                  {optionLetter}
-                                </span>
-                                <span className="flex-1">{option.replace(/^[A-E][\)\.\:\-]\s*/i, "")}</span>
-                                
-                                {isSubmitted && isCorrectAnswer && (
-                                  <CheckCircle2 className="h-4.5 w-4.5 text-sky-500 shrink-0 self-center" />
-                                )}
-                                {isSubmitted && isSelected && !isCorrectAnswer && (
-                                  <XCircle className="h-4.5 w-4.5 text-rose-500 shrink-0 self-center" />
-                                )}
-                              </button>
-                            );
-                          })}
-                        </div>
-
-                        {/* Action buttons (Verify / Next) */}
-                        <div className="flex items-center justify-between pt-4 border-t border-slate-50 dark:border-slate-800">
-                          <span className="text-[10px] text-slate-400 font-medium">
-                            {quizSubmitted[currentQuestionIdx] 
-                              ? (language === "pt" ? "Resolução detalhada disponível abaixo" : "Detailed explanation is available below")
-                              : (language === "pt" ? "Selecione uma opção e clique em Enviar" : "Select an option and click Submit")}
-                          </span>
-
-                          {!quizSubmitted[currentQuestionIdx] ? (
-                            <button
-                              id="btn-quiz-submit-answer"
-                              onClick={handleSubmitQuestion}
-                              disabled={!selectedAnswers[currentQuestionIdx]}
-                              className="bg-sky-600 hover:bg-sky-500 disabled:opacity-40 text-white font-bold text-xs py-2.5 px-5 rounded-xl transition-all"
-                            >
-                              {language === "pt" ? "Enviar Resposta" : "Submit Answer"}
-                            </button>
-                          ) : (
-                            <button
-                              id="btn-quiz-next-question"
-                              onClick={handleNextQuestion}
-                              className="bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-white dark:text-slate-900 text-white font-bold text-xs py-2.5 px-5 rounded-xl transition-all flex items-center space-x-1"
-                            >
-                              <span>{currentQuestionIdx < studyData.questions.length - 1 ? (language === "pt" ? "Próxima Questão" : "Next Question") : (language === "pt" ? "Finalizar Quiz" : "Finish Quiz")}</span>
-                              <ChevronRight className="h-4 w-4" />
-                            </button>
-                          )
-                          }
-                        </div>
-
-                        {/* Explanation Box */}
-                        {quizSubmitted[currentQuestionIdx] && (
-                          <div className="p-4 bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/20 rounded-2xl animate-fade-in mt-4 space-y-1.5">
-                            <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest block">
-                              💡 {language === "pt" ? "FUNDAMENTAÇÃO E DIRETRIZ" : "RATIONALE & PROTOCOL"}
-                            </span>
-                            <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed font-normal">
-                              {studyData.questions[currentQuestionIdx].explanation}
-                            </p>
-                            {studyData.questions[currentQuestionIdx].pivotalCues && studyData.questions[currentQuestionIdx].pivotalCues!.length > 0 && (
-                              <div className="pt-2 border-t border-amber-500/20">
-                                <span className="text-[10px] font-bold uppercase text-amber-700 dark:text-amber-300">Dados decisivos</span>
-                                <ul className="mt-1 list-disc pl-5 text-xs text-slate-700 dark:text-slate-300">
-                                  {studyData.questions[currentQuestionIdx].pivotalCues!.map((cue) => <li key={cue}>{cue}</li>)}
-                                </ul>
-                              </div>
-                            )}
-                            {studyData.questions[currentQuestionIdx].reasoningSteps && studyData.questions[currentQuestionIdx].reasoningSteps!.length > 0 && (
-                              <div className="pt-2 border-t border-amber-500/20">
-                                <span className="text-[10px] font-bold uppercase text-amber-700 dark:text-amber-300">Raciocínio esperado</span>
-                                <ol className="mt-1 list-decimal pl-5 text-xs text-slate-700 dark:text-slate-300">
-                                  {studyData.questions[currentQuestionIdx].reasoningSteps!.map((step) => <li key={step}>{step}</li>)}
-                                </ol>
-                              </div>
-                            )}
-                            {studyData.questions[currentQuestionIdx].source && (
-                              <p className="pt-2 text-[10px] text-slate-500"><strong>Fonte informada:</strong> {studyData.questions[currentQuestionIdx].source}</p>
-                            )}
-                            <button
-                              id="btn-quiz-save-error"
-                              onClick={handleSaveCurrentQuestion}
-                              disabled={savedQuestions[currentQuestionIdx]}
-                              className={`mt-3 font-bold text-xs py-2 px-4 rounded-xl border transition-all inline-flex items-center space-x-1.5 ${
-                                savedQuestions[currentQuestionIdx]
-                                  ? "bg-emerald-500 text-white border-emerald-500"
-                                  : "bg-amber-600 hover:bg-amber-500 text-white border-amber-600 shadow-sm"
-                              }`}
-                            >
-                              <CheckCircle2 className="h-3.5 w-3.5" />
-                              <span>{savedQuestions[currentQuestionIdx] ? "Salvo no Caderno! ✓" : "💾 Salvar no Caderno de Erros"}</span>
-                            </button>
-                          </div>
-                        )}
-
-                      </div>
-
-                    </div>
-                  ) : (
-                    
-                    /* Quiz Results Card */
-                    <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-8 shadow-xs text-center space-y-6 animate-fade-in">
-                      <div className="w-16 h-16 bg-sky-500/15 text-sky-500 rounded-full flex items-center justify-center mx-auto">
-                        <Award className="h-8 w-8" />
-                      </div>
-
-                      <div className="space-y-2">
-                        <h3 className="font-black text-xl text-slate-800 dark:text-white">
-                          {language === "pt" ? "Simulado Concluído com Sucesso!" : "Quiz Successfully Completed!"}
-                        </h3>
-                        <p className="text-xs text-slate-400 dark:text-slate-500 max-w-sm mx-auto font-medium leading-relaxed">
-                          {language === "pt"
-                            ? "Muito bem! O estudo ativo por questões é o método mais eficiente para fixar a legislação de enfermagem."
-                            : "Excellent work! Active recall via practice questions is the single most effective way to retain nursing boards information."}
-                        </p>
-                      </div>
-
-                      {/* Score metrics */}
-                      <div className="inline-flex flex-col items-center justify-center py-4 px-8 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-100 dark:border-slate-800">
-                        <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">{language === "pt" ? "ACERTOS TOTAIS" : "TOTAL ACCURACY"}</span>
-                        <span className="text-4xl font-black text-sky-500 font-mono mt-1">
-                          {correctAnswersCount} / {studyData.questions.length}
-                        </span>
-                        <span className="text-xs text-slate-400 mt-1 font-medium">
-                          ({Math.round((correctAnswersCount / studyData.questions.length) * 100)}% {language === "pt" ? "de aproveitamento" : "correct"})
-                        </span>
-                      </div>
-
-                      {/* Study Feedback based on score */}
-                      <div className="max-w-md mx-auto p-4 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-850 text-xs text-left space-y-1 font-medium text-slate-500 dark:text-slate-400">
-                        <span className="font-bold text-slate-700 dark:text-slate-300 uppercase block tracking-wide">{language === "pt" ? "RECOMENDAÇÃO DO MENTOR" : "MENTOR STUDY FEEDBACK"}</span>
-                        <p className="leading-relaxed font-normal">
-                          {correctAnswersCount === studyData.questions.length ? (
-                            language === "pt" 
-                              ? "Excelente aproveitamento (100%)! Você dominou perfeitamente este material. Continue avançando para novos tópicos!"
-                              : "Perfect score! You have thoroughly mastered this study unit. Keep up the amazing momentum!"
-                          ) : correctAnswersCount >= 3 ? (
-                            language === "pt"
-                              ? "Bom desempenho! Você compreendeu a maioria dos conceitos chaves. Revise as fundamentações das questões erradas para fechar suas lacunas."
-                              : "Great job! You have a strong grasp of the material. Review the missed questions' rationales to lock in a 100% score next time."
-                          ) : (
-                            language === "pt"
-                              ? "Aproveitamento abaixo do ideal. Recomendamos ler o resumo de estudos novamente antes de refazer este simulado de fixação."
-                              : "Below target score. We highly recommend reading the study summary once more before retrying this practice quiz."
-                          )}
-                        </p>
-                      </div>
-
-                      <div className="flex flex-col sm:flex-row justify-center gap-3 pt-2">
-                        <button
-                          id="btn-quiz-retry"
-                          onClick={handleResetQuiz}
-                          className="bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs py-3 px-6 rounded-xl shadow-lg shadow-sky-600/10 transition-all flex items-center justify-center space-x-1.5"
-                        >
-                          <RefreshCw className="h-4 w-4" />
-                          <span>{language === "pt" ? "Refazer Simulado" : "Retry Quiz"}</span>
-                        </button>
-                        
-                        <button
-                          id="btn-quiz-back-summary"
-                          onClick={() => setActiveSubTab("summary")}
-                          className="bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs py-3 px-6 rounded-xl border border-slate-200 dark:border-slate-700 transition-all"
-                        >
-                          {language === "pt" ? "Ler Resumo de Novo" : "Read Summary Again"}
-                        </button>
-                      </div>
-
-                    </div>
-                  )}
-
-                </div>
+                <AiQuiz
+                  language={language}
+                  questions={studyData.questions}
+                  currentQuestionIdx={currentQuestionIdx}
+                  setCurrentQuestionIdx={setCurrentQuestionIdx}
+                  selectedAnswers={selectedAnswers}
+                  setSelectedAnswers={setSelectedAnswers}
+                  quizSubmitted={quizSubmitted}
+                  setQuizSubmitted={setQuizSubmitted}
+                  quizFinished={quizFinished}
+                  setQuizFinished={setQuizFinished}
+                  savedQuestions={savedQuestions}
+                  handleSaveQuestionToNotebook={handleSaveQuestionToNotebook}
+                  handleRetryQuiz={handleResetQuiz}
+                  setActiveSubTab={setActiveSubTab}
+                />
               )}
 
               {activeSubTab === "flashcards" && (
-                <div className="space-y-6">
-                  {!flashcardSessionFinished ? (
-                    <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xs flex flex-col items-center">
-                      
-                      {/* Flashcard Header Info */}
-                      <div className="flex items-center justify-between w-full border-b border-slate-100 dark:border-slate-800 pb-4 mb-8">
-                        <div>
-                          <span className="text-[10px] font-bold text-sky-500 font-mono uppercase tracking-widest">
-                            {language === "pt" 
-                              ? `Cartão ${currentCardIdx + 1} de ${(studyData.flashcards || []).length}` 
-                              : `Card ${currentCardIdx + 1} of ${(studyData.flashcards || []).length}`}
-                          </span>
-                          <h4 className="font-bold text-xs text-slate-400">
-                            {language === "pt" ? "Fixação por Repetição Espaçada" : "Active Recall Learning"}
-                          </h4>
-                        </div>
-
-                        {/* Progress line */}
-                        <div className="w-24 sm:w-32 bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
-                          <div 
-                            className="bg-sky-500 h-full transition-all duration-300"
-                            style={{ width: `${((currentCardIdx + 1) / ((studyData.flashcards || []).length || 1)) * 100}%` }}
-                          />
-                        </div>
-                      </div>
-
-                      {/* 3D Flashcard flip container */}
-                      {(studyData.flashcards && studyData.flashcards.length > 0) ? (
-                        <div className="w-full max-w-lg mb-8">
-                          {/* Card */}
-                          <div 
-                            onClick={() => setIsCardFlipped(!isCardFlipped)}
-                            className="perspective-1000 cursor-pointer group h-64 sm:h-72 w-full focus:outline-hidden"
-                            role="button"
-                            tabIndex={0}
-                          >
-                            <div className={`relative w-full h-full duration-500 transform-style-3d ${isCardFlipped ? 'rotate-y-180' : ''}`}>
-                              
-                              {/* FRONT Side */}
-                              <div className="absolute inset-0 w-full h-full rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 border border-slate-200/60 dark:border-slate-800 p-6 flex flex-col justify-between backface-hidden shadow-xs hover:shadow-md dark:shadow-none transition-all">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[9px] font-extrabold bg-sky-500/10 text-sky-500 px-2 py-0.5 rounded-full uppercase tracking-wider">
-                                    {language === "pt" ? "FRENTE - CONCEITO" : "FRONT - TERM"}
-                                  </span>
-                                  <Brain className="h-4 w-4 text-slate-400" />
-                                </div>
-                                <div className="text-center py-4 flex items-center justify-center min-h-[120px]">
-                                  <p className="text-sm sm:text-base font-extrabold text-slate-800 dark:text-slate-100 leading-normal">
-                                    {studyData.flashcards[currentCardIdx].front}
-                                  </p>
-                                </div>
-                                <p className="text-center text-[10px] text-slate-400 dark:text-slate-500 font-semibold animate-pulse">
-                                  {language === "pt" ? "Clique para revelar o verso 🔄" : "Click to flip card 🔄"}
-                                </p>
-                              </div>
-
-                              {/* BACK Side */}
-                              <div className="absolute inset-0 w-full h-full rounded-2xl bg-gradient-to-br from-sky-50/50 to-white dark:from-slate-950 dark:to-black border border-sky-500/20 dark:border-slate-800 p-6 flex flex-col justify-between backface-hidden rotate-y-180 shadow-md dark:shadow-none">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[9px] font-extrabold bg-sky-500/20 text-sky-600 dark:text-sky-400 px-2 py-0.5 rounded-full uppercase tracking-wider">
-                                    {language === "pt" ? "VERSO - DEFINIÇÃO" : "BACK - DEFINITION"}
-                                  </span>
-                                  <CheckCircle2 className="h-4 w-4 text-sky-500" />
-                                </div>
-                                <div className="text-center py-4 flex items-center justify-center min-h-[120px] overflow-y-auto">
-                                  <p className="text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-350 leading-relaxed">
-                                    {studyData.flashcards[currentCardIdx].back}
-                                  </p>
-                                </div>
-                                <p className="text-center text-[10px] text-slate-400 dark:text-slate-500 font-semibold">
-                                  {language === "pt" ? "Clique para voltar à frente" : "Click to flip back"}
-                                </p>
-                              </div>
-
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="p-8 text-center text-xs text-slate-400 font-semibold">
-                          {language === "pt" ? "Nenhum flashcard disponível." : "No flashcards available."}
-                        </div>
-                      )}
-
-                      {/* Flip / Active Recall feedback buttons */}
-                      <div className="w-full flex flex-col items-center space-y-4">
-                        {!isCardFlipped ? (
-                          <button
-                            id="btn-flashcard-flip"
-                            onClick={() => setIsCardFlipped(true)}
-                            className="bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs py-3 px-8 rounded-xl shadow-lg shadow-sky-600/10 transition-all flex items-center space-x-1.5"
-                          >
-                            <RefreshCw className="h-3.5 w-3.5" />
-                            <span>{language === "pt" ? "Virar Cartão (Ver Resposta)" : "Flip Card (See Answer)"}</span>
-                          </button>
-                        ) : (
-                          <div className="flex items-center justify-center space-x-4 w-full max-w-sm">
-                            <button
-                              id="btn-flashcard-hard"
-                              onClick={() => handleFlashcardFeedback("hard")}
-                              className="flex-1 bg-rose-50 border border-rose-200 hover:bg-rose-100 dark:bg-rose-950/20 dark:border-rose-900/50 text-rose-600 dark:text-rose-400 font-bold text-xs py-3 px-4 rounded-xl transition-all flex items-center justify-center space-x-1.5"
-                            >
-                              <XCircle className="h-4 w-4" />
-                              <span>{language === "pt" ? "Não Lembrei" : "Forgot"}</span>
-                            </button>
-                            <button
-                              id="btn-flashcard-easy"
-                              onClick={() => handleFlashcardFeedback("easy")}
-                              className="flex-1 bg-sky-50 border border-sky-200 hover:bg-sky-100 dark:bg-sky-950/20 dark:border-sky-900/50 text-sky-600 dark:text-sky-400 font-bold text-xs py-3 px-4 rounded-xl transition-all flex items-center justify-center space-x-1.5"
-                            >
-                              <CheckCircle2 className="h-4 w-4" />
-                              <span>{language === "pt" ? "Lembrei!" : "Remembered!"}</span>
-                            </button>
-                          </div>
-                        )}
-
-                        <div className="flex items-center space-x-4 pt-4 border-t border-slate-50 dark:border-slate-800/80 w-full justify-between text-[11px] text-slate-400 font-semibold px-2">
-                          <button
-                            id="btn-flashcard-shuffle"
-                            onClick={handleShuffleFlashcards}
-                            className="hover:text-slate-600 dark:hover:text-slate-300 transition-all"
-                          >
-                            🔀 {language === "pt" ? "Misturar Ordem" : "Shuffle Deck"}
-                          </button>
-                          <span>
-                            {language === "pt" 
-                              ? "Dica: Pratique até atingir 100% de lembrança!" 
-                              : "Tip: Practice until you reach 100% recall!"}
-                          </span>
-                        </div>
-                      </div>
-
-                    </div>
-                  ) : (
-                    /* Flashcards Summary / Finish Screen */
-                    <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-8 shadow-xs text-center space-y-6 animate-fade-in">
-                      <div className="inline-flex p-4 bg-sky-500/10 text-sky-500 rounded-full animate-bounce">
-                        <Award className="h-10 w-10" />
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <h3 className="text-xl font-black text-slate-800 dark:text-white">
-                          {language === "pt" ? "Sessão de Flashcards Concluída!" : "Flashcards Session Complete!"}
-                        </h3>
-                        <p className="text-xs text-slate-400 max-w-sm mx-auto font-medium leading-relaxed">
-                          {language === "pt"
-                            ? "Parabéns! Você completou os cartões de memorização ativa para esse assunto. Veja sua taxa de memorização instantânea abaixo."
-                            : "Awesome! You ran through all the active recall cards. Check your immediate memory rate below."}
-                        </p>
-                      </div>
-
-                      {/* Memory Metrics */}
-                      <div className="flex items-center justify-center space-x-8 max-w-md mx-auto py-4 px-6 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-100 dark:border-slate-850">
-                        <div className="flex flex-col items-center">
-                          <span className="text-[10px] font-bold text-sky-500 uppercase tracking-wider">{language === "pt" ? "LEMBREI" : "REMEMBERED"}</span>
-                          <span className="text-2xl font-black text-sky-500 font-mono mt-0.5">
-                            {Object.values(cardFeedback).filter(v => v === "easy").length}
-                          </span>
-                        </div>
-
-                        <div className="h-8 w-px bg-slate-200 dark:bg-slate-800" />
-
-                        <div className="flex flex-col items-center">
-                          <span className="text-[10px] font-bold text-rose-500 uppercase tracking-wider">{language === "pt" ? "ESQUECI" : "FORGOT"}</span>
-                          <span className="text-2xl font-black text-rose-500 font-mono mt-0.5">
-                            {Object.values(cardFeedback).filter(v => v === "hard").length}
-                          </span>
-                        </div>
-
-                        <div className="h-8 w-px bg-slate-200 dark:bg-slate-800" />
-
-                        <div className="flex flex-col items-center">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{language === "pt" ? "RETENÇÃO" : "RECALL RATE"}</span>
-                          <span className="text-2xl font-black text-slate-800 dark:text-slate-100 font-mono mt-0.5">
-                            {Math.round((Object.values(cardFeedback).filter(v => v === "easy").length / (studyData.flashcards?.length || 1)) * 100)}%
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Mentor comment */}
-                      <div className="max-w-md mx-auto p-4 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-850 text-xs text-left space-y-1 font-medium text-slate-500 dark:text-slate-400">
-                        <span className="font-bold text-slate-700 dark:text-slate-300 uppercase block tracking-wide">
-                          {language === "pt" ? "RECOMENDAÇÃO DO MENTOR" : "MENTOR STUDY FEEDBACK"}
-                        </span>
-                        <p className="leading-relaxed font-normal">
-                          {Object.values(cardFeedback).filter(v => v === "easy").length === studyData.flashcards?.length ? (
-                            language === "pt" 
-                              ? "Excelente! Retenção de 100%! Você dominou as terminologias fundamentais deste documento. Pratique o simulado agora para fechar com chave de ouro!"
-                              : "Unbelievable! 100% active recall rate. You have deeply memorized the key terminology. Go take the practice quiz next to cement it!"
-                          ) : Object.values(cardFeedback).filter(v => v === "easy").length >= 3 ? (
-                            language === "pt"
-                              ? "Bom resultado! Alguns conceitos ainda precisam de reforço. Tente refazer misturando os cartões para memorizar os termos restantes."
-                              : "Good job! A few terms are still tricky. Try resetting the deck and shuffling the cards to target your blindspots."
-                          ) : (
-                            language === "pt"
-                              ? "A memorização requer repetição! Sugerimos revisar o Resumo de Estudo mais uma vez e depois tentar os Flashcards novamente."
-                              : "Active recall takes repetition! We suggest reviewing the study summary once more and then retrying these flashcards."
-                          )}
-                        </p>
-                      </div>
-
-                      {/* Finish Actions */}
-                      <div className="flex flex-col sm:flex-row justify-center gap-3 pt-2">
-                        <button
-                          id="btn-flashcard-retry"
-                          onClick={handleResetFlashcards}
-                          className="bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs py-3 px-6 rounded-xl shadow-lg shadow-sky-600/10 transition-all flex items-center justify-center space-x-1.5"
-                        >
-                          <RefreshCw className="h-4 w-4" />
-                          <span>{language === "pt" ? "Reiniciar Prática" : "Restart Session"}</span>
-                        </button>
-                        <button
-                          id="btn-flashcard-shuffle-restart"
-                          onClick={handleShuffleFlashcards}
-                          className="bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs py-3 px-6 rounded-xl border border-slate-200 dark:border-slate-700 transition-all flex items-center justify-center space-x-1.5"
-                        >
-                          <span>🔀 {language === "pt" ? "Misturar e Recomeçar" : "Shuffle & Restart"}</span>
-                        </button>
-                        <button
-                          id="btn-flashcard-save-all"
-                          onClick={handleSaveAllFlashcards}
-                          disabled={flashcardsSaved}
-                          className={`font-bold text-xs py-3 px-6 rounded-xl border transition-all flex items-center justify-center space-x-1.5 ${
-                            flashcardsSaved
-                              ? "bg-emerald-500 text-white border-emerald-500"
-                              : "bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-600 shadow-md shadow-emerald-600/10"
-                          }`}
-                        >
-                          <CheckCircle2 className="h-4 w-4" />
-                          <span>{flashcardsSaved ? "Salvo no Meu Banco! ✓" : "💾 Salvar Flashcards no Meu Banco"}</span>
-                        </button>
-                      </div>
-
-                    </div>
-                  )}
-
-                  {/* Complete flashcard reference list below */}
-                  {studyData.flashcards && studyData.flashcards.length > 0 && (
-                    <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-6 shadow-xs">
-                      <h4 className="font-extrabold text-xs uppercase tracking-wider text-slate-700 dark:text-slate-350 mb-4 border-b border-slate-50 dark:border-slate-800 pb-3 flex items-center space-x-2">
-                        <span>📋 {language === "pt" ? "Gabarito de Consulta Rápida" : "Quick Concept Reference"}</span>
-                        <span className="text-[10px] font-bold text-slate-400 font-mono normal-case">
-                          ({studyData.flashcards.length} {language === "pt" ? "itens" : "cards"})
-                        </span>
-                      </h4>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {studyData.flashcards.map((card, idx) => (
-                          <div 
-                            key={idx}
-                            className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-850 hover:border-sky-500/20 transition-all space-y-2.5 text-xs text-left"
-                          >
-                            <div className="flex items-center justify-between">
-                              <span className="text-[9px] font-mono font-bold text-sky-500">CARD #{idx + 1}</span>
-                              <span className="h-1.5 w-1.5 rounded-full bg-sky-500" />
-                            </div>
-                            <div className="space-y-1.5 font-medium">
-                              <p className="font-bold text-slate-800 dark:text-slate-200">
-                                <span className="text-slate-400 font-mono text-[10px] font-bold mr-1">[FRENTE]</span>
-                                {card.front}
-                              </p>
-                              <p className="text-slate-500 dark:text-slate-450 text-xs font-normal border-t border-dashed border-slate-200 dark:border-slate-800 pt-2 leading-relaxed">
-                                <span className="text-sky-500 font-mono text-[10px] font-bold mr-1">[VERSO]</span>
-                                {card.back}
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                </div>
+                <AiFlashcards
+                  language={language}
+                  flashcards={studyData.flashcards}
+                  currentCardIdx={currentCardIdx}
+                  setCurrentCardIdx={setCurrentCardIdx}
+                  isCardFlipped={isCardFlipped}
+                  setIsCardFlipped={setIsCardFlipped}
+                  cardFeedback={cardFeedback}
+                  setCardFeedback={setCardFeedback}
+                  flashcardSessionFinished={flashcardSessionFinished}
+                  setFlashcardSessionFinished={setFlashcardSessionFinished}
+                  flashcardsSaved={flashcardsSaved}
+                  handleSaveAllFlashcards={handleSaveAllFlashcards}
+                  handleResetFlashcards={handleResetFlashcards}
+                  handleShuffleFlashcards={handleShuffleFlashcards}
+                />
               )}
 
               {activeSubTab === "full-audio" && (
-                <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
-                  
-                  {/* Audio Control Header Box */}
-                  <div className="bg-gradient-to-r from-sky-600 to-teal-600 text-white rounded-3xl p-6 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-6">
-                    <div className="space-y-2">
-                      <div className="flex items-center space-x-2">
-                        <span className="bg-white/20 text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">
-                          Audiobook Completo (100% Texto Original)
-                        </span>
-                      </div>
-                      <h3 className="font-black text-xl text-white">
-                        {file ? file.name : "Caderno de Legislação do SUS (Texto Integral)"}
-                      </h3>
-                      <p className="text-xs text-sky-100 font-medium">
-                        O leitor neural está lendo o texto do documento linha por linha do início ao fim.
-                      </p>
-                    </div>
-
-                    {/* Main Playback Controls */}
-                    <div className="flex flex-col items-center sm:items-end gap-3 shrink-0">
-                      <div className="flex items-center space-x-3 bg-white/10 backdrop-blur-xs rounded-2xl p-2.5">
-                        {!isSpeaking && !isPaused ? (
-                          <button
-                            onClick={() => speak(fullPdfText || studyData.summary, rate)}
-                            className="bg-white text-sky-700 hover:bg-sky-50 font-bold text-xs px-5 py-2.5 rounded-xl transition-all flex items-center space-x-2 shadow-md cursor-pointer"
-                          >
-                            <Play className="h-4 w-4 fill-current" />
-                            <span>Iniciar Narração</span>
-                          </button>
-                        ) : (
-                          <div className="flex items-center space-x-2">
-                            <button
-                              onClick={isPaused ? resume : pause}
-                              className="bg-white text-sky-700 hover:bg-sky-50 font-bold text-xs px-4 py-2 rounded-xl transition-all flex items-center space-x-1.5 shadow-md cursor-pointer"
-                            >
-                              {isPaused ? <Play className="h-4 w-4 fill-current" /> : <PauseCircle className="h-4 w-4" />}
-                              <span>{isPaused ? "Retomar" : "Pausar"}</span>
-                            </button>
-                            <button
-                              onClick={stop}
-                              className="bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs px-3 py-2 rounded-xl transition-all flex items-center space-x-1 shadow-md cursor-pointer"
-                            >
-                              <StopCircle className="h-4 w-4" />
-                              <span>Parar</span>
-                            </button>
-                          </div>
-                        )}
-
-                        {/* Speed Selector */}
-                        <select
-                          value={rate}
-                          onChange={(e) => {
-                            const newRate = parseFloat(e.target.value);
-                            setRate(newRate);
-                          }}
-                          className="bg-white/20 text-white font-bold text-xs py-2 px-2.5 rounded-xl outline-none border border-white/30 cursor-pointer"
-                        >
-                          <option value={0.75} className="text-slate-900">0.75x</option>
-                          <option value={1.0} className="text-slate-900">1.0x (Normal)</option>
-                          <option value={1.25} className="text-slate-900">1.25x</option>
-                          <option value={1.5} className="text-slate-900">1.5x</option>
-                          <option value={2.0} className="text-slate-900">2.0x (Rápido)</option>
-                        </select>
-                      </div>
-
-                      {/* Progress percent */}
-                      <div className="w-full max-w-xs space-y-1">
-                        <div className="flex justify-between text-[10px] text-sky-100 font-bold">
-                          <span>Progresso da Narração</span>
-                          <span>{progressPercent}%</span>
-                        </div>
-                        <div className="h-2 bg-white/20 rounded-full overflow-hidden">
-                          <div 
-                            className="bg-white h-full transition-all duration-300"
-                            style={{ width: `${progressPercent}%` }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Full Text Display for Reading Along */}
-                  <div className="space-y-3">
-                    <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400 font-mono">
-                      📖 Transcrição / Texto Original Sendo Lido:
-                    </h4>
-                    <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 font-mono text-xs text-slate-700 dark:text-slate-300 leading-relaxed max-h-[500px] overflow-y-auto whitespace-pre-wrap">
-                      {fullPdfText || "Nenhum PDF lido na íntegra ainda. Clique em '+ Anexar / Trocar PDF' no topo e selecione 'Ouvir PDF Completo (Sem Resumir)'."}
-                    </div>
-                  </div>
-
-                </div>
+                <AiAudioPlayer
+                  language={language}
+                  file={file}
+                  fullPdfText={fullPdfText}
+                  summaryText={studyData.summary}
+                  isSpeaking={isSpeaking}
+                  isPaused={isPaused}
+                  rate={rate}
+                  setRate={setRate}
+                  progressPercent={progressPercent}
+                  speak={speak}
+                  pause={pause}
+                  resume={resume}
+                  stop={stop}
+                />
               )}
 
             </div>
 
-            {/* Right sidebar: Quick stats of this material */}
+            {/* Right sidebar: Quick stats */}
             <div className="space-y-6">
-              
-              {/* Material info stats card */}
               <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-6 shadow-xs space-y-4">
                 <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400 flex items-center space-x-1.5 border-b border-slate-50 dark:border-slate-800 pb-3">
                   <Brain className="h-4.5 w-4.5 text-sky-500 animate-pulse" />
@@ -1976,19 +833,17 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
                   </div>
                 </div>
 
-                {/* Progress bar to visual aid */}
                 <div className="space-y-1.5 pt-2 border-t border-slate-50 dark:border-slate-800/85">
                   <span className="block text-[10px] font-bold text-slate-400 uppercase">{language === "pt" ? "PROCESSO DE APRENDIZADO" : "LEARNING DECK PROGRESS"}</span>
                   <div className="h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                     <div 
                       className="bg-sky-500 h-full transition-all duration-300"
-                      style={{ width: `${(Object.keys(quizSubmitted).length / studyData.questions.length) * 100}%` }}
+                      style={{ width: `${(Object.keys(quizSubmitted).length / (studyData.questions.length || 1)) * 100}%` }}
                     />
                   </div>
                 </div>
               </div>
 
-              {/* Pro Advisor Tip */}
               <div className="p-5 bg-gradient-to-br from-slate-900 to-slate-950 dark:from-slate-950 dark:to-black text-slate-300 rounded-3xl border border-slate-850 relative overflow-hidden space-y-3">
                 <div className="p-2 bg-sky-500/10 w-fit rounded-lg text-sky-400">
                   <Clock className="h-4.5 w-4.5" />
@@ -1998,11 +853,10 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
                   <p className="text-[10px] leading-relaxed text-slate-400 font-semibold mt-1">
                     {language === "pt"
                       ? "A IA gerou este material com base no conteúdo enviado. Confirme condutas e normas na fonte oficial e use os intervalos de revisão como sugestão de estudo."
-                      : "Spaced repetition locks in learning. Re-read this generated study block in 24 hours, and then again in 7 days to transfer it to permanent memory."}
+                      : "Spaced repetition locks in learning. Re-read this generated study block in 24 hours, and then again in 7 days."}
                   </p>
                 </div>
               </div>
-
             </div>
 
           </div>
@@ -2010,110 +864,25 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
         </div>
       )}
 
-      {/* Modal de Upload de Novo Material / PDF */}
-      {isUploadModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 sm:p-8 max-w-2xl w-full shadow-2xl relative space-y-6">
-            
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800/80">
-              <div className="flex items-center space-x-3">
-                <div className="p-3 bg-gradient-to-br from-sky-500 to-teal-500 text-white rounded-2xl shadow-md shadow-sky-500/20">
-                  <FileUp className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="font-extrabold text-base text-slate-900 dark:text-white tracking-tight">
-                    Anexar Material de Estudo (PDF/Texto)
-                  </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-                    Escolha o que deseja fazer com seu arquivo de enfermagem.
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsUploadModalOpen(false)}
-                className="p-2 rounded-2xl text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            {errorMsg && (
-              <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 rounded-2xl text-xs sm:text-sm flex items-start space-x-2.5 animate-fade-in shadow-xs">
-                <AlertTriangle className="h-4.5 w-4.5 shrink-0 mt-0.5" />
-                <div className="flex-1 font-semibold leading-relaxed">{errorMsg}</div>
-                <button onClick={() => setErrorMsg(null)} className="font-extrabold text-xs cursor-pointer">✕</button>
-              </div>
-            )}
-
-            {/* Drag and Drop Zone */}
-            <div 
-              onDragEnter={handleDrag}
-              onDragOver={handleDrag}
-              onDragLeave={handleDrag}
-              onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
-              className={`border-2 border-dashed rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer transition-all ${
-                dragActive 
-                  ? "border-sky-500 bg-sky-500/10 scale-[1.01]" 
-                  : "border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 hover:bg-slate-50 dark:hover:bg-slate-950/80 hover:border-sky-500/50"
-              }`}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".pdf,.txt"
-                onChange={handleFileChange}
-                className="hidden"
-              />
-              <div className="p-3 bg-sky-500/10 text-sky-500 rounded-full mb-3">
-                <FileUp className="h-6 w-6" />
-              </div>
-              <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200">
-                {file ? file.name : "Clique para selecionar seu arquivo PDF ou TXT"}
-              </h4>
-              <p className="text-[11px] font-medium text-slate-400 mt-1">
-                {file ? `${(file.size / (1024 * 1024)).toFixed(2)} MB selecionados` : "Ou arraste e solte o arquivo diretamente aqui"}
-              </p>
-            </div>
-
-            {/* Pasted text option */}
-            <div className="space-y-2">
-              <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
-                Ou cole o texto de estudo diretamente:
-              </label>
-              <textarea
-                rows={4}
-                value={pastedText}
-                onChange={(e) => setPastedText(e.target.value)}
-                placeholder="Cole anotações, resoluções COFEN ou diretrizes de enfermagem aqui..."
-                className="w-full bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 text-xs outline-none focus:border-sky-500 focus:ring-4 focus:ring-sky-500/10 transition-all leading-relaxed text-slate-800 dark:text-slate-200 font-medium"
-              />
-            </div>
-
-            {/* Dual Action Cards */}
-            <div className="flex flex-col sm:flex-row gap-3 pt-2">
-              <button
-                onClick={handleReadFullPdf}
-                disabled={(!file && !pastedText.trim()) || isExtractingPdf}
-                className="flex-1 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-extrabold text-xs py-3.5 px-4 rounded-2xl shadow-xl shadow-emerald-600/20 hover:shadow-emerald-600/35 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center space-x-2 cursor-pointer"
-              >
-                <Headphones className="h-4 w-4" />
-                <span>{isExtractingPdf ? "Extraindo PDF..." : "🎧 Ouvir PDF Completo (Sem Resumir)"}</span>
-              </button>
-
-              <button
-                onClick={handleGenerateStudy}
-                disabled={(!file && !pastedText.trim()) || isExtractingPdf}
-                className="flex-1 bg-gradient-to-r from-sky-600 via-indigo-600 to-sky-600 hover:from-sky-500 hover:to-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-extrabold text-xs py-3.5 px-4 rounded-2xl shadow-xl shadow-sky-600/20 hover:shadow-sky-600/35 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center space-x-2 cursor-pointer"
-              >
-                <Brain className="h-4 w-4" />
-                <span>🧠 Gerar Resumo + Questões (IA)</span>
-              </button>
-            </div>
-
-          </div>
-        </div>
-      )}
+      {/* Modal de Upload */}
+      <AiUploadModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        language={language}
+        file={file}
+        pastedText={pastedText}
+        setPastedText={setPastedText}
+        dragActive={dragActive}
+        errorMsg={errorMsg}
+        setErrorMsg={setErrorMsg}
+        isExtractingPdf={isExtractingPdf}
+        fileInputRef={fileInputRef}
+        handleDrag={handleDrag}
+        handleDrop={handleDrop}
+        handleFileChange={handleFileChange}
+        handleReadFullPdf={handleReadFullPdf}
+        handleGenerateStudy={handleGenerateStudy}
+      />
 
     </div>
   );

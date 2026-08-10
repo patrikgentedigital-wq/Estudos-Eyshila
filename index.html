@@ -4,25 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#4f46e5" />
+    <meta name="description" content="Portal de Estudos Eyshila Caxias - Plataforma preparatória para ENARE e ENADE Enfermagem com IA, simulados e flashcards." />
+    <meta property="og:title" content="Portal de Estudos Eyshila Caxias - ENARE Enfermagem" />
+    <meta property="og:description" content="Plataforma de estudos de enfermagem focada no ENARE com simulados, flashcards e co-piloto IA." />
+    <meta property="og:type" content="website" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-    <meta http-equiv="Pragma" content="no-cache" />
-    <meta http-equiv="Expires" content="0" />
-    <link rel="manifest" href="/manifest.json" />
     <title>Portal de Estudos Eyshila Caxias - ENARE Enfermagem</title>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').catch(err => {
-            console.log('ServiceWorker registration skipped:', err);
-          });
-        });
-      }
-    </script>
   </body>
 </html>

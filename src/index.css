@@ -137,12 +137,15 @@ body.dark {
   color: #e3e3e3;
 }
 
-/* Smooth transition for theme toggling */
-html,
-html *,
-html *::before,
-html *::after {
-  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, box-shadow, outline-color;
+/* Smooth transition for theme toggling on key container elements */
+body,
+header,
+footer,
+aside,
+main,
+.glass-card-light,
+.glass-card-dark {
+  transition-property: color, background-color, border-color, box-shadow;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 200ms;
 }
