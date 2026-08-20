@@ -537,7 +537,13 @@ const RAW_MOCK_QUESTIONS: LegacyExamQuestion[] = [
     explanation: "Pela Regra de Naegele, somamos 7 dias ao primeiro dia da última menstruação (12 + 7 = 19) e subtraímos 3 meses do mês da DUM (Janeiro/mês 1 - 3 meses = Outubro/mês 10), mantendo ou avançando o ano correspondente. Assim, a DPP é 19 de Outubro de 2026.",
     explanationEn: "According to Naegele's Rule, we add 7 days to the first day of the last menstruation (12 + 7 = 19) and subtract 3 months from the LMP month (January/month 1 - 3 months = October/month 10), adjusting the year. Therefore, the EDD is October 19th, 2026.",
     category: "Ciclos de Vida",
-    categoryEn: "Lifespan Care"
+    categoryEn: "Lifespan Care",
+    clinicalCase: {
+      setting: "Atenção Básica de Saúde (primeira consulta de pré-natal)",
+      ageGroup: "Gestante",
+      presentingProblem: "Cálculo da data provável do parto (DPP)",
+      history: "Gestante comparece à primeira consulta de pré-natal e refere DUM em 12 de janeiro de 2026",
+    }
   },
   {
     id: "q-6",
@@ -646,6 +652,7 @@ const RAW_MOCK_QUESTIONS: LegacyExamQuestion[] = [
     correctIndex: 1,
     explanation: "A fórmula para macrogotas é: Gotas = Volume / (Tempo x 3). Logo, Gotas = 500 / (8 x 3) = 500 / 24 = 20,83. Arredondando, temos aproximadamente 21 gotas por minuto.",
     explanationEn: "The macrodrip formula is: Drops = Volume / (Time x 3). So, Drops = 500 / (8 x 3) = 500 / 24 = 20.83. Rounding up, it's approximately 21 drops per minute.",
+    cognitiveType: "factual",
     category: "Prática Clínica",
     categoryEn: "Clinical Practice"
   },
@@ -691,7 +698,13 @@ const RAW_MOCK_QUESTIONS: LegacyExamQuestion[] = [
     explanation: "A taquicardia é um dos primeiros sinais compensatórios do organismo frente à diminuição do volume sistólico (débito cardíaco). A agitação psicomotora reflete a hipóxia cerebral incipiente por má perfusão.",
     explanationEn: "Tachycardia is one of the first compensatory signs of the body in response to decreased stroke volume (cardiac output). Psychomotor agitation reflects incipient cerebral hypoxia due to poor perfusion.",
     category: "Enfermagem Cirúrgica",
-    categoryEn: "Surgical Nursing"
+    categoryEn: "Surgical Nursing",
+    clinicalCase: {
+      setting: "Período pós-operatório imediato",
+      ageGroup: "Adulto",
+      presentingProblem: "Sinais precoces de choque hipovolêmico por perda sanguínea pós-operatória",
+      physicalExam: "Taquicardia e agitação psicomotora como sinais compensatórios iniciais",
+    }
   },
   {
     id: "q-13",
@@ -756,6 +769,7 @@ const RAW_MOCK_QUESTIONS: LegacyExamQuestion[] = [
     correctIndex: 2,
     explanation: "Os '9 certos' incluem: paciente, medicamento, via, hora, dose, registro, orientação, forma farmacêutica e resposta (monitoramento). O 'custo certo' não é um critério de segurança clínica do paciente nesse protocolo.",
     explanationEn: "The '9 rights' include: patient, medication, route, time, dose, documentation, education, dosage form, and response. 'Right cost' is not a clinical safety criterion in this protocol.",
+    cognitiveType: "factual",
     category: "Prática Clínica",
     categoryEn: "Clinical Practice"
   },
@@ -779,7 +793,13 @@ const RAW_MOCK_QUESTIONS: LegacyExamQuestion[] = [
     explanation: "O tecido de granulação indica cicatrização saudável (proliferação). Ele é vermelho vivo, vascularizado e frágil. A conduta é proteger esse tecido (evitar traumas) e manter o meio úmido fisiológico para favorecer a epitelização.",
     explanationEn: "Granulation tissue indicates healthy healing. It is bright red, vascularized, and fragile. The procedure is to protect this tissue and maintain physiological moisture to favor epithelialization.",
     category: "Prática Clínica",
-    categoryEn: "Clinical Practice"
+    categoryEn: "Clinical Practice",
+    clinicalCase: {
+      setting: "Avaliação de ferida pelo enfermeiro",
+      ageGroup: "Adulto",
+      presentingProblem: "Ferida em avaliação para definição da conduta de curativo",
+      physicalExam: "Presença de tecido de granulação (vermelho vivo, vascularizado e frágil)",
+    }
   },
   {
     id: "q-4",
@@ -801,7 +821,14 @@ const RAW_MOCK_QUESTIONS: LegacyExamQuestion[] = [
     explanation: "A abordagem atualizada do trauma grave adota o mnemônico XABCDE. O 'X' antecede a via aérea e refere-se ao controle imediato de hemorragia externa exasanguinante. O sangramento maciço pode levar ao choque hipovolêmico letal em poucos minutos, antes mesmo do comprometimento da via aérea.",
     explanationEn: "The updated severe trauma approach uses the XABCDE mnemonic. The 'X' precedes the airway and refers to immediate control of exsanguinating external hemorrhage. Massive bleeding can lead to fatal hypovolemic shock in minutes, even before airway compromise.",
     category: "Urgência e UTI",
-    categoryEn: "Emergency & ICU"
+    categoryEn: "Emergency & ICU",
+    clinicalCase: {
+      setting: "Sala de emergência",
+      ageGroup: "Adulto",
+      presentingProblem: "Paciente politraumatizado grave",
+      history: "Trauma de alta energia com suspeita de hemorragia externa exanguinante",
+      physicalExam: "Avaliação primária conduzida conforme o mnemônico XABCDE",
+    }
   },
   {
     id: "q-5",
@@ -822,6 +849,7 @@ const RAW_MOCK_QUESTIONS: LegacyExamQuestion[] = [
     correctIndex: 0,
     explanation: "A Meta 1 (Identificação Correta do Paciente) exige pelo menos dois identificadores exclusivos (nunca o número do leito). A Meta 3 (Segurança na Prescrição e Administração) exige dupla checagem para medicamentos de alta vigilância. E a NR 32 proíbe o reencape de agulhas para prevenir acidentes ocupacionais com perfurocortantes.",
     explanationEn: "Goal 1 (Patient Identification) requires at least two unique identifiers (never the bed number). Goal 3 (Safety in Prescribing and Administration) requires double-checking for high-alert medications. And NR 32 prohibits needle recapping to prevent occupational sharps accidents.",
+    cognitiveType: "protocol",
     category: "Prática Clínica",
     categoryEn: "Clinical Practice"
   },
@@ -844,6 +872,7 @@ const RAW_MOCK_QUESTIONS: LegacyExamQuestion[] = [
     correctIndex: 0,
     explanation: "A vacina dTpa (Difteria, Tétano e Coqueluche acelular) é indicada para gestantes a partir da 20ª semana de gestação, devendo ser administrada a cada nova gestação com o objetivo principal de transferir anticorpos passivamente para o feto, protegendo o recém-nascido da coqueluche e do tétano neonatal.",
     explanationEn: "The Tdap vaccine is recommended for pregnant women starting from the 20th gestational week, and must be administered in every new pregnancy to transfer passive maternal antibodies to the fetus, protecting the newborn against whooping cough and neonatal tetanus.",
+    cognitiveType: "factual",
     category: "Ciclos de Vida",
     categoryEn: "Lifespan Care",
     examSource: "ENARE 2024",
@@ -892,6 +921,7 @@ const RAW_MOCK_QUESTIONS: LegacyExamQuestion[] = [
     correctIndex: 2,
     explanation: "No nível local (unidades de saúde), todas as vacinas de rotina devem ser armazenadas em temperatura positiva entre +2ºC e +8ºC, sendo a temperatura ideal de +5ºC. Caso ocorra alteração térmica fora dessa faixa, o enfermeiro deve restabelecer a temperatura correta, separar o lote e notificar a ocorrência para a área de Vigilância Epidemiológica/Imunizações para análise técnica de estabilidade.",
     explanationEn: "At local units, routine vaccines must be stored between +2ºC and +8ºC (ideal +5ºC). In case of temperature excursions, the nurse must restore correct temp, isolate the batch, and report the occurrence to the epidemiological/immunization team to evaluate the stability.",
+    cognitiveType: "factual",
     category: "Prática Clínica",
     categoryEn: "Clinical Practice",
     examSource: "ENARE 2022",
@@ -966,6 +996,12 @@ const RAW_MOCK_QUESTIONS: LegacyExamQuestion[] = [
     explanationEn: "The Cincinnati Prehospital Stroke Scale assesses three simple clinical signs: 1) Facial droop (have patient show teeth or smile), 2) Arm drift (have patient close eyes and hold both arms straight out for 10 seconds), and 3) Abnormal speech (have patient say 'you can't teach an old dog new tricks').",
     category: "Avaliação Neurológica",
     categoryEn: "Neurological Assessment",
+    clinicalCase: {
+      setting: "Triagem inicial no serviço de urgência",
+      ageGroup: "Adulto (62 anos)",
+      presentingProblem: "Suspeita de Acidente Vascular Cerebral (AVC) agudo",
+      physicalExam: "Triagem pela Escala de Cincinnati: queda facial, deriva de braço e fala anormal",
+    },
     examSource: "ENARE 2024",
     examSourceEn: "ENARE 2024"
   },
@@ -1014,6 +1050,12 @@ const RAW_MOCK_QUESTIONS: LegacyExamQuestion[] = [
     explanationEn: "Naegele's rule calculates the estimated due date by adding 7 days to the first day of the LMP, and subtracting 3 months from the LMP month. LMP = May 10, 2022. Day: 10 + 7 = 17. Month: May (05) - 3 months = February (02). Year: 2022 + 1 = 2023. Thus, EDD is February 17, 2023.",
     category: "Saúde da Mulher",
     categoryEn: "Women's Health",
+    clinicalCase: {
+      setting: "Unidade Básica de Saúde (primeira consulta de pré-natal)",
+      ageGroup: "Gestante",
+      presentingProblem: "Cálculo da data provável do parto (DPP)",
+      history: "Gestante informa DUM em 10 de maio de 2022",
+    },
     examSource: "ENARE 2022",
     examSourceEn: "ENARE 2022"
   },
@@ -1036,6 +1078,7 @@ const RAW_MOCK_QUESTIONS: LegacyExamQuestion[] = [
     correctIndex: 1,
     explanation: "Conforme as Diretrizes da AHA para RCP de alta qualidade em adultos, a frequência de compressões torácicas deve ser de 100 a 120 compressões por minuto, e a profundidade de compressão deve ser de pelo menos 2 polegadas (5 cm), evitando ultrapassar 2,4 polegadas (6 cm), permitindo o retorno completo do tórax após cada compressão.",
     explanationEn: "According to AHA guidelines for high-quality adult CPR, chest compressions must be performed at a rate of 100 to 120 compressions per minute, and compression depth must be at least 2 inches (5 cm) but not exceed 2.4 inches (6 cm), with complete chest recoil.",
+    cognitiveType: "protocol",
     category: "Urgência e Emergência",
     categoryEn: "Urgency Care",
     examSource: "ENARE 2021",
@@ -1060,6 +1103,7 @@ const RAW_MOCK_QUESTIONS: LegacyExamQuestion[] = [
     correctIndex: 1,
     explanation: "A fórmula para cálculo de gotas por minuto é: Gotas/min = Volume (mL) / (Tempo (horas) * 3). Substituindo os valores: Gotas/min = 500 / (8 * 3) = 500 / 24 = 20,83. Arredondando para o número inteiro mais próximo, temos aproximadamente 21 gotas por minuto.",
     explanationEn: "The formula for calculating gravity drip rate in drops per minute is: Drops/min = Volume (mL) / (Time (hours) * 3). Thus: Drops/min = 500 / (8 * 3) = 500 / 24 = 20.83. Rounding to the nearest whole number yields approximately 21 drops per minute.",
+    cognitiveType: "factual",
     category: "Procedimentos Clínicos",
     categoryEn: "Clinical Procedures",
     examSource: "ENARE 2020",
@@ -1132,6 +1176,7 @@ const RAW_MOCK_QUESTIONS: LegacyExamQuestion[] = [
     correctIndex: 1,
     explanation: "Conforme a regulamentação do Programa Nacional de Segurança do Paciente da ANVISA, os eventos adversos graves que resultarem em óbito do paciente devem ser notificados em no máximo 72 horas a partir da ocorrência.",
     explanationEn: "According to ANVISA's National Patient Safety Program, serious adverse events that result in the death of a patient must be reported within a maximum of 72 hours of the event.",
+    cognitiveType: "factual",
     category: "Ética e Gestão",
     categoryEn: "Ethics & Management",
     examSource: "ENARE 2023",
@@ -1158,6 +1203,12 @@ const RAW_MOCK_QUESTIONS: LegacyExamQuestion[] = [
     explanationEn: "The Barlow and Ortolani maneuvers are clinical physical tests performed to detect hip instability and screen for Developmental Dysplasia of the Hip (DDH) in newborns.",
     category: "Ciclos de Vida",
     categoryEn: "Lifespan Care",
+    clinicalCase: {
+      setting: "Alojamento conjunto",
+      ageGroup: "Recém-nascido",
+      presentingProblem: "Rastreamento precoce de displasia de desenvolvimento do quadril",
+      physicalExam: "Manobras de Ortolani e Barlow realizadas durante o exame físico de rotina",
+    },
     examSource: "ENARE 2023",
     examSourceEn: "ENARE 2023"
   },
@@ -1180,6 +1231,7 @@ const RAW_MOCK_QUESTIONS: LegacyExamQuestion[] = [
     correctIndex: 2,
     explanation: "Pelo Protocolo de Manchester, os limites máximos de tempo para atendimento são: Vermelho (emergência - imediato/0 min), Laranja (muito urgente - 10 min), Amarelo (urgente - 60 min), Verde (pouco urgente - 120 min) e Azul (não urgente - 240 min).",
     explanationEn: "Under the Manchester Triage Protocol, maximum waiting times are: Red (emergency - immediate/0 min), Orange (very urgent - 10 min), Yellow (urgent - 60 min), Green (standard - 120 min), and Blue (non-urgent - 240 min).",
+    cognitiveType: "protocol",
     category: "Urgência e Emergência",
     categoryEn: "Urgency Care",
     examSource: "ENARE 2022",
@@ -1204,6 +1256,7 @@ const RAW_MOCK_QUESTIONS: LegacyExamQuestion[] = [
     correctIndex: 1,
     explanation: "Aplicando a regra de três simples: 500 mg -> 2 mL | 150 mg -> X mL. Multiplicando cruzado: 500 * X = 150 * 2 => X = 300 / 500 => X = 0,6 mL.",
     explanationEn: "Applying a simple rule of three: 500 mg -> 2 mL | 150 mg -> X mL. Cross-multiplying: 500 * X = 150 * 2 => X = 300 / 500 => X = 0.6 mL.",
+    cognitiveType: "factual",
     category: "Procedimentos Clínicos",
     categoryEn: "Clinical Procedures",
     examSource: "ENARE 2022",
@@ -1254,6 +1307,13 @@ const RAW_MOCK_QUESTIONS: LegacyExamQuestion[] = [
     explanationEn: "Intravenous 10% Calcium Gluconate is the drug of choice to stabilize the myocardial cell membrane in severe hyperkalemia, protecting against lethal arrhythmias.",
     category: "Urgência e Emergência",
     categoryEn: "Urgency Care",
+    clinicalCase: {
+      setting: "Unidade de Terapia Intensiva (UTI)",
+      ageGroup: "Adulto",
+      presentingProblem: "Hipercalemia severa (potássio sérico de 7,2 mEq/L)",
+      history: "Diagnóstico de insuficiência renal crônica",
+      labs: { "Potássio sérico": "7,2 mEq/L" },
+    },
     examSource: "ENARE 2021",
     examSourceEn: "ENARE 2021"
   },
@@ -1276,6 +1336,7 @@ const RAW_MOCK_QUESTIONS: LegacyExamQuestion[] = [
     correctIndex: 0,
     explanation: "De acordo com o Código de Ética e as resoluções de prontuário do COFEN, os registros devem ser objetivos, conter data, hora, assinatura e inscrição no COREN correspondente, de forma clara e legível, sem emendas, rasuras ou espaço em branco.",
     explanationEn: "According to COFEN's professional standards, all nursing records must be chronological, clear, without erasures, and signed with the professional's name and registration number.",
+    cognitiveType: "factual",
     category: "Ética e Gestão",
     categoryEn: "Ethics & Management",
     examSource: "ENARE 2020",
@@ -1324,6 +1385,7 @@ const RAW_MOCK_QUESTIONS: LegacyExamQuestion[] = [
     correctIndex: 0,
     explanation: "A vacina Pentavalente é administrada aos 2, 4 e 6 meses de vida do bebê. Ela garante imunização ativa contra difteria, tétano, coqueluche, hepatite B recombinante e infecções causadas por Haemophilus influenzae tipo b.",
     explanationEn: "The Pentavalent vaccine is administered at 2, 4, and 6 months of age. It provides active immunization against diphtheria, tetanus, pertussis, recombinant hepatitis B, and infections caused by Haemophilus influenzae type b.",
+    cognitiveType: "factual",
     category: "Ciclos de Vida",
     categoryEn: "Lifespan Care",
     examSource: "ENARE 2024",
@@ -1372,6 +1434,7 @@ const RAW_MOCK_QUESTIONS: LegacyExamQuestion[] = [
     correctIndex: 0,
     explanation: "O Nitroprussiato de Sódio é uma droga altamente fotossensível. Sob a ação da luz, ele sofre fotodegradação acelerada, podendo liberar cianeto, o que é altamente tóxico. Portanto, o frasco de infusão e o equipo devem ser obrigatoriamente fotoprotetores (opacos/âmbar).",
     explanationEn: "Sodium Nitroprusside is a highly photosensitive drug. Exposed to light, it undergoes accelerated photodegradation, potentially releasing toxic cyanide. Thus, both the container and tubing must be light-resistant (opaque/amber).",
+    cognitiveType: "protocol",
     category: "Procedimentos Clínicos",
     categoryEn: "Clinical Procedures",
     examSource: "ENARE 2024",
@@ -1468,6 +1531,7 @@ const RAW_MOCK_QUESTIONS: LegacyExamQuestion[] = [
     correctIndex: 0,
     explanation: "O Ministério da Saúde preconiza a realização de, no mínimo, 6 consultas de pré-natal, sendo idealmente: uma no primeiro trimestre, duas no segundo e três no terceiro trimestre.",
     explanationEn: "The Ministry of Health recommends at least 6 prenatal care consultations, ideally: one in the first trimester, two in the second trimester, and three in the third trimester.",
+    cognitiveType: "factual",
     category: "Ciclos de Vida",
     categoryEn: "Lifespan Care",
     examSource: "ENARE 2023",
@@ -1518,6 +1582,12 @@ const RAW_MOCK_QUESTIONS: LegacyExamQuestion[] = [
     explanationEn: "Acute anisocoria (unequal pupils) in a TBI patient is a critical warning sign of impending brain (uncal) herniation compressing the third cranial nerve (oculomotor), typically ipsilateral to the mass lesion.",
     category: "Urgência e Emergência",
     categoryEn: "Urgency & Emergency",
+    clinicalCase: {
+      setting: "Unidade de emergência",
+      ageGroup: "Adulto",
+      presentingProblem: "Traumatismo Cranioencefálico (TCE) recente",
+      physicalExam: "Pupilas anisocóricas (uma midriática e outra miótica) à avaliação pupilar",
+    },
     examSource: "ENARE 2023",
     examSourceEn: "ENARE 2023"
   },
@@ -1590,6 +1660,12 @@ const RAW_MOCK_QUESTIONS: LegacyExamQuestion[] = [
     explanationEn: "In case of clinical suspicion of Acute Myocardial Infarction (AMI), guidelines dictate that a 12-lead ECG must be performed and interpreted within 10 minutes of arrival (door-to-ECG target).",
     category: "Urgência e Emergência",
     categoryEn: "Urgency & Emergency",
+    clinicalCase: {
+      setting: "Acolhimento no serviço de urgência",
+      ageGroup: "Adulto (45 anos)",
+      presentingProblem: "Dor precordial de forte intensidade com irradiação para braço esquerdo e mandíbula, iniciada há 30 minutos",
+      history: "Hipertenso e diabético",
+    },
     examSource: "ENARE 2023",
     examSourceEn: "ENARE 2023"
   },
@@ -1612,6 +1688,7 @@ const RAW_MOCK_QUESTIONS: LegacyExamQuestion[] = [
     correctIndex: 0,
     explanation: "O balonete deve ser inflado exclusivamente com Água Destilada estéril para evitar a formação de cristais de sal (comum se usado soro fisiológico) que podem obstruir o canal da válvula. O volume ideal usual para retenção em adultos fica entre 10 e 15 mL.",
     explanationEn: "The retention balloon must be inflated exclusively with sterile distilled water. Normal saline is avoided because it can crystalize and lock the valve. The typical volume for adult retention is 10 to 15 mL.",
+    cognitiveType: "protocol",
     category: "Procedimentos Clínicos",
     categoryEn: "Clinical Procedures",
     examSource: "ENARE 2022",
@@ -1636,6 +1713,7 @@ const RAW_MOCK_QUESTIONS: LegacyExamQuestion[] = [
     correctIndex: 0,
     explanation: "A triagem neonatal biológica (teste do pezinho) identifica precocemente distúrbios graves que não apresentam sinais clínicos evidentes ao nascimento, tais como fenilcetonúria, hipotireoidismo congênito, fibrose cística, anemia falciforme e hiperplasia adrenal congênita.",
     explanationEn: "Biological newborn screening (heel prick test) identifies severe disorders that lack clinical signs at birth, such as phenylketonuria, congenital hypothyroidism, cystic fibrosis, sickle cell anemia, and congenital adrenal hyperplasia.",
+    cognitiveType: "factual",
     category: "Ciclos de Vida",
     categoryEn: "Lifespan Care",
     examSource: "ENARE 2022",
@@ -1734,6 +1812,11 @@ const RAW_MOCK_QUESTIONS: LegacyExamQuestion[] = [
     explanationEn: "On the numerical scale of pain: scores 1-3 correspond to mild pain, scores 4-6 represent moderate pain, and scores 7-10 correspond to severe (intense) pain.",
     category: "Procedimentos Clínicos",
     categoryEn: "Clinical Procedures",
+    clinicalCase: {
+      setting: "Enfermaria cirúrgica",
+      ageGroup: "Adulto",
+      presentingProblem: "Dor pós-operatória avaliada pela Escala Visual Analógica (EVA) com nota 7",
+    },
     examSource: "ENARE 2022",
     examSourceEn: "ENARE 2022"
   },
@@ -1878,6 +1961,13 @@ const RAW_MOCK_QUESTIONS: LegacyExamQuestion[] = [
     explanationEn: "The initial management of moderate-to-severe asthma attacks comprises inhaled short-acting beta-2 agonists paired with ipratropium and early administration of systemic corticosteroids to halt airway inflammation.",
     category: "Urgência e Emergência",
     categoryEn: "Urgency & Emergency",
+    clinicalCase: {
+      setting: "Emergência pediátrica",
+      ageGroup: "Criança (12 anos)",
+      presentingProblem: "Crise asmática grave com dispneia intensa e sibilância audível sem estetoscópio",
+      physicalExam: "Saturação de O2 de 88% em ar ambiente",
+      vitals: { "SpO2": "88% (ar ambiente)" },
+    },
     examSource: "ENARE 2021",
     examSourceEn: "ENARE 2021"
   },
@@ -1948,6 +2038,7 @@ const RAW_MOCK_QUESTIONS: LegacyExamQuestion[] = [
     correctIndex: 0,
     explanation: "A dose de vacina contra Hepatite B ao nascer deve ser aplicada idealmente nas primeiras 12 a 24 horas de vida, ainda na maternidade, com o objetivo de prevenir a transmissão vertical do vírus de mães portadoras crônicas ou agudas.",
     explanationEn: "The Hepatitis B vaccine dose at birth should be administered ideally within 12 to 24 hours to prevent vertical transmission of the virus from acute or chronic carrier mothers.",
+    cognitiveType: "factual",
     category: "Ciclos de Vida",
     categoryEn: "Lifespan Care",
     examSource: "ENARE 2020",
@@ -1998,6 +2089,12 @@ const RAW_MOCK_QUESTIONS: LegacyExamQuestion[] = [
     explanationEn: "In severe hypovolemic shock, rapid volume resuscitation requires short, large-bore access devices. Over-the-needle catheters (14G or 16G Jelco) are preferred, offering less resistance to fluid flow than long or narrow devices.",
     category: "Urgência e Emergência",
     categoryEn: "Urgency & Emergency",
+    clinicalCase: {
+      setting: "Atendimento de emergência",
+      ageGroup: "Adulto",
+      presentingProblem: "Choque hipovolêmico grave por hemorragia massiva",
+      history: "Hemorragia massiva em curso, necessitando reposição volêmica rápida",
+    },
     examSource: "ENARE 2020",
     examSourceEn: "ENARE 2020"
   },

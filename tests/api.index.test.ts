@@ -12,6 +12,17 @@ describe("API Regression Tests", () => {
     expect(res.body.memory).toBeUndefined();
   });
 
+  it("GET /api/ready - should fail closed when critical services are not configured", async () => {
+    const res = await request(app).get("/api/ready");
+    expect(res.status).toBe(503);
+    expect(res.body.status).toBe("not_ready");
+    expect(res.body.checks).toMatchObject({
+      authentication: false,
+      database: false,
+      ai: false,
+    });
+  });
+
   it("GET /api/exams/blueprints/enare-2026 - should expose the configured form exactly", async () => {
     const res = await request(app).get("/api/exams/blueprints/enare-2026");
     expect(res.status).toBe(200);

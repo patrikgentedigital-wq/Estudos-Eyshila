@@ -1,6 +1,6 @@
 # Portal de Estudos Eyshila Caxias
 
-Aplicação React/Vite para preparação de Enfermagem para ENADE e ENARE, com autenticação Supabase, persistência de dados e geração de material didático por IA via OpenRouter.
+Aplicação React/Vite para preparação de Enfermagem para o ENARE, com autenticação Supabase, persistência de dados e geração de material didático por IA via OpenRouter.
 
 ## Requisitos
 
@@ -38,6 +38,12 @@ Aplicação React/Vite para preparação de Enfermagem para ENADE e ENARE, com a
 
    ```bash
    supabase db push --db-url "$SUPABASE_DB_URL"
+   ```
+
+   Depois de revisar e aprovar o conteúdo, popule somente as questões elegíveis:
+
+   ```bash
+   npm run seed:supabase
    ```
 
 5. Inicie o ambiente de desenvolvimento:

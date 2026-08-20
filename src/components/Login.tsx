@@ -180,7 +180,7 @@ export default function Login({
               </div>
             </div>
             <span className="text-[11px] font-black bg-teal-500/20 text-teal-300 border border-teal-500/30 px-3 py-1 rounded-full font-mono">
-              Oficial MEC/EBSERH
+              Baseado no edital oficial
             </span>
           </div>
 
@@ -204,7 +204,7 @@ export default function Login({
         <div className="flex items-center space-x-6 text-xs text-slate-400 font-medium">
           <span className="flex items-center space-x-2">
             <ShieldCheck className="h-4 w-4 text-emerald-400" />
-            <span>Dados 100% Protegidos</span>
+            <span>Acesso autenticado e protegido</span>
           </span>
           <span className="flex items-center space-x-2">
             <CheckCircle2 className="h-4 w-4 text-teal-400" />

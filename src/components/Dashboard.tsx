@@ -30,10 +30,11 @@ import { downloadEicsCalendar } from "../utils/calendarExport";
 import { safeGetItem, safeSetItem } from "../utils/storage";
 import StudyHeatmap from "./StudyHeatmap";
 import { enrichQuestion } from "../utils/studyEngine";
+import { isApprovedStudyQuestion } from "../utils/contentPolicy";
 
 const DAILY_QUESTION_POOL = MOCK_QUESTIONS
   .map(enrichQuestion)
-  .filter((question) => question.pool !== "assessment");
+  .filter((question) => question.pool !== "assessment" && isApprovedStudyQuestion(question));
 
 function getLocalDateKey(date: Date): string {
   const year = date.getFullYear();

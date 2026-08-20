@@ -9,11 +9,21 @@ import { createClient } from "@supabase/supabase-js";
 import { Logger } from "./utils/logger.js";
 import { metricsMiddleware, aiCache } from "./utils/metrics.js";
 import { Request, Response, NextFunction } from "express";
+import { ENARE_2026_BLUEPRINT } from "../src/data/enareBlueprint.js";
+import { getReadinessStatus, shouldAllowUnauthenticatedLocalFallback } from "./serverPolicy.js";
+import {
+  buildExamAttemptCreationRpcParams,
+  buildExamSubmissionRpcParams,
+  isAlreadySubmittedRpcError,
+} from "../src/utils/examPersistence.js";
 
 dotenv.config();
 
 const app = express();
 const isProduction = process.env.NODE_ENV === "production" || process.env.VERCEL_ENV === "production";
+// Trust the first proxy hop (Vercel/Cloudflare) so rate limiting keys on the
+// real client IP instead of the shared proxy address.
+if (isProduction) app.set("trust proxy", 1);
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || "";
 const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
@@ -28,29 +38,14 @@ const supabaseAdminClient = supabaseUrl && supabaseSecretKey
     })
   : null;
 
-const ENARE_BLUEPRINT = {
-  id: "enare-2026-area-profissional",
-  name: "ENARE 2026/2027 - Enfermagem",
-  board: "FGV",
-  cycle: "2026/2027",
-  questionCount: 100,
-  durationMinutes: 300,
-  optionsPerQuestion: 5,
-  generalQuestionCount: 20,
-  specificQuestionCount: 80,
-  minimumPassingPercentage: 50,
-  allowBackNavigation: true,
-  allowPause: false,
-  feedbackPolicy: "after_submission",
-  sourceUrl: "https://enare2026.conhecimento.fgv.br/docs/36fa57ca8c68805fad82fce1d233592a.pdf",
-} as const;
+const ENARE_BLUEPRINT = ENARE_2026_BLUEPRINT;
 
 type AuthenticatedRequest = Request & { authUserId?: string };
 
 const requireAuthenticatedUser = async (req: Request, res: Response, next: NextFunction) => {
-  // Unit tests and local development without Supabase keep the existing local workflow.
-  // Production never falls back to unauthenticated AI access.
-  if (process.env.NODE_ENV === "test" || (!isProduction && !supabaseAuthClient)) {
+  // Only explicit local development and the test runner may use the local
+  // fallback. Vercel previews must fail closed just like production.
+  if (shouldAllowUnauthenticatedLocalFallback(process.env, Boolean(supabaseAuthClient))) {
     return next();
   }
 
@@ -133,6 +128,19 @@ try {
     });
   });
 
+  app.get("/api/ready", (_req, res) => {
+    const readiness = getReadinessStatus({
+      authentication: Boolean(supabaseAuthClient),
+      database: Boolean(supabaseAdminClient),
+      ai: Boolean(process.env.OPENROUTER_API_KEY || process.env.GEMINI_API_KEY),
+    });
+    res.status(readiness.ready ? 200 : 503).json({
+      status: readiness.ready ? "ready" : "not_ready",
+      checks: readiness.checks,
+      timestamp: new Date().toISOString(),
+    });
+  });
+
   app.get("/api/exams/blueprints/enare-2026", requireAuthenticatedUser, (_req, res) => {
     res.json(ENARE_BLUEPRINT);
   });
@@ -140,11 +148,13 @@ try {
   // Parse request bodies only after auth and rate limiting have run.
   const jsonParser = express.json({ limit: "8mb" });
 
+  const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
+
   async function callOpenRouter(messages: any[], isJsonMode: boolean = false) {
-    const apiKey = process.env.OPENROUTER_API_KEY || process.env.GEMINI_API_KEY;
-    
+    const apiKey = process.env.OPENROUTER_API_KEY;
+
     if (!apiKey) {
-      throw new Error("Chave OPENROUTER_API_KEY ou GEMINI_API_KEY não configurada no servidor.");
+      throw new Error("Chave OPENROUTER_API_KEY não configurada no servidor.");
     }
 
     const modelsToTry = [
@@ -209,6 +219,85 @@ try {
     throw new Error(`Serviço de IA indisponível temporariamente. ${lastError?.message || ""}`);
   }
 
+  async function callGemini(messages: any[], isJsonMode: boolean = false) {
+    const apiKey = process.env.GEMINI_API_KEY;
+
+    if (!apiKey) {
+      throw new Error("Chave GEMINI_API_KEY não configurada no servidor.");
+    }
+
+    const systemPrompt = messages.find((message) => message.role === "system")?.content || "";
+    const userText = messages
+      .filter((message) => message.role !== "system")
+      .map((message) => message.content)
+      .join("\n\n");
+    const modelsToTry = [
+      process.env.GEMINI_MODEL,
+      ...GEMINI_MODELS,
+    ].filter(Boolean).slice(0, 3) as string[];
+
+    let lastError: any = null;
+    const deadline = Date.now() + 50_000;
+
+    for (const model of modelsToTry) {
+      const remainingMs = deadline - Date.now();
+      if (remainingMs <= 1_000) break;
+      const timeoutMs = Math.min(18_000, remainingMs - 250);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+          method: "POST",
+          signal: controller.signal,
+          headers: {
+            "x-goog-api-key": apiKey,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            contents: [{ role: "user", parts: [{ text: userText }] }],
+            systemInstruction: systemPrompt ? { parts: [{ text: systemPrompt }] } : undefined,
+            generationConfig: {
+              temperature: 0.3,
+              maxOutputTokens: 1500,
+              ...(isJsonMode ? { responseMimeType: "application/json" } : {}),
+            },
+          }),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`[${model}] Gemini Error ${response.status}: ${errorText}`);
+        }
+
+        const data = await response.json();
+        const text = (data?.candidates?.[0]?.content?.parts || [])
+          .map((part: any) => part.text || "")
+          .join("");
+        if (text) {
+          return text;
+        }
+        throw new Error(`[${model}] Resposta inválida da Gemini.`);
+      } catch (err: any) {
+        if (err.name === "AbortError") {
+          console.warn(`Tentativa com modelo ${model} excedeu o limite global de 50s.`);
+        } else {
+          console.warn(`Tentativa com modelo ${model} falhou:`, err.message);
+        }
+        lastError = err;
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    }
+
+    throw new Error(`Serviço de IA indisponível temporariamente. ${lastError?.message || ""}`);
+  }
+
+  async function callAI(messages: any[], isJsonMode: boolean = false) {
+    if (process.env.OPENROUTER_API_KEY) return callOpenRouter(messages, isJsonMode);
+    if (process.env.GEMINI_API_KEY) return callGemini(messages, isJsonMode);
+    throw new Error("Chave OPENROUTER_API_KEY ou GEMINI_API_KEY não configurada no servidor.");
+  }
+
   // Zod Input Schemas
   const GenerateStudySchema = z.object({
     fileData: z.string().optional(),
@@ -244,7 +333,8 @@ try {
       pivotalCues: z.array(z.string()).max(5).optional(),
       reasoningSteps: z.array(z.string()).max(5).optional(),
       distractorExplanations: z.array(z.string()).length(5).optional(),
-      source: z.string(),
+      source: z.string().min(1).max(500),
+      sourceUrl: z.string().url().optional(),
     })).length(3),
     flashcards: z.array(z.object({
       front: z.string(),
@@ -457,41 +547,20 @@ try {
         && selectedQuestions.length === blueprint.question_count
         && noveltyRate === 100;
 
-      const { data: attempt, error: attemptError } = await admin
-        .from("exam_attempts")
-        .insert({
-          user_id: userId,
-          blueprint_id: blueprint.id,
+      const { data: attemptRows, error: attemptError } = await admin.rpc(
+        "create_exam_attempt_with_items",
+        buildExamAttemptCreationRpcParams({
+          userId,
+          blueprintId: blueprint.id,
           mode,
-          total_questions: selectedQuestions.length,
-          novelty_rate: noveltyRate,
-          valid_for_benchmark: validForBenchmark,
-        })
-        .select("id, started_at")
-        .single();
-      if (attemptError || !attempt) throw attemptError || new Error("Falha ao criar tentativa.");
-
-      const attemptItems = selectedQuestions.map((question, position) => ({
-        attempt_id: attempt.id,
-        user_id: userId,
-        question_id: question.id,
-        question_version: question.content_version,
-        position,
-      }));
-      const exposureRows = selectedQuestions.map((question) => ({
-        user_id: userId,
-        question_id: question.id,
-        attempt_id: attempt.id,
-        mode,
-      }));
-      const [{ error: itemError }, { error: insertExposureError }] = await Promise.all([
-        admin.from("exam_attempt_items").insert(attemptItems),
-        admin.from("question_exposures").insert(exposureRows),
-      ]);
-      if (itemError || insertExposureError) {
-        await admin.from("exam_attempts").delete().eq("id", attempt.id).eq("user_id", userId);
-        throw itemError || insertExposureError;
-      }
+          totalQuestions: selectedQuestions.length,
+          noveltyRate,
+          validForBenchmark,
+          selectedQuestions,
+        }),
+      );
+      const attempt = Array.isArray(attemptRows) ? attemptRows[0] : attemptRows;
+      if (attemptError || !attempt) throw attemptError || new Error("Falha ao criar tentativa atômica.");
 
       const clinicalCaseIds = selectedQuestions
         .map((question) => question.clinical_case_id)
@@ -630,25 +699,6 @@ try {
         && attempt.total_questions === ENARE_BLUEPRINT.questionCount
         && validation.data.answers.every((answer) => !answer.seenExternally);
 
-      const { error: updateItemsError } = await admin
-        .from("exam_attempt_items")
-        .upsert(updatedItems, { onConflict: "attempt_id,position" });
-      if (updateItemsError) throw updateItemsError;
-
-      const { error: updateAttemptError } = await admin
-        .from("exam_attempts")
-        .update({
-          submitted_at: now,
-          score,
-          answered_questions: answeredCount,
-          duration_seconds: Math.max(0, Math.round((Date.now() - new Date(attempt.started_at).getTime()) / 1000)),
-          novelty_rate: finalNoveltyRate,
-          valid_for_benchmark: validForBenchmark,
-        })
-        .eq("id", attemptId)
-        .eq("user_id", userId);
-      if (updateAttemptError) throw updateAttemptError;
-
       const answeredExposures = validation.data.answers.map((answer) => ({
         question_id: answer.questionId,
         answered_at: answer.selectedPosition !== null ? now : null,
@@ -657,30 +707,28 @@ try {
         confidence: answer.confidence,
         seen_externally: answer.seenExternally ?? false,
       }));
-      // The attempt start already created an exposure row per question; fill them
-      // in place instead of inserting duplicates, keeping the benchmark history exact.
-      const { data: existingExposures, error: exposureQueryError } = await admin
-        .from("question_exposures")
-        .select("id, question_id")
-        .eq("attempt_id", attemptId)
-        .eq("user_id", userId);
-      if (exposureQueryError) Logger.error("Falha não crítica ao ler exposições da tentativa.", exposureQueryError, req);
-      const exposureIdByQuestion = new Map<string, string>();
-      (existingExposures || []).forEach((exposure) => exposureIdByQuestion.set(exposure.question_id, exposure.id));
-
-      await Promise.all(answeredExposures.map(async (exposure, index) => {
-        const existingId = exposureIdByQuestion.get(validation.data.answers[index].questionId);
-        const { error } = existingId
-          ? await admin.from("question_exposures").update(exposure).eq("id", existingId).eq("user_id", userId)
-          : await admin.from("question_exposures").insert({
-              ...exposure,
-              user_id: userId,
-              attempt_id: attemptId,
-              mode: attempt.mode,
-              shown_at: attempt.started_at,
-            });
-        if (error) Logger.error("Falha não crítica ao registrar exposições respondidas.", error, req);
-      }));
+      const durationSeconds = Math.max(0, Math.round((Date.now() - new Date(attempt.started_at).getTime()) / 1000));
+      const { error: persistenceError } = await admin.rpc(
+        "submit_exam_attempt_atomic",
+        buildExamSubmissionRpcParams({
+          userId,
+          attemptId,
+          submittedAt: now,
+          score,
+          answeredQuestions: answeredCount,
+          durationSeconds,
+          noveltyRate: finalNoveltyRate,
+          validForBenchmark,
+          items: updatedItems,
+          exposures: answeredExposures,
+        }),
+      );
+      if (persistenceError) {
+        if (isAlreadySubmittedRpcError(persistenceError)) {
+          return res.status(409).json({ error: "Esta tentativa já foi entregue." });
+        }
+        throw persistenceError;
+      }
 
       return res.json({
         score,
@@ -785,7 +833,8 @@ Formato exigido:
       "pivotalCues": ["dado decisivo 1", "dado decisivo 2"],
       "reasoningSteps": ["identificar risco", "priorizar conduta", "confirmar segurança"],
       "distractorExplanations": ["por que A", "por que B", "por que C", "por que D", "por que E"],
-      "source": "Norma ou protocolo oficial, com ano/versão"
+      "source": "Fonte informada para conferência, com órgão e ano/versão",
+      "sourceUrl": "https://endereco-oficial.gov.br/documento"
     }
   ],
   "flashcards": [
@@ -800,7 +849,7 @@ PELO MENOS 2 QUESTÕES DEVEM SER VINHETAS CLÍNICAS DIFERENTES, COM DADOS DECISI
 O MATERIAL GERADO É RASCUNHO EDUCACIONAL E NÃO DEVE SER APRESENTADO COMO QUESTÃO OFICIAL DA BANCA.`;
 
       const userPrompt = `Baseado no seguinte texto de estudos, elabore o resumo científico, questões com fundamentação legal/clínica e flashcards em formato JSON estrito:\n\n${extractedText}`;
-      const fullUserPrompt = userPrompt + "\n\nPriorize as Diretrizes AHA 2025 e as demais fontes oficiais vigentes. Este é um material educacional; quando houver divergência, oriente a consulta à fonte oficial e ao protocolo institucional vigente.";
+       const fullUserPrompt = userPrompt + "\n\nPriorize as Diretrizes AHA 2025 e as demais fontes oficiais vigentes. Informe sourceUrl somente quando souber a URL oficial com segurança; nunca invente links. Este é um material educacional; quando houver divergência, oriente a consulta à fonte oficial e ao protocolo institucional vigente.";
 
       // Cache logic via SHA-256
       const promptHash = crypto.createHash("sha256").update(fullUserPrompt).digest("hex");
@@ -817,7 +866,7 @@ O MATERIAL GERADO É RASCUNHO EDUCACIONAL E NÃO DEVE SER APRESENTADO COMO QUEST
         { role: "user", content: fullUserPrompt }
       ];
 
-      const responseText = await callOpenRouter(messages, true);
+      const responseText = await callAI(messages, true);
       
       const firstBrace = responseText.indexOf("{");
       const lastBrace = responseText.lastIndexOf("}");
@@ -866,7 +915,7 @@ O MATERIAL GERADO É RASCUNHO EDUCACIONAL E NÃO DEVE SER APRESENTADO COMO QUEST
       }
       Logger.info("CACHE_MISS: chat-study", req);
 
-      const responseText = await callOpenRouter(messages, false);
+      const responseText = await callAI(messages, false);
       aiCache.set(cacheKey, responseText);
       res.json({ text: responseText });
 
@@ -876,19 +925,22 @@ O MATERIAL GERADO É RASCUNHO EDUCACIONAL E NÃO DEVE SER APRESENTADO COMO QUEST
     }
   });
 
+  // Unknown /api/* routes return a JSON 404 instead of the SPA shell or the
+  // default Express HTML error page.
+  app.use("/api", (req, res) => {
+    res.status(404).json({ error: "Rota de API não encontrada." });
+  });
+
   app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
     Logger.critical("Unhandled Server Error", err, req);
     res.status(500).json({ error: "Ocorreu um erro interno no servidor." });
   });
 
 } catch (startupError: any) {
-  // If anything crashes during require/initialization (like pdf-parse or node-cache issues),
-  // we catch it here and return a valid JSON 500 so the frontend can read the exact crash reason.
-  console.error("FATAL STARTUP ERROR:", startupError);
+  // Keep the detailed stack in server logs, but never return it to a browser.
+  console.error("FATAL STARTUP ERROR:", startupError?.stack || startupError);
   app.use("*", (req, res) => {
-    res.status(500).json({ 
-      error: `Erro Crítico de Inicialização no Servidor (Vercel): ${startupError.message || startupError}`
-    });
+    res.status(500).json({ error: "O servidor não conseguiu inicializar." });
   });
 }
 

@@ -29,6 +29,7 @@ import {
   scheduleCadernoErrorReview,
 } from "../utils/studyEngine";
 import { categoryKeyFromLabel } from "../data/questionNormalizer";
+import { filterApprovedStudyQuestions, getStudyContentAvailabilityMessage } from "../utils/contentPolicy";
 
 const CATEGORY_OPTIONS = Object.entries(QUESTION_CATEGORY_LABELS) as Array<[QuestionCategoryKey, string]>;
 
@@ -333,7 +334,7 @@ export default function ExamPrep({
         ? "Ainda não há questões do caderno com alternativas originais salvas. Sinalize um erro depois de responder uma questão para habilitar esta revisão."
         : selectedCategory !== "all"
           ? `Não há questões disponíveis para ${QUESTION_CATEGORY_LABELS[selectedCategory]}. Escolha outro assunto.`
-          : "Não há questões disponíveis para este treino.");
+          : getStudyContentAvailabilityMessage(eligible.length));
       return;
     }
     
@@ -663,7 +664,7 @@ export default function ExamPrep({
                 </select>
                 {selectedCategory !== "all" && (
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {[...MOCK_QUESTIONS, ...REAL_EXAMS.flatMap((exam) => exam.questions)].filter((question) => question.categoryKey === selectedCategory).length} questão(ões) disponíveis neste assunto.
+                    {filterApprovedStudyQuestions([...MOCK_QUESTIONS, ...REAL_EXAMS.flatMap((exam) => exam.questions)]).filter((question) => question.categoryKey === selectedCategory).length} questão(ões) aprovadas disponíveis neste assunto.
                   </p>
                 )}
               </div>

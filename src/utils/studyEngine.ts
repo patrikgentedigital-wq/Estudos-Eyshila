@@ -11,25 +11,10 @@ import {
   ReviewRating,
 } from "../types";
 import { categoryKeyFromLabel } from "../data/questionNormalizer";
+import { ENARE_2026_BLUEPRINT } from "../data/enareBlueprint";
+import { isApprovedStudyQuestion } from "./contentPolicy";
 
-export const ENARE_2026_BLUEPRINT: ExamBlueprint = {
-  id: "enare-2026-area-profissional",
-  name: "ENARE 2026/2027 - Enfermagem",
-  board: "FGV",
-  cycle: "2026/2027",
-  questionCount: 100,
-  durationMinutes: 300,
-  optionsPerQuestion: 5,
-  generalQuestionCount: 20,
-  specificQuestionCount: 80,
-  minimumPassingPercentage: 50,
-  allowBackNavigation: true,
-  allowPause: false,
-  feedbackPolicy: "after_submission",
-  sourceUrl: "https://enare2026.conhecimento.fgv.br/docs/36fa57ca8c68805fad82fce1d233592a.pdf",
-};
-
-export const ENARE_2026_CONTENT_URL = "https://enare2026.conhecimento.fgv.br/docs/36fa57ca8c6880cbb9cdca4ab9636daf.pdf?v=363f342b";
+export { ENARE_2026_BLUEPRINT, ENARE_2026_CONTENT_URL } from "../data/enareBlueprint";
 
 const GENERAL_CATEGORY_PATTERN = /legislação sus|políticas? (públicas|de saúde)|saúde coletiva|humanização|vigilância em saúde|atenção básica|estratégia saúde da família|redes de atenção|educação permanente|nr-?32|segurança do paciente/i;
 const PROFESSIONAL_NURSING_PATTERN = /cofen|exercício profissional|processo de enfermagem|sae|nanda|nic|administração aplicada à enfermagem/i;
@@ -372,7 +357,9 @@ export function eligibleQuestionsForMode(
   return questions
     .map(enrichQuestion)
     .filter((question) => {
-      if (mode === "study" || mode === "practice") return question.pool !== "assessment";
+      if (mode === "study" || mode === "practice") {
+        return question.pool !== "assessment" && isApprovedStudyQuestion(question);
+      }
       if (mode === "benchmark") return question.pool === "assessment" && !seenIds.has(question.id);
       return false;
     });

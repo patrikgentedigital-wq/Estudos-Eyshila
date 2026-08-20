@@ -41,6 +41,7 @@ const RAW_REAL_EXAMS: Array<Omit<RealExam, "questions"> & { questions: LegacyExa
         ],
         correctIndex: 2,
         explanation: "De acordo com a Resolução COFEN nº 736/2024, a primeira etapa do Processo de Enfermagem é a 'Avaliação de Enfermagem' (antiga Investigação), que compreende a coleta de dados (histórico e exame físico).",
+        cognitiveType: "factual",
         category: "Prática Clínica"
       },
       {
@@ -80,6 +81,7 @@ const RAW_REAL_EXAMS: Array<Omit<RealExam, "questions"> & { questions: LegacyExa
         ],
         correctIndex: 1,
         explanation: "Para adultos, a relação é sempre 30 compressões para 2 ventilações, independentemente de haver 1 ou 2 socorristas, até a instalação de uma via aérea avançada.",
+        cognitiveType: "protocol",
         category: "Urgência e UTI"
       }
     ]
@@ -114,6 +116,7 @@ const RAW_REAL_EXAMS: Array<Omit<RealExam, "questions"> & { questions: LegacyExa
         ],
         correctIndex: 2,
         explanation: "Vermelho (Emergência): 0 min. Laranja (Muito Urgente): 10 min. Amarelo (Urgente): 60 min. Verde (Pouco Urgente): 120 min. Azul (Não Urgente): 240 min.",
+        cognitiveType: "protocol",
         category: "Urgência e UTI"
       }
     ]

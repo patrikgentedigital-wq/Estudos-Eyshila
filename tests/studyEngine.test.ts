@@ -118,6 +118,16 @@ describe("study engine", () => {
     expect(calculateNoveltyRate(["assessment-new", "assessment-seen"], exposures)).toBe(50);
   });
 
+  it("does not expose draft or flagged questions through study eligibility", () => {
+    const questions = [
+      makeQuestion("approved"),
+      makeQuestion("draft", { contentStatus: "draft" }),
+      makeQuestion("flagged", { requiresReview: true }),
+    ];
+
+    expect(eligibleQuestionsForMode(questions, "study").map((question) => question.id)).toEqual(["approved"]);
+  });
+
   it("does not misclassify professional nursing ethics as a general competency", () => {
     expect(inferQuestionScope(makeQuestion("sus", { category: "Legislação SUS", scope: undefined }))).toBe("general");
     expect(inferQuestionScope(makeQuestion("ethics", {

@@ -55,6 +55,7 @@ interface Question {
   reasoningSteps?: string[];
   distractorExplanations?: string[];
   source?: string;
+  sourceUrl?: string;
 }
 
 interface Flashcard {
@@ -544,6 +545,7 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
           reasoningSteps: Array.isArray(q.reasoningSteps) ? q.reasoningSteps : [],
           distractorExplanations: Array.isArray(q.distractorExplanations) ? q.distractorExplanations : [],
           source: q.source,
+          sourceUrl: q.sourceUrl,
         };
       });
 
@@ -979,7 +981,7 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
             Nenhuma Fonte de Estudo Ativa
           </h3>
           <p className="text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-8 font-medium">
-            Arraste um arquivo PDF, cole seu texto de anotações ou use nosso material de exemplo oficial para iniciar o copiloto.
+            Arraste um arquivo PDF, cole seu texto de anotações ou use nosso material de exemplo para iniciar o copiloto.
           </p>
 
           {errorMsg && (
@@ -1042,6 +1044,9 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
               </div>
             </div>
           </div>
+          <p className="mt-5 max-w-3xl text-[11px] leading-relaxed text-slate-400">
+            O arquivo ou texto será enviado ao provedor de IA configurado para gerar o material. Não envie dados pessoais, prontuários ou informações confidenciais.
+          </p>
         </div>
       )}
 
@@ -1449,8 +1454,15 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
                                 </ol>
                               </div>
                             )}
-                            {studyData.questions[currentQuestionIdx].source && (
-                              <p className="pt-2 text-[10px] text-slate-500"><strong>Fonte informada:</strong> {studyData.questions[currentQuestionIdx].source}</p>
+                            {(studyData.questions[currentQuestionIdx].source || studyData.questions[currentQuestionIdx].sourceUrl) && (
+                              <p className="pt-2 text-[10px] text-slate-500">
+                                <strong>Fonte informada pela IA:</strong> {studyData.questions[currentQuestionIdx].source || "não especificada"}. Confira antes de usar.
+                                {studyData.questions[currentQuestionIdx].sourceUrl && (
+                                  <a className="ml-1 underline" href={studyData.questions[currentQuestionIdx].sourceUrl} target="_blank" rel="noreferrer">
+                                    Abrir referência
+                                  </a>
+                                )}
+                              </p>
                             )}
                           </div>
                         )}
@@ -2071,6 +2083,9 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
                 <span>🧠 Gerar Resumo + Questões (IA)</span>
               </button>
             </div>
+            <p className="text-[11px] leading-relaxed text-slate-400">
+              O conteúdo é processado pelo provedor de IA configurado no servidor. Não envie dados pessoais, prontuários ou informações confidenciais; as fontes exibidas são referências informadas pela IA e devem ser conferidas.
+            </p>
 
           </div>
         </div>

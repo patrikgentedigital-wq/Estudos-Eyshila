@@ -6,6 +6,7 @@ import { Tab, Language, UserProfile, StudyModule, Flashcard, ExamAttempt, transl
 import { INITIAL_PROFILE, INITIAL_MODULES, INITIAL_FLASHCARDS, INITIAL_ATTEMPTS } from "./data";
 import { safeGetItem, safeSetItem, safeRemoveItem } from "./utils/storage";
 import { scheduleFlashcardReview } from "./utils/studyEngine";
+import { createHydrationGuard } from "./utils/hydrationGuard";
 
 // Supabase Client
 import { supabase, isSupabaseConfigured } from "./supabase";
@@ -240,6 +241,8 @@ export default function App() {
 
   // Load user-specific data from Supabase (or LocalStorage fallback)
   useEffect(() => {
+    const hydrationGuard = createHydrationGuard();
+
     const loadUserData = async () => {
       if (isLoggedIn && userId && !isAuthLoading) {
         setIsLoading(true);
@@ -283,6 +286,7 @@ export default function App() {
               } catch (reviewStateError) {
                 console.warn("[Supabase Review State Load Error]", reviewStateError);
               }
+              if (!hydrationGuard.isActive()) return;
               setReviewStates(hydratedReviewStates);
               setProfile(normalizeProfile(data.profile, clone(INITIAL_PROFILE)));
               setModules(normalizeModules(data.modules));
@@ -296,6 +300,8 @@ export default function App() {
               return;
             }
           }
+
+          if (!hydrationGuard.isActive()) return;
 
           // Fallback to LocalStorage
           const savedProfile = safeGetItem(`residency_profile_${userId}`);
@@ -321,6 +327,7 @@ export default function App() {
           setCadernoErros(savedCaderno ? JSON.parse(savedCaderno) : []);
           setRoadmap(normalizeRoadmap(savedRoadmap ? JSON.parse(savedRoadmap) : null));
         } catch (error) {
+          if (!hydrationGuard.isActive()) return;
           console.error("Erro ao carregar dados do usuário:", error);
           setRemoteLoadFailed(true);
           setProfile(clone(INITIAL_PROFILE));
@@ -334,10 +341,12 @@ export default function App() {
           setCadernoErros([]);
           setRoadmap(clone(DEFAULT_ROADMAP));
         } finally {
+          if (!hydrationGuard.isActive()) return;
           setIsLoading(false);
           setIsUserDataHydrated(true);
         }
       } else if (!isLoggedIn) {
+        if (!hydrationGuard.isActive()) return;
         setProfile(clone(INITIAL_PROFILE));
         setModules(clone(INITIAL_MODULES));
         setFlashcards(clone(INITIAL_FLASHCARDS));
@@ -354,18 +363,16 @@ export default function App() {
     };
 
     loadUserData();
+    return () => hydrationGuard.cancel();
   }, [userId, isLoggedIn, isAuthLoading]);
 
-  // Debounced save to Supabase
-  const syncToSupabase = useCallback(async (dataToSync: any) => {
+  // Debounced field-level merge to Supabase. The database function updates
+  // only the supplied columns, preventing full-row last-write-wins loss.
+  const syncToSupabase = useCallback(async (dataToSync: Record<string, unknown>) => {
     if (isLoggedIn && userId && isSupabaseConfigured && supabase && isUserDataHydrated && !remoteLoadFailed) {
       try {
         const { error } = await measureQuery("upsert_user_data", () => 
-          supabase.from("user_data").upsert({
-            id: userId,
-            ...dataToSync,
-            updated_at: new Date().toISOString(),
-          })
+          supabase.rpc("merge_user_data", { p_data: dataToSync })
         );
         if (error) {
           console.warn("[Supabase Sync Warning]", error.message);
@@ -375,9 +382,6 @@ export default function App() {
       }
     }
   }, [isLoggedIn, userId, isUserDataHydrated, remoteLoadFailed]);
-
-
-  // Synchronize state preferences into LocalStorage
   useEffect(() => {
     safeSetItem("residency_logged_in", String(isLoggedIn));
     if (!isLoggedIn) {
@@ -401,45 +405,32 @@ export default function App() {
     }
   }, [darkMode]);
 
+  // Persist business data locally and sync a single debounced full-row upsert.
+  // A single payload avoids partial-row races between per-field syncs.
   useEffect(() => {
-    if (isLoggedIn && userId && isUserDataHydrated) {
-      safeSetItem(`residency_profile_${userId}`, JSON.stringify(profile));
-      const timer = setTimeout(() => syncToSupabase({ profile }), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [profile, userId, isLoggedIn, isUserDataHydrated, syncToSupabase]);
-
-  useEffect(() => {
-    if (isLoggedIn && userId && isUserDataHydrated) {
-      safeSetItem(`residency_modules_${userId}`, JSON.stringify(modules));
-      const timer = setTimeout(() => syncToSupabase({ modules }), 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [modules, userId, isLoggedIn, isUserDataHydrated, syncToSupabase]);
-
-  useEffect(() => {
-    if (isLoggedIn && userId && isUserDataHydrated) {
-      safeSetItem(`residency_flashcards_${userId}`, JSON.stringify(flashcards));
-      const timer = setTimeout(() => syncToSupabase({ flashcards }), 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [flashcards, userId, isLoggedIn, isUserDataHydrated, syncToSupabase]);
-
-  useEffect(() => {
-    if (isLoggedIn && userId && isUserDataHydrated) {
-      safeSetItem(`residency_attempts_${userId}`, JSON.stringify(attempts));
-      const timer = setTimeout(() => syncToSupabase({ attempts }), 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [attempts, userId, isLoggedIn, isUserDataHydrated, syncToSupabase]);
-
-  useEffect(() => {
-    if (isLoggedIn && userId && isUserDataHydrated) {
-      safeSetItem(`residency_question_exposures_${userId}`, JSON.stringify(questionExposures));
-      const timer = setTimeout(() => syncToSupabase({ question_exposures: questionExposures }), 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [questionExposures, userId, isLoggedIn, isUserDataHydrated, syncToSupabase]);
+    if (!isLoggedIn || !userId || !isUserDataHydrated) return;
+    safeSetItem(`residency_profile_${userId}`, JSON.stringify(profile));
+    safeSetItem(`residency_modules_${userId}`, JSON.stringify(modules));
+    safeSetItem(`residency_flashcards_${userId}`, JSON.stringify(flashcards));
+    safeSetItem(`residency_attempts_${userId}`, JSON.stringify(attempts));
+    safeSetItem(`residency_question_exposures_${userId}`, JSON.stringify(questionExposures));
+    safeSetItem(`residency_questions_count_${userId}`, String(questionsCount));
+    safeSetItem(`residency_checklist_${userId}`, JSON.stringify(checklist));
+    safeSetItem(`residency_caderno_${userId}`, JSON.stringify(cadernoErros));
+    safeSetItem(`residency_roadmap_${userId}`, JSON.stringify(roadmap));
+    const timer = setTimeout(() => syncToSupabase({
+      profile,
+      modules,
+      flashcards,
+      attempts,
+      question_exposures: questionExposures,
+      questions_count: questionsCount,
+      checklist,
+      caderno_erros: cadernoErros,
+      roadmap,
+    }), 2000);
+    return () => clearTimeout(timer);
+  }, [profile, modules, flashcards, attempts, questionExposures, questionsCount, checklist, cadernoErros, roadmap, userId, isLoggedIn, isUserDataHydrated, syncToSupabase]);
 
   useEffect(() => {
     if (!userId || !isUserDataHydrated) return;
@@ -502,38 +493,6 @@ export default function App() {
     });
   }, [cadernoErros]);
 
-  useEffect(() => {
-    if (isLoggedIn && userId && isUserDataHydrated) {
-      safeSetItem(`residency_questions_count_${userId}`, String(questionsCount));
-      const timer = setTimeout(() => syncToSupabase({ questions_count: questionsCount }), 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [questionsCount, userId, isLoggedIn, isUserDataHydrated, syncToSupabase]);
-
-  useEffect(() => {
-    if (isLoggedIn && userId && isUserDataHydrated) {
-      safeSetItem(`residency_checklist_${userId}`, JSON.stringify(checklist));
-      const timer = setTimeout(() => syncToSupabase({ checklist }), 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [checklist, userId, isLoggedIn, isUserDataHydrated, syncToSupabase]);
-
-  useEffect(() => {
-    if (isLoggedIn && userId && isUserDataHydrated) {
-      safeSetItem(`residency_caderno_${userId}`, JSON.stringify(cadernoErros));
-      const timer = setTimeout(() => syncToSupabase({ caderno_erros: cadernoErros }), 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [cadernoErros, userId, isLoggedIn, isUserDataHydrated, syncToSupabase]);
-
-  useEffect(() => {
-    if (isLoggedIn && userId && isUserDataHydrated) {
-      safeSetItem(`residency_roadmap_${userId}`, JSON.stringify(roadmap));
-      const timer = setTimeout(() => syncToSupabase({ roadmap }), 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [roadmap, userId, isLoggedIn, isUserDataHydrated, syncToSupabase]);
-
   // Auth operations
   const handleLoginSuccess = (email: string, uid: string) => {
     setIsLoggedIn(true);
@@ -555,6 +514,7 @@ export default function App() {
     setFlashcards(clone(INITIAL_FLASHCARDS));
     setAttempts([]);
     setQuestionExposures([]);
+    setReviewStates([]);
     setQuestionsCount(0);
     setChecklist(INITIAL_CHECKLIST);
     setCadernoErros([]);
