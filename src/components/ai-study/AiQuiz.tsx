@@ -78,10 +78,13 @@ export default function AiQuiz({
   }
 
   const activeQuestion = questions[currentQuestionIdx];
-  const correctAnswersCount = Object.keys(quizSubmitted).filter(idxStr => {
-    const i = Number(idxStr);
-    return selectedAnswers[i] === questions[i].answer;
-  }).length;
+  const submittedIndices = Object.keys(quizSubmitted)
+    .map(Number)
+    .filter(i => quizSubmitted[i] === true);
+  const submittedCount = submittedIndices.length;
+  const correctAnswersCount = submittedIndices.filter(i => selectedAnswers[i] === questions[i].answer).length;
+  const incorrectAnswersCount = submittedIndices.filter(i => selectedAnswers[i] && selectedAnswers[i] !== questions[i].answer).length;
+  const accuracyPercentage = submittedCount > 0 ? Math.round((correctAnswersCount / submittedCount) * 100) : 0;
 
   const handleSelectOption = (optionLetter: string) => {
     if (quizSubmitted[currentQuestionIdx]) return;
@@ -223,7 +226,7 @@ export default function AiQuiz({
               <button
                 onClick={() => setCurrentQuestionIdx(prev => Math.max(0, prev - 1))}
                 disabled={currentQuestionIdx === 0}
-                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 disabled:opacity-30 disabled:cursor-not-allowed flex items-center space-x-1 transition-colors cursor-pointer"
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 disabled:opacity-30 disabled:cursor-not-allowed enabled:cursor-pointer flex items-center space-x-1 transition-colors"
               >
                 <ChevronLeft className="h-4 w-4" />
                 <span>{language === "pt" ? "Anterior" : "Previous"}</span>
@@ -234,7 +237,7 @@ export default function AiQuiz({
                   id="btn-quiz-submit-question"
                   onClick={handleSubmitQuestion}
                   disabled={!selectedAnswers[currentQuestionIdx]}
-                  className="bg-sky-600 hover:bg-sky-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-extrabold text-xs py-3 px-6 rounded-xl shadow-md transition-all flex items-center space-x-1.5 cursor-pointer"
+                  className="bg-sky-600 hover:bg-sky-500 disabled:opacity-40 disabled:cursor-not-allowed enabled:cursor-pointer text-white font-extrabold text-xs py-3 px-6 rounded-xl shadow-md transition-all flex items-center space-x-1.5"
                 >
                   <span>{language === "pt" ? "Confirmar Resposta" : "Submit Answer"}</span>
                   <ArrowRight className="h-4 w-4" />
@@ -313,7 +316,7 @@ export default function AiQuiz({
 
             <div className="flex flex-col items-center">
               <span className="text-[10px] font-bold text-rose-500 uppercase tracking-wider">{language === "pt" ? "ERROS" : "INCORRECT"}</span>
-              <span className="text-2xl font-black text-rose-500 font-mono mt-0.5">{questions.length - correctAnswersCount}</span>
+              <span className="text-2xl font-black text-rose-500 font-mono mt-0.5">{incorrectAnswersCount}</span>
             </div>
 
             <div className="h-8 w-px bg-slate-200 dark:bg-slate-800" />
@@ -321,7 +324,7 @@ export default function AiQuiz({
             <div className="flex flex-col items-center">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{language === "pt" ? "APROVEITAMENTO" : "ACCURACY"}</span>
               <span className="text-2xl font-black text-slate-800 dark:text-slate-100 font-mono mt-0.5">
-                {Math.round((correctAnswersCount / questions.length) * 100)}%
+                {accuracyPercentage}%
               </span>
             </div>
           </div>

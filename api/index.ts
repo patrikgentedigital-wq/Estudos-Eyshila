@@ -207,7 +207,7 @@ try {
         }
       } catch (err: any) {
         if (err.name === "AbortError") {
-          console.warn(`Tentativa com modelo ${model} excedeu limite de tempo (8.5s).`);
+          console.warn(`Tentativa com modelo ${model} excedeu limite de tempo (45s).`);
         } else {
           console.warn(`Tentativa com modelo ${model} falhou:`, err.message);
         }

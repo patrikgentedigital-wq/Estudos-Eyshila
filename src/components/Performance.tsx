@@ -31,7 +31,9 @@ export default function Performance({ language, attempts = [] }: PerformanceProp
   // The chart reflects the six most recent comparable results, not calendar months.
   const recentAttempts = [...trendSource.slice(0, 6)].reverse();
   const monthsPt = recentAttempts.map(attempt => {
-    const parsed = new Date(`${attempt.date}T00:00:00`);
+    if (!attempt.date) return "—";
+    const dateStr = attempt.date.includes("T") ? attempt.date : `${attempt.date}T00:00:00`;
+    const parsed = new Date(dateStr);
     return Number.isNaN(parsed.getTime()) ? "—" : parsed.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }).replace(".", "");
   });
   while (monthsPt.length < 6) monthsPt.unshift("—");

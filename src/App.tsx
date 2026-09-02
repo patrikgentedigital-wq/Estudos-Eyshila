@@ -3,7 +3,7 @@ import { Menu, X, GraduationCap, Calendar, Bell, Shield, LayoutDashboard, BookOp
 import Toast, { ToastMessage } from "./components/Toast";
 
 import { Tab, Language, UserProfile, StudyModule, Flashcard, ExamAttempt, translations, RoadmapWeek, RoadmapTask, ChecklistItem, CadernoErroItem, QuestionExposure, ReviewRating } from "./types";
-import { INITIAL_PROFILE, INITIAL_MODULES, INITIAL_FLASHCARDS, INITIAL_ATTEMPTS } from "./data";
+import { INITIAL_PROFILE, INITIAL_MODULES, INITIAL_FLASHCARDS } from "./data";
 import { safeGetItem, safeSetItem, safeRemoveItem } from "./utils/storage";
 import { scheduleFlashcardReview } from "./utils/studyEngine";
 

@@ -20,7 +20,8 @@ import {
   Sparkles,
   Zap,
   Building2,
-  AlertCircle
+  AlertCircle,
+  X
 } from "lucide-react";
 import { Language, translations, StudyModule, Flashcard, ExamAttempt, UserProfile } from "../types";
 import { IMAGES, MOCK_QUESTIONS } from "../data";
@@ -503,6 +504,85 @@ export default function Dashboard({
                 ))}
               </div>
             </div>
+
+            {/* Modal para Adicionar Erro ao Caderno */}
+            {showAddError && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-fade-in">
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                    <h4 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                      <Activity className="h-4 w-4 text-rose-500" />
+                      <span>Novo Registro no Caderno de Erros</span>
+                    </h4>
+                    <button
+                      onClick={() => setShowAddError(false)}
+                      className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleAddError} className="space-y-3.5">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Área / Tópico</label>
+                      <select
+                        value={newError.topic}
+                        onChange={(e) => setNewError({ ...newError, topic: e.target.value })}
+                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 dark:text-slate-200 outline-none focus:border-sky-500"
+                      >
+                        <option value="Legislação do SUS">Legislação do SUS</option>
+                        <option value="Código de Ética COFEN">Código de Ética COFEN</option>
+                        <option value="Urgência e UTI">Urgência e UTI</option>
+                        <option value="Saúde da Mulher e da Criança">Saúde da Mulher e da Criança</option>
+                        <option value="Farmacologia e Dosagem">Farmacologia e Dosagem</option>
+                        <option value="Sinais Vitais e Semiologia">Sinais Vitais e Semiologia</option>
+                        <option value="Outros">Outros</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Conceito / O que você errou</label>
+                      <textarea
+                        rows={2}
+                        value={newError.concept}
+                        onChange={(e) => setNewError({ ...newError, concept: e.target.value })}
+                        placeholder="Ex: Escala de Glasgow-P adiciona reatividade pupilar..."
+                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 text-xs text-slate-800 dark:text-slate-200 outline-none focus:border-sky-500"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Correção / Justificativa correta</label>
+                      <textarea
+                        rows={3}
+                        value={newError.correction}
+                        onChange={(e) => setNewError({ ...newError, correction: e.target.value })}
+                        placeholder="Ex: Na pontuação final, subtrai-se a pontuação pupilar (0 a 2)..."
+                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 text-xs text-slate-800 dark:text-slate-200 outline-none focus:border-sky-500"
+                        required
+                      />
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                      <button
+                        type="button"
+                        onClick={() => setShowAddError(false)}
+                        className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-500 rounded-xl shadow-md shadow-rose-600/20 transition-all"
+                      >
+                        Salvar no Caderno
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

@@ -249,10 +249,10 @@ export default function AiFlashcards({
               id="btn-flashcard-save-all"
               onClick={handleSaveAllFlashcards}
               disabled={flashcardsSaved}
-              className={`font-bold text-xs py-3 px-6 rounded-xl border transition-all flex items-center justify-center space-x-1.5 cursor-pointer ${
+              className={`font-bold text-xs py-3 px-6 rounded-xl border transition-all flex items-center justify-center space-x-1.5 ${
                 flashcardsSaved
-                  ? "bg-emerald-500 text-white border-emerald-500"
-                  : "bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-600 shadow-md shadow-emerald-600/10"
+                  ? "bg-emerald-500 text-white border-emerald-500 cursor-default"
+                  : "bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-600 shadow-md shadow-emerald-600/10 cursor-pointer"
               }`}
             >
               <CheckCircle2 className="h-4 w-4" />

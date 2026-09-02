@@ -55,16 +55,110 @@ const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, language, t, onAddF
 
   const today = new Date().toISOString().slice(0, 10);
   const dueDeck = activeDeck.filter(card => !card.nextReview || card.nextReview <= today);
-  const reviewDeck = dueDeck.length > 0 ? dueDeck : activeDeck;
   const reviewedCount = activeDeck.filter(card => Boolean(card.nextReview && card.nextReview > today)).length;
 
-  const currentCard = reviewDeck[currentIndex] || reviewDeck[0];
-  
-  // reset index on filter change
+  const [sessionCompleted, setSessionCompleted] = useState(false);
+  const [sessionCardIds, setSessionCardIds] = useState<string[]>([]);
+
+  // Inicializa sessão estável na troca de filtro ou quando solicitado
   React.useEffect(() => {
+    const due = activeDeck.filter(card => !card.nextReview || card.nextReview <= today);
+    const targetDeck = due.length > 0 ? due : activeDeck;
+    setSessionCardIds(targetDeck.map(c => c.id));
     setCurrentIndex(0);
     setIsFlipped(false);
-  }, [filter]);
+    setSessionCompleted(false);
+  }, [filter, allAvailable.length]);
+
+  const reviewDeck = React.useMemo(() => {
+    if (sessionCardIds.length === 0) {
+      return dueDeck.length > 0 ? dueDeck : activeDeck;
+    }
+    const cardMap = new Map(allAvailable.map(c => [c.id, c]));
+    const mapped = sessionCardIds.map(id => cardMap.get(id)).filter(Boolean) as Flashcard[];
+    return mapped.length > 0 ? mapped : (dueDeck.length > 0 ? dueDeck : activeDeck);
+  }, [sessionCardIds, allAvailable, activeDeck, dueDeck]);
+
+  const currentCard = reviewDeck[currentIndex] || reviewDeck[0];
+
+  const handleRating = (rating: "again" | "hard" | "good" | "easy") => {
+    if (!currentCard) return;
+    onReviewFlashcard?.(currentCard, rating);
+    setIsFlipped(false);
+    if (currentIndex < reviewDeck.length - 1) {
+      setDirection(1);
+      setTimeout(() => {
+        setCurrentIndex(prev => prev + 1);
+      }, 50);
+    } else {
+      setSessionCompleted(true);
+    }
+  };
+
+  const handleNext = () => {
+    if (currentIndex < reviewDeck.length - 1) {
+      setDirection(1);
+      setIsFlipped(false);
+      setTimeout(() => {
+        setCurrentIndex(prev => prev + 1);
+      }, 50);
+    }
+  };
+
+  const handlePrev = () => {
+    if (currentIndex > 0) {
+      setDirection(-1);
+      setIsFlipped(false);
+      setTimeout(() => {
+        setCurrentIndex(prev => prev - 1);
+      }, 50);
+    }
+  };
+
+  const progress = (reviewedCount / (activeDeck.length || 1)) * 100;
+
+  if (sessionCompleted) {
+    return (
+      <div className="space-y-6 animate-fade-in max-w-xl mx-auto py-12 text-center">
+        <div className="p-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl space-y-5">
+          <div className="w-16 h-16 bg-emerald-500/10 text-emerald-500 rounded-2xl flex items-center justify-center mx-auto">
+            <CheckCircle2 className="h-8 w-8" />
+          </div>
+          <h3 className="text-2xl font-black text-slate-900 dark:text-white">
+            Sessão Concluída! 🎉
+          </h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Você revisou todos os {reviewDeck.length} cartões programados para esta sessão com repetição espaçada.
+          </p>
+          <div className="pt-2 flex flex-col sm:flex-row gap-3 justify-center">
+            <button
+              onClick={() => {
+                setSessionCardIds(activeDeck.map(c => c.id));
+                setCurrentIndex(0);
+                setIsFlipped(false);
+                setSessionCompleted(false);
+              }}
+              className="px-6 py-3 bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs rounded-xl shadow-md transition-all cursor-pointer"
+            >
+              Revisar Todos os Cartões ({activeDeck.length})
+            </button>
+            <button
+              onClick={() => {
+                const due = activeDeck.filter(card => !card.nextReview || card.nextReview <= today);
+                setSessionCardIds(due.map(c => c.id));
+                setCurrentIndex(0);
+                setIsFlipped(false);
+                setSessionCompleted(false);
+              }}
+              className="px-6 py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl transition-all cursor-pointer"
+            >
+              Reiniciar Ciclo
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!currentCard) {
     return (
@@ -78,28 +172,6 @@ const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, language, t, onAddF
       </div>
     );
   }
-  
-  const handleNext = () => {
-    if (currentIndex < reviewDeck.length - 1) {
-      setDirection(1);
-      setIsFlipped(false);
-      setTimeout(() => {
-        setCurrentIndex(currentIndex + 1);
-      }, 50);
-    }
-  };
-
-  const handlePrev = () => {
-    if (currentIndex > 0) {
-      setDirection(-1);
-      setIsFlipped(false);
-      setTimeout(() => {
-        setCurrentIndex(currentIndex - 1);
-      }, 50);
-    }
-  };
-
-  const progress = (reviewedCount / (activeDeck.length || 1)) * 100;
 
   if (activeDeck.length === 0) {
     return (
@@ -217,8 +289,22 @@ const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, language, t, onAddF
                         {currentCard.difficulty}
                       </span>
                       <div className="flex items-center space-x-2">
+                        {currentCard.isCustom && onDeleteFlashcard && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (window.confirm("Tem certeza que deseja excluir este flashcard personalizado?")) {
+                                onDeleteFlashcard(currentCard.id);
+                              }
+                            }}
+                            className="p-1.5 rounded-lg text-rose-400 hover:text-rose-600 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                            title="Excluir este flashcard"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
                         {ttsSupported && (
-                          <button onClick={(e) => { e.stopPropagation(); speak(language === "pt" ? currentCard.question : currentCard.questionEn || currentCard.question); }} className="text-slate-400 hover:text-sky-500 p-2">
+                          <button onClick={(e) => { e.stopPropagation(); speak(language === "pt" ? currentCard.question : currentCard.questionEn || currentCard.question); }} className="text-slate-400 hover:text-sky-500 p-2 cursor-pointer">
                             Ouvir <Play className="h-3 w-3 inline" />
                           </button>
                         )}
@@ -288,41 +374,29 @@ const Flashcards: React.FC<FlashcardsProps> = ({ flashcards, language, t, onAddF
             {isFlipped ? (
               <div className="grid w-full grid-cols-2 sm:grid-cols-4 gap-2 animate-fade-in">
                 <button
-                  onClick={() => {
-                    onReviewFlashcard?.(currentCard, "again");
-                    handleNext();
-                  }}
-                  className="flex-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30 py-3 rounded-2xl font-bold text-xs transition-all active:scale-95 flex flex-col items-center"
+                  onClick={() => handleRating("again")}
+                  className="flex-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30 py-3 rounded-2xl font-bold text-xs transition-all active:scale-95 flex flex-col items-center cursor-pointer"
                 >
                   <span>Errei</span>
                   <span className="text-[9px] opacity-75">Reiniciar intervalo</span>
                 </button>
                 <button
-                  onClick={() => {
-                    onReviewFlashcard?.(currentCard, "hard");
-                    handleNext();
-                  }}
-                  className="flex-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 py-3 rounded-2xl font-bold text-xs transition-all active:scale-95 flex flex-col items-center"
+                  onClick={() => handleRating("hard")}
+                  className="flex-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 py-3 rounded-2xl font-bold text-xs transition-all active:scale-95 flex flex-col items-center cursor-pointer"
                 >
                   <span>Difícil</span>
                   <span className="text-[9px] opacity-75">Lembrei com esforço</span>
                 </button>
                 <button
-                  onClick={() => {
-                    onReviewFlashcard?.(currentCard, "good");
-                    handleNext();
-                  }}
-                  className="flex-1 bg-sky-500/10 hover:bg-sky-500/20 text-sky-600 dark:text-sky-400 border border-sky-500/30 py-3 rounded-2xl font-bold text-xs transition-all active:scale-95 flex flex-col items-center"
+                  onClick={() => handleRating("good")}
+                  className="flex-1 bg-sky-500/10 hover:bg-sky-500/20 text-sky-600 dark:text-sky-400 border border-sky-500/30 py-3 rounded-2xl font-bold text-xs transition-all active:scale-95 flex flex-col items-center cursor-pointer"
                 >
                   <span>Bom</span>
                   <span className="text-[9px] opacity-75">Lembrei corretamente</span>
                 </button>
                 <button
-                  onClick={() => {
-                    onReviewFlashcard?.(currentCard, "easy");
-                    handleNext();
-                  }}
-                  className="flex-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 py-3 rounded-2xl font-bold text-xs transition-all active:scale-95 flex flex-col items-center"
+                  onClick={() => handleRating("easy")}
+                  className="flex-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 py-3 rounded-2xl font-bold text-xs transition-all active:scale-95 flex flex-col items-center cursor-pointer"
                 >
                   <span>Fácil</span>
                   <span className="text-[9px] opacity-75">Resposta imediata</span>

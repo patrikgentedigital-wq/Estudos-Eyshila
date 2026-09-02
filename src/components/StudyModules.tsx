@@ -42,6 +42,17 @@ export default function StudyModules({
   // TTS Hook
   const { speak, pause, resume, stop, isSpeaking, isPaused, supported: ttsSupported } = useTTS();
 
+  const handleCloseLesson = () => {
+    stop();
+    setActiveLesson(null);
+  };
+
+  useEffect(() => {
+    return () => {
+      stop();
+    };
+  }, []);
+
   // Pomodoro Timer States
   const [pomodoroTime, setPomodoroTime] = useState(25 * 60);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
@@ -321,7 +332,7 @@ export default function StudyModules({
           <div className="w-full max-w-2xl bg-white dark:bg-slate-950 h-full p-8 shadow-2xl overflow-y-auto animate-slide-in">
             <div className="flex justify-between items-center mb-6">
               <span className="bg-sky-500/10 text-sky-500 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">AULA DE HOJE</span>
-              <button onClick={() => setActiveLesson(null)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400">✕</button>
+              <button onClick={handleCloseLesson} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 cursor-pointer">✕</button>
             </div>
             <div className="border-b border-slate-100 dark:border-slate-800 pb-4 mb-6">
               <div className="flex justify-between items-start">
@@ -369,7 +380,7 @@ export default function StudyModules({
                 <CheckCircle2 className="h-4 w-4" />
                 <span>{activeLesson.lesson.completed ? "Desmarcar Aula" : "Marcar como Concluída"}</span>
               </button>
-              <button onClick={() => setActiveLesson(null)} className="w-full sm:w-auto bg-slate-100 dark:bg-slate-800 py-3 px-8 rounded-xl text-xs font-bold">Fechar</button>
+              <button onClick={handleCloseLesson} className="w-full sm:w-auto bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 py-3 px-8 rounded-xl text-xs font-bold cursor-pointer transition-colors">Fechar</button>
             </div>
           </div>
         </div>

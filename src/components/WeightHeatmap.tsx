@@ -17,10 +17,13 @@ interface WeightSubject {
 
 export default function WeightHeatmap({ attempts = [] }: WeightHeatmapProps) {
   const answeredQuestions = attempts.flatMap(attempt =>
-    (attempt.questions || []).map((question, index) => ({
-      isCorrect: attempt.selectedAnswers?.[index] === question.correctIndex,
-      isGeneral: inferQuestionScope(question) === "general",
-    }))
+    (attempt.questions || [])
+      .map((question, index) => ({
+        selectedAnswer: attempt.selectedAnswers?.[index],
+        isCorrect: attempt.selectedAnswers?.[index] === question.correctIndex,
+        isGeneral: inferQuestionScope(question) === "general",
+      }))
+      .filter(item => item.selectedAnswer !== undefined && item.selectedAnswer !== null)
   );
 
   const getAccuracy = (general: boolean): number | null => {

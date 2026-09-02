@@ -17,7 +17,9 @@ export default function StudyHeatmap({ attempts = [] }: StudyHeatmapProps) {
     // Count attempts made on this day or calculate activity intensity
     const attemptsOnDay = attempts.filter(a => {
       if (!a.date) return false;
-      const d = new Date(`${a.date}T00:00:00`);
+      const dateStr = a.date.includes("T") ? a.date : `${a.date}T00:00:00`;
+      const d = new Date(dateStr);
+      if (Number.isNaN(d.getTime())) return false;
       return d.getFullYear() === year && d.getMonth() === month && d.getDate() === dayNum;
     }).length;
 

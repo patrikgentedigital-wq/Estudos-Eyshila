@@ -525,6 +525,9 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
   const handleSaveQuestionToNotebook = (idx: number) => {
     if (!studyData?.questions?.[idx] || !onSaveCadernoError) return;
     const q = studyData.questions[idx];
+    const correctIdx = typeof q.answer === "string"
+      ? Math.max(0, q.answer.toUpperCase().charCodeAt(0) - 65)
+      : 0;
     const item: CadernoErroItem = {
       id: `ai-err-${Date.now()}-${idx}`,
       questionText: q.question,
@@ -532,6 +535,7 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
       category: "Estudos com IA",
       dateAdded: new Date().toISOString(),
       correctAnswer: q.answer,
+      correctIndex: correctIdx,
       options: q.options,
     };
     onSaveCadernoError(item);
@@ -576,8 +580,13 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
         doc.setFontSize(line.startsWith("#") ? 12 : 9.5);
         doc.setTextColor(line.startsWith("#") ? 15 : 71, line.startsWith("#") ? 23 : 85, line.startsWith("#") ? 42 : 105);
         const splitText = doc.splitTextToSize(text, maxWidth);
+        const blockHeight = splitText.length * 5 + 2;
+        if (y + blockHeight > 275) {
+          doc.addPage();
+          y = 20;
+        }
         doc.text(splitText, margin, y);
-        y += splitText.length * 5 + 2;
+        y += blockHeight;
       });
 
       doc.save(language === "pt" ? `resumo-estudos-ia-${Date.now()}.pdf` : `ai-study-summary-${Date.now()}.pdf`);
@@ -737,7 +746,7 @@ O SUS vai muito além do atendimento hospitalar clássico. Seu campo de atuaçã
                   resume={resume}
                   stop={stop}
                   handleExportPdf={downloadSummaryPDF}
-                  handlePrint={() => exportToPrintablePdf(studyData.summary, file ? file.name : "Resumo de Estudos")}
+                  handlePrint={() => exportToPrintablePdf(file ? file.name : "Resumo de Estudos", studyData.summary)}
                   setActiveSubTab={setActiveSubTab}
                 />
               )}

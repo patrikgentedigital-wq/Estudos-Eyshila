@@ -10,7 +10,7 @@ import {
   RoadmapWeek 
 } from "../types";
 import { INITIAL_PROFILE, INITIAL_MODULES, INITIAL_FLASHCARDS } from "../data";
-import { safeGetItem, safeSetItem, safeRemoveItem } from "../utils/storage";
+import { safeGetItem, safeSetItem } from "../utils/storage";
 import { supabase, isSupabaseConfigured } from "../supabase";
 import { measureQuery } from "../dbLogger";
 

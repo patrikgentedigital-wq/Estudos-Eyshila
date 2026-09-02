@@ -93,7 +93,6 @@ export default function ExamPrep({
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   
   const [questionsCount, setQuestionsCount] = useState<number>(10);
-  const [viewMode, setViewMode] = useState<"single" | "list">("list");
   
   const [quizStarted, setQuizStarted] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -103,7 +102,6 @@ export default function ExamPrep({
   const [confidenceByQuestion, setConfidenceByQuestion] = useState<Record<number, 1 | 2 | 3>>({});
   const [seenExternallyByQuestion, setSeenExternallyByQuestion] = useState<Record<number, boolean>>({});
   const [quizFinished, setQuizFinished] = useState(false);
-  const [selectedAttemptForReview, setSelectedAttemptForReview] = useState<ExamAttempt | null>(null);
   
   const [examDurationSec, setExamDurationSec] = useState(600);
   const [timeLeft, setTimeLeft] = useState(600);
@@ -762,7 +760,7 @@ export default function ExamPrep({
                   <button
                     onClick={() => startExam("errors_notebook")}
                     disabled={reviewableErrors.length === 0}
-                    className="px-6 py-3 bg-rose-500 hover:bg-rose-600 disabled:opacity-50 text-white font-bold rounded-xl shadow-lg shadow-rose-500/30 transition-all cursor-pointer"
+                    className="px-6 py-3 bg-rose-500 hover:bg-rose-600 disabled:opacity-50 disabled:cursor-not-allowed enabled:cursor-pointer text-white font-bold rounded-xl shadow-lg shadow-rose-500/30 transition-all"
                   >
                     Revisar questões salvas
                   </button>

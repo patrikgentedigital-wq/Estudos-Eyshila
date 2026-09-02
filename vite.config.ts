@@ -17,7 +17,7 @@ export default defineConfig(() => {
       rollupOptions: {
         output: {
           manualChunks(id) {
-            if (id.includes("/src/data.ts")) return "study-content";
+            if (id.includes("/src/data/") || id.includes("\\src\\data\\")) return "study-content";
             if (id.includes("node_modules/react") || id.includes("node_modules/react-dom")) return "vendor-react";
             if (id.includes("node_modules/lucide-react") || id.includes("node_modules/motion")) return "vendor-ui";
             if (id.includes("node_modules/jspdf")) return "vendor-pdf";
