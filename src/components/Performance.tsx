@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { 
   Award, 
   Clock, 
@@ -64,7 +64,8 @@ export default function Performance({ language, attempts = [] }: PerformanceProp
   const areaD = `${pathD} L ${points[points.length - 1].x} ${chartHeight - padding} L ${points[0].x} ${chartHeight - padding} Z`;
 
   // Get dynamic subjects from past exam attempts
-  const dynamicSubjects = getSubjectScores(attempts);
+  // Performance optimization: getSubjectScores iterates over all questions, memoized it here to avoid repeated evaluation
+  const dynamicSubjects = useMemo(() => getSubjectScores(attempts), [attempts]);
 
   const iconMap: Record<string, any> = {
     Heart,

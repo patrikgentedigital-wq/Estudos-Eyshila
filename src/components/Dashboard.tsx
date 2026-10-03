@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { 
   Award, 
   BookOpen, 
@@ -84,11 +84,13 @@ export default function Dashboard({
   const selectedInstitution = ENARE_INSTITUTIONS.find(i => i.id === selectedInstId) || ENARE_INSTITUTIONS[0];
 
   // Only a complete, unseen form that matches the blueprint can be compared with a cutoff.
-  const benchmarkAttempts = attempts.filter((attempt) => attempt.validForBenchmark === true);
+  // Performance optimization: Memoized the expensive filtering of benchmark attempts
+  const benchmarkAttempts = useMemo(() => attempts.filter((attempt) => attempt.validForBenchmark === true), [attempts]);
   const hasBenchmarkAttempts = benchmarkAttempts.length > 0;
-  const currentAvgScore = hasBenchmarkAttempts
+  // Performance optimization: Memoized the reduction to calculate average score to avoid doing it every render
+  const currentAvgScore = useMemo(() => hasBenchmarkAttempts
     ? Math.round(benchmarkAttempts.reduce((a, b) => a + b.score, 0) / benchmarkAttempts.length)
-    : 0;
+    : 0, [benchmarkAttempts, hasBenchmarkAttempts]);
 
   const cutoffGap = selectedInstitution.cutoffPercentage === null ? null : selectedInstitution.cutoffPercentage - currentAvgScore;
   const isAboveCutoff = hasBenchmarkAttempts && selectedInstitution.cutoffPercentage !== null && currentAvgScore >= selectedInstitution.cutoffPercentage;
@@ -140,13 +142,15 @@ export default function Dashboard({
     setShowAddError(false);
   };
 
-  const totalLessons = modules.reduce((acc, m) => acc + m.lessons.length, 0);
-  const completedLessons = modules.reduce((acc, m) => acc + m.lessons.filter((l) => l.completed).length, 0);
+  // Performance optimization: Memoized expensive total/completed calculation loops
+  const totalLessons = useMemo(() => modules.reduce((acc, m) => acc + m.lessons.length, 0), [modules]);
+  const completedLessons = useMemo(() => modules.reduce((acc, m) => acc + m.lessons.filter((l) => l.completed).length, 0), [modules]);
   const percentLessons = Math.round((completedLessons / totalLessons) * 100) || 0;
 
-  const recommendation = getStudyRecommendation(attempts, modules);
+  // Performance optimization: getStudyRecommendation is computationally heavy, memoizing it reduces main thread blocking
+  const recommendation = useMemo(() => getStudyRecommendation(attempts, modules), [attempts, modules]);
   const cardiModule = recommendation?.recommendedModule || modules[0];
-  const cardiCompleted = cardiModule.lessons.filter(l => l.completed).length;
+  const cardiCompleted = useMemo(() => cardiModule.lessons.filter(l => l.completed).length, [cardiModule]);
   const cardiTotal = cardiModule.lessons.length;
   const cardiPercent = Math.round((cardiCompleted / cardiTotal) * 100);
 
