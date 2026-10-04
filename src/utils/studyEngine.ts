@@ -239,8 +239,17 @@ export function calculateTopicPerformance(
   now: Date = new Date(),
 ): TopicPerformance[] {
   const topics = new Map<string, MutableTopicPerformance>();
+
+  // ⚡ Bolt: Cache enriched questions to avoid redundant, expensive regex operations
+  const enrichedCache = new Map<string, ExamQuestion>();
+
   const ensureTopic = (question: ExamQuestion): MutableTopicPerformance => {
-    const enriched = enrichQuestion(question);
+    let enriched = enrichedCache.get(question.id);
+    if (!enriched) {
+      enriched = enrichQuestion(question);
+      enrichedCache.set(question.id, enriched);
+    }
+
     const id = enriched.competencyId || slugify(enriched.category);
     const existing = topics.get(id);
     if (existing) return existing;
