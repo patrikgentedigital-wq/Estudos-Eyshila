@@ -1,0 +1,3 @@
+## 2026-10-06 - [React Performance Anti-Pattern in Dashboard]
+**Learning:** `Dashboard.tsx` maintains local state for form text inputs (`newError.concept`, `newError.correction`). Typing in these inputs triggers a full re-render of the entire `Dashboard` component. Because the component also synchronously computes expensive metrics like `getStudyRecommendation` (which loops over the entire question bank to calculate topic performance), this creates severe input lag.
+**Action:** When adding controlled text inputs to large parent components, either extract the input into its own component to isolate re-renders, or strictly memoize expensive functions like `getStudyRecommendation()` with `useMemo` so typing doesn't block the main thread.

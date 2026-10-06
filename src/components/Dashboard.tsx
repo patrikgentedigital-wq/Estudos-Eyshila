@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { 
   Award, 
   BookOpen, 
@@ -105,13 +105,17 @@ export default function Dashboard({
     safeSetItem(dailyStorageKey, JSON.stringify({ answers: dailyAnswers, submitted: dailySubmitted }));
   }, [dailyStorageKey, dailyAnswers, dailySubmitted]);
 
-  const studyDateKeys = new Set(attempts.map(attempt => attempt.date).filter(Boolean));
-  let streak = 0;
-  const streakDate = new Date();
-  while (studyDateKeys.has(getLocalDateKey(streakDate))) {
-    streak += 1;
-    streakDate.setDate(streakDate.getDate() - 1);
-  }
+  const studyDateKeys = useMemo(() => new Set(attempts.map(attempt => attempt.date).filter(Boolean)), [attempts]);
+
+  const streak = useMemo(() => {
+    let s = 0;
+    const streakDate = new Date();
+    while (studyDateKeys.has(getLocalDateKey(streakDate))) {
+      s += 1;
+      streakDate.setDate(streakDate.getDate() - 1);
+    }
+    return s;
+  }, [studyDateKeys]);
 
   const toggleChecklistItem = (id: string) => {
     const updated = checklist.map(item => item.id === id ? { ...item, completed: !item.completed } : item);
@@ -140,15 +144,22 @@ export default function Dashboard({
     setShowAddError(false);
   };
 
-  const totalLessons = modules.reduce((acc, m) => acc + m.lessons.length, 0);
-  const completedLessons = modules.reduce((acc, m) => acc + m.lessons.filter((l) => l.completed).length, 0);
-  const percentLessons = Math.round((completedLessons / totalLessons) * 100) || 0;
+  const { totalLessons, completedLessons, percentLessons } = useMemo(() => {
+    const total = modules.reduce((acc, m) => acc + m.lessons.length, 0);
+    const completed = modules.reduce((acc, m) => acc + m.lessons.filter((l) => l.completed).length, 0);
+    const percent = Math.round((completed / total) * 100) || 0;
+    return { totalLessons: total, completedLessons: completed, percentLessons: percent };
+  }, [modules]);
 
-  const recommendation = getStudyRecommendation(attempts, modules);
-  const cardiModule = recommendation?.recommendedModule || modules[0];
-  const cardiCompleted = cardiModule.lessons.filter(l => l.completed).length;
-  const cardiTotal = cardiModule.lessons.length;
-  const cardiPercent = Math.round((cardiCompleted / cardiTotal) * 100);
+  const recommendation = useMemo(() => getStudyRecommendation(attempts, modules), [attempts, modules]);
+
+  const { cardiModule, cardiCompleted, cardiTotal, cardiPercent } = useMemo(() => {
+    const module = recommendation?.recommendedModule || modules[0];
+    const completed = module.lessons.filter(l => l.completed).length;
+    const total = module.lessons.length;
+    const percent = Math.round((completed / total) * 100);
+    return { cardiModule: module, cardiCompleted: completed, cardiTotal: total, cardiPercent: percent };
+  }, [recommendation, modules]);
 
   return (
     <div className="space-y-8 animate-fade-in">
