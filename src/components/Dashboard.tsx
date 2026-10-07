@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { 
   Award, 
   BookOpen, 
@@ -84,11 +84,11 @@ export default function Dashboard({
   const selectedInstitution = ENARE_INSTITUTIONS.find(i => i.id === selectedInstId) || ENARE_INSTITUTIONS[0];
 
   // Only a complete, unseen form that matches the blueprint can be compared with a cutoff.
-  const benchmarkAttempts = attempts.filter((attempt) => attempt.validForBenchmark === true);
+  const benchmarkAttempts = useMemo(() => attempts.filter((attempt) => attempt.validForBenchmark === true), [attempts]);
   const hasBenchmarkAttempts = benchmarkAttempts.length > 0;
-  const currentAvgScore = hasBenchmarkAttempts
+  const currentAvgScore = useMemo(() => hasBenchmarkAttempts
     ? Math.round(benchmarkAttempts.reduce((a, b) => a + b.score, 0) / benchmarkAttempts.length)
-    : 0;
+    : 0, [benchmarkAttempts, hasBenchmarkAttempts]);
 
   const cutoffGap = selectedInstitution.cutoffPercentage === null ? null : selectedInstitution.cutoffPercentage - currentAvgScore;
   const isAboveCutoff = hasBenchmarkAttempts && selectedInstitution.cutoffPercentage !== null && currentAvgScore >= selectedInstitution.cutoffPercentage;
@@ -96,7 +96,7 @@ export default function Dashboard({
   // Daily 3-Question Challenge State
   const todayKey = getLocalDateKey(new Date());
   const dailySeed = todayKey.split("-").reduce((sum, part) => sum + Number(part), 0);
-  const dailyQuestions = Array.from({ length: Math.min(3, DAILY_QUESTION_POOL.length) }, (_, index) => DAILY_QUESTION_POOL[(dailySeed + index) % DAILY_QUESTION_POOL.length]);
+  const dailyQuestions = useMemo(() => Array.from({ length: Math.min(3, DAILY_QUESTION_POOL.length) }, (_, index) => DAILY_QUESTION_POOL[(dailySeed + index) % DAILY_QUESTION_POOL.length]), [dailySeed]);
   const dailyStorageKey = `residency_daily:v2:${profile.email || "local"}:${todayKey}`;
   const [dailyAnswers, setDailyAnswers] = useState<{ [key: number]: number }>(() => loadDailyState(dailyStorageKey).answers || {});
   const [dailySubmitted, setDailySubmitted] = useState<boolean>(() => Boolean(loadDailyState(dailyStorageKey).submitted));
@@ -105,13 +105,16 @@ export default function Dashboard({
     safeSetItem(dailyStorageKey, JSON.stringify({ answers: dailyAnswers, submitted: dailySubmitted }));
   }, [dailyStorageKey, dailyAnswers, dailySubmitted]);
 
-  const studyDateKeys = new Set(attempts.map(attempt => attempt.date).filter(Boolean));
-  let streak = 0;
-  const streakDate = new Date();
-  while (studyDateKeys.has(getLocalDateKey(streakDate))) {
-    streak += 1;
-    streakDate.setDate(streakDate.getDate() - 1);
-  }
+  const streak = useMemo(() => {
+    const studyDateKeys = new Set(attempts.map(attempt => attempt.date).filter(Boolean));
+    let calculatedStreak = 0;
+    const streakDate = new Date();
+    while (studyDateKeys.has(getLocalDateKey(streakDate))) {
+      calculatedStreak += 1;
+      streakDate.setDate(streakDate.getDate() - 1);
+    }
+    return calculatedStreak;
+  }, [attempts]);
 
   const toggleChecklistItem = (id: string) => {
     const updated = checklist.map(item => item.id === id ? { ...item, completed: !item.completed } : item);
@@ -140,14 +143,14 @@ export default function Dashboard({
     setShowAddError(false);
   };
 
-  const totalLessons = modules.reduce((acc, m) => acc + m.lessons.length, 0);
-  const completedLessons = modules.reduce((acc, m) => acc + m.lessons.filter((l) => l.completed).length, 0);
+  const totalLessons = useMemo(() => modules.reduce((acc, m) => acc + m.lessons.length, 0), [modules]);
+  const completedLessons = useMemo(() => modules.reduce((acc, m) => acc + m.lessons.filter((l) => l.completed).length, 0), [modules]);
   const percentLessons = Math.round((completedLessons / totalLessons) * 100) || 0;
 
-  const recommendation = getStudyRecommendation(attempts, modules);
+  const recommendation = useMemo(() => getStudyRecommendation(attempts, modules), [attempts, modules]);
   const cardiModule = recommendation?.recommendedModule || modules[0];
-  const cardiCompleted = cardiModule.lessons.filter(l => l.completed).length;
-  const cardiTotal = cardiModule.lessons.length;
+  const cardiCompleted = useMemo(() => cardiModule.lessons.filter(l => l.completed).length, [cardiModule]);
+  const cardiTotal = useMemo(() => cardiModule.lessons.length, [cardiModule]);
   const cardiPercent = Math.round((cardiCompleted / cardiTotal) * 100);
 
   return (
