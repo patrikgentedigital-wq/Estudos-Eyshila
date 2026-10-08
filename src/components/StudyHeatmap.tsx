@@ -6,7 +6,11 @@ interface StudyHeatmapProps {
   attempts?: ExamAttempt[];
 }
 
-export default function StudyHeatmap({ attempts = [] }: StudyHeatmapProps) {
+// ⚡ Bolt Performance Optimization
+// What: Wrapped StudyHeatmap in React.memo()
+// Why: Prevents expensive date calculations and O(n*m) iteration over attempts when the parent Dashboard re-renders (e.g., when toggling checklist items or daily questions).
+// Impact: Eliminates unnecessary re-renders of the heatmap component when the attempts array reference hasn't changed.
+const StudyHeatmap = React.memo(function StudyHeatmap({ attempts = [] }: StudyHeatmapProps) {
   // Compute real study activity by day of the month
   const today = new Date();
   const year = today.getFullYear();
@@ -100,4 +104,6 @@ export default function StudyHeatmap({ attempts = [] }: StudyHeatmapProps) {
       </div>
     </div>
   );
-}
+});
+
+export default StudyHeatmap;
