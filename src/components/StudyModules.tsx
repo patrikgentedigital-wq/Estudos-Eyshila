@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { 
   Search, 
   BookOpen, 
@@ -137,24 +137,29 @@ export default function StudyModules({
   };
 
   // Combine user modules and official modules without duplicates
-  const existingIds = new Set(modules.map(m => m.id));
-  const uniqueOfficial = OFFICIAL_MODULES.filter(om => !existingIds.has(om.id));
-  const allAvailableModules = [...modules, ...uniqueOfficial];
+  const allAvailableModules = useMemo(() => {
+    const existingIds = new Set(modules.map(m => m.id));
+    const uniqueOfficial = OFFICIAL_MODULES.filter(om => !existingIds.has(om.id));
+    return [...modules, ...uniqueOfficial];
+  }, [modules]);
 
-  const filteredModules = allAvailableModules.filter((m) => {
-    const matchesSearch = m.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          m.description.toLowerCase().includes(searchQuery.toLowerCase());
+  const filteredModules = useMemo(() => {
+    const query = searchQuery.toLowerCase();
+    return allAvailableModules.filter((m) => {
+      const matchesSearch = m.title.toLowerCase().includes(query) ||
+                            m.description.toLowerCase().includes(query);
 
-    if (!matchesSearch) return false;
+      if (!matchesSearch) return false;
 
-    if (filter === "official") return (m as any).isOfficial;
-    const total = m.lessons.length;
-    const completed = m.lessons.filter((l) => l.completed).length;
+      if (filter === "official") return (m as any).isOfficial;
+      const total = m.lessons.length;
+      const completed = m.lessons.filter((l) => l.completed).length;
 
-    if (filter === "completed") return completed === total && total > 0;
-    if (filter === "in-progress") return completed > 0 && completed < total;
-    return true;
-  });
+      if (filter === "completed") return completed === total && total > 0;
+      if (filter === "in-progress") return completed > 0 && completed < total;
+      return true;
+    });
+  }, [allAvailableModules, searchQuery, filter]);
 
   return (
     <div className="space-y-6 animate-fade-in">
