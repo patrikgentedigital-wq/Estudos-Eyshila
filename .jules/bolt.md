@@ -1,0 +1,3 @@
+## 2024-05-15 - Missing Memoization on Heavy Data Aggregations
+**Learning:** In React, running heavy aggregation algorithms like iterating over exam attempts and matching text against regex to compute scores (e.g. `getStudyRecommendation`, `getSubjectScores`) synchronously within the main render loop can severely block the main thread and drop frames, particularly when these components re-render frequently due to other localized state changes (like form typing or tab switching).
+**Action:** Always wrap computationally expensive derivation functions inside `useMemo()` to ensure they only re-run when their specific dependencies (e.g., `attempts`, `modules`) change, preserving UI responsiveness.
