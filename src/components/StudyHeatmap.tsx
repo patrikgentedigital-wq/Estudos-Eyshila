@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Calendar } from "lucide-react";
 import { ExamAttempt } from "../types";
 
@@ -8,27 +8,39 @@ interface StudyHeatmapProps {
 
 export default function StudyHeatmap({ attempts = [] }: StudyHeatmapProps) {
   // Compute real study activity by day of the month
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = today.getMonth();
-  const daysInCurrentMonth = new Date(year, month + 1, 0).getDate();
-  const daysInMonth = Array.from({ length: daysInCurrentMonth }, (_, i) => {
-    const dayNum = i + 1;
-    // Count attempts made on this day or calculate activity intensity
-    const attemptsOnDay = attempts.filter(a => {
-      if (!a.date) return false;
+  const { daysInMonth, activeDaysCount, daysInCurrentMonth } = useMemo(() => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const daysInCurrentMonth = new Date(year, month + 1, 0).getDate();
+
+    // O(N) pre-processing map to count attempts by day of the current month
+    const attemptsByDay = new Map<number, number>();
+    for (const a of attempts) {
+      if (!a.date) continue;
       const dateStr = a.date.includes("T") ? a.date : `${a.date}T00:00:00`;
       const d = new Date(dateStr);
-      if (Number.isNaN(d.getTime())) return false;
-      return d.getFullYear() === year && d.getMonth() === month && d.getDate() === dayNum;
-    }).length;
+      if (Number.isNaN(d.getTime())) continue;
 
-    // Intensity level: 0 = none, 1 = low, 2 = medium, 3 = high
-    let intensity = attemptsOnDay > 2 ? 3 : attemptsOnDay > 0 ? 2 : 0;
-    return { day: dayNum, intensity, count: attemptsOnDay };
-  });
+      if (d.getFullYear() === year && d.getMonth() === month) {
+        const day = d.getDate();
+        attemptsByDay.set(day, (attemptsByDay.get(day) || 0) + 1);
+      }
+    }
 
-  const activeDaysCount = daysInMonth.filter(d => d.intensity > 0).length;
+    const daysInMonth = Array.from({ length: daysInCurrentMonth }, (_, i) => {
+      const dayNum = i + 1;
+      const attemptsOnDay = attemptsByDay.get(dayNum) || 0;
+
+      // Intensity level: 0 = none, 1 = low, 2 = medium, 3 = high
+      let intensity = attemptsOnDay > 2 ? 3 : attemptsOnDay > 0 ? 2 : 0;
+      return { day: dayNum, intensity, count: attemptsOnDay };
+    });
+
+    const activeDaysCount = daysInMonth.filter(d => d.intensity > 0).length;
+
+    return { daysInMonth, activeDaysCount, daysInCurrentMonth };
+  }, [attempts]);
 
   const getCellColor = (intensity: number) => {
     switch (intensity) {
