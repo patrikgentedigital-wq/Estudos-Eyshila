@@ -6,27 +6,37 @@ interface StudyHeatmapProps {
   attempts?: ExamAttempt[];
 }
 
-export default function StudyHeatmap({ attempts = [] }: StudyHeatmapProps) {
+export default React.memo(function StudyHeatmap({ attempts = [] }: StudyHeatmapProps) {
   // Compute real study activity by day of the month
   const today = new Date();
   const year = today.getFullYear();
   const month = today.getMonth();
   const daysInCurrentMonth = new Date(year, month + 1, 0).getDate();
-  const daysInMonth = Array.from({ length: daysInCurrentMonth }, (_, i) => {
-    const dayNum = i + 1;
-    // Count attempts made on this day or calculate activity intensity
-    const attemptsOnDay = attempts.filter(a => {
-      if (!a.date) return false;
+
+  const daysInMonth = React.useMemo(() => {
+    // ⚡ Bolt: Optimize from O(N * 30) to O(N + 30) using a Map for O(1) lookups
+    const attemptsByDay = new Map<number, number>();
+
+    attempts.forEach(a => {
+      if (!a.date) return;
       const dateStr = a.date.includes("T") ? a.date : `${a.date}T00:00:00`;
       const d = new Date(dateStr);
-      if (Number.isNaN(d.getTime())) return false;
-      return d.getFullYear() === year && d.getMonth() === month && d.getDate() === dayNum;
-    }).length;
+      if (Number.isNaN(d.getTime())) return;
+      if (d.getFullYear() === year && d.getMonth() === month) {
+        const day = d.getDate();
+        attemptsByDay.set(day, (attemptsByDay.get(day) || 0) + 1);
+      }
+    });
 
-    // Intensity level: 0 = none, 1 = low, 2 = medium, 3 = high
-    let intensity = attemptsOnDay > 2 ? 3 : attemptsOnDay > 0 ? 2 : 0;
-    return { day: dayNum, intensity, count: attemptsOnDay };
-  });
+    return Array.from({ length: daysInCurrentMonth }, (_, i) => {
+      const dayNum = i + 1;
+      const attemptsOnDay = attemptsByDay.get(dayNum) || 0;
+
+      // Intensity level: 0 = none, 1 = low, 2 = medium, 3 = high
+      let intensity = attemptsOnDay > 2 ? 3 : attemptsOnDay > 0 ? 2 : 0;
+      return { day: dayNum, intensity, count: attemptsOnDay };
+    });
+  }, [attempts, year, month, daysInCurrentMonth]);
 
   const activeDaysCount = daysInMonth.filter(d => d.intensity > 0).length;
 
@@ -100,4 +110,4 @@ export default function StudyHeatmap({ attempts = [] }: StudyHeatmapProps) {
       </div>
     </div>
   );
-}
+});
