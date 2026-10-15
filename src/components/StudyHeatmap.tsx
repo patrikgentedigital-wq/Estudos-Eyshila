@@ -12,23 +12,37 @@ export default function StudyHeatmap({ attempts = [] }: StudyHeatmapProps) {
   const year = today.getFullYear();
   const month = today.getMonth();
   const daysInCurrentMonth = new Date(year, month + 1, 0).getDate();
+
+  // O(N) pass to group attempt counts by day of the month
+  const attemptCountsByDay = new Map<number, number>();
+  for (let i = 0; i < attempts.length; i++) {
+    const a = attempts[i];
+    if (!a.date) continue;
+
+    const dateStr = a.date.includes("T") ? a.date : `${a.date}T00:00:00`;
+    const d = new Date(dateStr);
+
+    if (!Number.isNaN(d.getTime()) && d.getFullYear() === year && d.getMonth() === month) {
+      const dayNum = d.getDate();
+      attemptCountsByDay.set(dayNum, (attemptCountsByDay.get(dayNum) || 0) + 1);
+    }
+  }
+
   const daysInMonth = Array.from({ length: daysInCurrentMonth }, (_, i) => {
     const dayNum = i + 1;
-    // Count attempts made on this day or calculate activity intensity
-    const attemptsOnDay = attempts.filter(a => {
-      if (!a.date) return false;
-      const dateStr = a.date.includes("T") ? a.date : `${a.date}T00:00:00`;
-      const d = new Date(dateStr);
-      if (Number.isNaN(d.getTime())) return false;
-      return d.getFullYear() === year && d.getMonth() === month && d.getDate() === dayNum;
-    }).length;
+
+    // O(1) lookup instead of O(N) filtering per day
+    const attemptsOnDay = attemptCountsByDay.get(dayNum) || 0;
 
     // Intensity level: 0 = none, 1 = low, 2 = medium, 3 = high
     let intensity = attemptsOnDay > 2 ? 3 : attemptsOnDay > 0 ? 2 : 0;
     return { day: dayNum, intensity, count: attemptsOnDay };
   });
 
-  const activeDaysCount = daysInMonth.filter(d => d.intensity > 0).length;
+  let activeDaysCount = 0;
+  for (let i = 0; i < daysInMonth.length; i++) {
+    if (daysInMonth[i].intensity > 0) activeDaysCount++;
+  }
 
   const getCellColor = (intensity: number) => {
     switch (intensity) {
