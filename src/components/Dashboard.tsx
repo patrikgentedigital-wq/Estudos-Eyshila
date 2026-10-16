@@ -84,19 +84,28 @@ export default function Dashboard({
   const selectedInstitution = ENARE_INSTITUTIONS.find(i => i.id === selectedInstId) || ENARE_INSTITUTIONS[0];
 
   // Only a complete, unseen form that matches the blueprint can be compared with a cutoff.
-  const benchmarkAttempts = attempts.filter((attempt) => attempt.validForBenchmark === true);
-  const hasBenchmarkAttempts = benchmarkAttempts.length > 0;
-  const currentAvgScore = hasBenchmarkAttempts
-    ? Math.round(benchmarkAttempts.reduce((a, b) => a + b.score, 0) / benchmarkAttempts.length)
-    : 0;
+  // ⚡ Bolt: Memoized derived state to prevent O(N) array filtering and mapping on every re-render.
+  const {
+    benchmarkAttempts,
+    hasBenchmarkAttempts,
+    currentAvgScore,
+  } = React.useMemo(() => {
+    const bench = attempts.filter((attempt) => attempt.validForBenchmark === true);
+    const hasBench = bench.length > 0;
+    const avg = hasBench ? Math.round(bench.reduce((a, b) => a + b.score, 0) / bench.length) : 0;
+    return { benchmarkAttempts: bench, hasBenchmarkAttempts: hasBench, currentAvgScore: avg };
+  }, [attempts]);
 
   const cutoffGap = selectedInstitution.cutoffPercentage === null ? null : selectedInstitution.cutoffPercentage - currentAvgScore;
   const isAboveCutoff = hasBenchmarkAttempts && selectedInstitution.cutoffPercentage !== null && currentAvgScore >= selectedInstitution.cutoffPercentage;
 
   // Daily 3-Question Challenge State
   const todayKey = getLocalDateKey(new Date());
-  const dailySeed = todayKey.split("-").reduce((sum, part) => sum + Number(part), 0);
-  const dailyQuestions = Array.from({ length: Math.min(3, DAILY_QUESTION_POOL.length) }, (_, index) => DAILY_QUESTION_POOL[(dailySeed + index) % DAILY_QUESTION_POOL.length]);
+  // ⚡ Bolt: Memoized daily questions mapping to prevent re-calculating and slicing arrays on every render.
+  const dailyQuestions = React.useMemo(() => {
+    const dailySeed = todayKey.split("-").reduce((sum, part) => sum + Number(part), 0);
+    return Array.from({ length: Math.min(3, DAILY_QUESTION_POOL.length) }, (_, index) => DAILY_QUESTION_POOL[(dailySeed + index) % DAILY_QUESTION_POOL.length]);
+  }, [todayKey]);
   const dailyStorageKey = `residency_daily:v2:${profile.email || "local"}:${todayKey}`;
   const [dailyAnswers, setDailyAnswers] = useState<{ [key: number]: number }>(() => loadDailyState(dailyStorageKey).answers || {});
   const [dailySubmitted, setDailySubmitted] = useState<boolean>(() => Boolean(loadDailyState(dailyStorageKey).submitted));
@@ -105,13 +114,17 @@ export default function Dashboard({
     safeSetItem(dailyStorageKey, JSON.stringify({ answers: dailyAnswers, submitted: dailySubmitted }));
   }, [dailyStorageKey, dailyAnswers, dailySubmitted]);
 
-  const studyDateKeys = new Set(attempts.map(attempt => attempt.date).filter(Boolean));
-  let streak = 0;
-  const streakDate = new Date();
-  while (studyDateKeys.has(getLocalDateKey(streakDate))) {
-    streak += 1;
-    streakDate.setDate(streakDate.getDate() - 1);
-  }
+  // ⚡ Bolt: Memoized streak calculation to avoid Set creation and Date while-loops on every render.
+  const streak = React.useMemo(() => {
+    const studyDateKeys = new Set(attempts.map(attempt => attempt.date).filter(Boolean));
+    let s = 0;
+    const streakDate = new Date();
+    while (studyDateKeys.has(getLocalDateKey(streakDate))) {
+      s += 1;
+      streakDate.setDate(streakDate.getDate() - 1);
+    }
+    return s;
+  }, [attempts]);
 
   const toggleChecklistItem = (id: string) => {
     const updated = checklist.map(item => item.id === id ? { ...item, completed: !item.completed } : item);
@@ -140,15 +153,31 @@ export default function Dashboard({
     setShowAddError(false);
   };
 
-  const totalLessons = modules.reduce((acc, m) => acc + m.lessons.length, 0);
-  const completedLessons = modules.reduce((acc, m) => acc + m.lessons.filter((l) => l.completed).length, 0);
-  const percentLessons = Math.round((completedLessons / totalLessons) * 100) || 0;
+  // ⚡ Bolt: Memoized module lesson counts to prevent multiple O(N) reduce iterations on every render.
+  const {
+    totalLessons,
+    completedLessons,
+    percentLessons
+  } = React.useMemo(() => {
+    const total = modules.reduce((acc, m) => acc + m.lessons.length, 0);
+    const completed = modules.reduce((acc, m) => acc + m.lessons.filter((l) => l.completed).length, 0);
+    const percent = Math.round((completed / total) * 100) || 0;
+    return { totalLessons: total, completedLessons: completed, percentLessons: percent };
+  }, [modules]);
 
-  const recommendation = getStudyRecommendation(attempts, modules);
-  const cardiModule = recommendation?.recommendedModule || modules[0];
-  const cardiCompleted = cardiModule.lessons.filter(l => l.completed).length;
-  const cardiTotal = cardiModule.lessons.length;
-  const cardiPercent = Math.round((cardiCompleted / cardiTotal) * 100);
+  // ⚡ Bolt: Memoized recommendations engine so the complex heuristic functions aren't evaluated unnecessarily.
+  const {
+    recommendation,
+    cardiModule,
+    cardiPercent
+  } = React.useMemo(() => {
+    const rec = getStudyRecommendation(attempts, modules);
+    const cardi = rec?.recommendedModule || modules[0];
+    const cardiComp = cardi.lessons.filter(l => l.completed).length;
+    const cardiTot = cardi.lessons.length;
+    const cardiPerc = Math.round((cardiComp / cardiTot) * 100);
+    return { recommendation: rec, cardiModule: cardi, cardiPercent: cardiPerc };
+  }, [attempts, modules]);
 
   return (
     <div className="space-y-8 animate-fade-in">
